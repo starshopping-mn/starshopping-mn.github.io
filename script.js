@@ -213,24 +213,43 @@ function buildHomeMotion() {
         pin: true,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        // the pin inserts a spacer that moves everything below it, so this has
+        // to be measured before the category trigger reads its own position
+        refreshPriority: 1,
       },
     })
     .to(".hero__cue", { opacity: 0, duration: 0.12 }, 0)
     .to(".hero__word", { opacity: 0, duration: 0.34, ease: "power1.in" }, 0.04)
     .to(camImg, { scale: 11, x: lensOffset("x"), y: lensOffset("y"), duration: 1, ease: "power2.in" }, 0)
-    .to(".hero__veil", { opacity: 1, duration: 0.3 }, 0.7);
+    // black only at the very end — any earlier and the tail of the pin is
+    // spent staring at an empty screen
+    .to(".hero__veil", { opacity: 1, duration: 0.14 }, 0.86);
 
+  /* Pinned for its own short beat so the categories grow out of the black in
+     place. Without the pin they would scale up while sliding past, which
+     reads as sliding in from below rather than emerging from the dark. */
   homeTriggers.push(
     gsap.fromTo(
       ".cats__emerge",
       { scale: 0.3, opacity: 0 },
-      { scale: 1, opacity: 1, ease: "power2.out",
-        scrollTrigger: { trigger: "#cats", start: "top 92%", end: "top 12%", scrub: 0.5 } }
+      {
+        scale: 1, opacity: 1, ease: "power2.out",
+        scrollTrigger: {
+          trigger: "#cats",
+          start: "top top",
+          end: "+=70%",
+          scrub: 0.5,
+          pin: true,
+          anticipatePin: 1,
+          refreshPriority: -1,
+        },
+      }
     ).scrollTrigger,
     ScrollTrigger.create({
       trigger: "#cats",
       start: "top 80%",
       end: "bottom 20%",
+      refreshPriority: -1,
       onToggle: (self) => (self.isActive ? startCycle() : stopCycle()),
     })
   );
@@ -241,6 +260,7 @@ function buildHomeMotion() {
         trigger: `#${id}`,
         start: "top 55%",
         end: "bottom 45%",
+        refreshPriority: -1,
         onEnter: () => setRail(id),
         onEnterBack: () => setRail(id),
       })
