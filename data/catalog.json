@@ -8,9 +8,9 @@
     "email": "Ariunbold.agency@gmail.com",
     "orderPrefix": "SS-",
     "delivery": [
-      { "name": "Энгийн хүргэлт", "price": 6000 },
-      { "name": "Шуурхай хүргэлт", "price": 12000 },
-      { "name": "Алслагдсан бүс", "price": 8000, "priceMax": 12000 }
+      { "name": "Энгийн хүргэлт", "price": 6000, "note": "Улаанбаатар хот" },
+      { "name": "Шуурхай хүргэлт", "price": 12000, "note": "Улаанбаатар хот" },
+      { "name": "Орон нутаг", "price": 6000, "note": "Унаагаар илгээнэ · урьдчилж төлнө", "prepaid": true }
     ]
   },
 
