@@ -12,8 +12,11 @@
      trimmed asset — the whole zoom transition pivots on this point */
   --lens-x: 52.1%;
   --lens-y: 87.5%;
-  --cam-h: 104svh;
-  --cam-top: -11svh;
+  /* The lens sits 87.5% down the image and is what the scroll zooms into, so
+     the offset is chosen to land it around 72% of the viewport — high enough
+     to stay visible once an in-app browser's chrome takes its cut. */
+  --cam-h: 92svh;
+  --cam-top: -8.5svh;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -210,20 +213,30 @@ a { color: inherit; text-decoration: none; }
 .cats {
   position: relative;
   min-height: 100vh; min-height: 100svh;
-  display: grid; place-items: center;
-  padding: 5rem 1.1rem 2.5rem;
+  display: flex;
+  padding: 5rem 1.1rem 2rem;
   background: linear-gradient(100deg, var(--bg) 52%, var(--bg-tint) 100%);
 }
 
+/* `margin: auto` rather than centred alignment: in short viewports — an
+   in-app browser with its own chrome, say — centring pushes the top of the
+   block off screen behind the header. Auto margins collapse to the start
+   instead of overflowing upward. */
 .cats__emerge {
+  margin: auto;
   width: 100%; max-width: 1100px;
   display: flex; flex-direction: column; align-items: center;
-  gap: 1.2rem;
+  gap: 1rem;
   will-change: transform, opacity;
 }
 
 .cats__eyebrow { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.2em; }
-.cats__stage { position: relative; width: 100%; height: 56svh; }
+/* clamped so the section still fits once browser chrome eats into the view */
+.cats__stage {
+  position: relative;
+  width: 100%;
+  height: clamp(200px, 46svh, 360px);
+}
 
 .cat {
   position: absolute; inset: 0;
@@ -823,7 +836,7 @@ textarea.input { resize: vertical; min-height: 74px; }
 
 /* ============================== desktop ============================== */
 @media (min-width: 860px) {
-  :root { --cam-h: 116svh; --cam-top: -24svh; }
+  :root { --cam-h: 104svh; --cam-top: -19svh; }
 
   .topbar { padding: 1.4rem 2.4rem; }
   .brand__mark { height: 26px; }
@@ -860,6 +873,20 @@ textarea.input { resize: vertical; min-height: 74px; }
   .buy { max-width: 420px; }
   .trust { grid-template-columns: repeat(4, 1fr); }
   .order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+}
+
+/* In-app browsers (Instagram, Facebook) keep their own chrome on screen, so
+   the usable height can drop well below a normal phone viewport. Tighten the
+   full-height sections rather than letting them overflow. */
+@media (max-height: 640px) {
+  .cats { padding-top: 4.4rem; padding-bottom: 1.4rem; }
+  .cats__emerge { gap: 0.7rem; }
+  .cats__stage { height: clamp(180px, 42svh, 300px); }
+  .cats__nav { gap: 0.6rem; }
+  .cats__hint { font-size: 0.86rem; }
+  .arrow { width: 50px; height: 50px; }
+  .arrow svg { width: 22px; height: 22px; }
+  .cat__cta { padding: 0.5rem 0.9rem; font-size: 0.75rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

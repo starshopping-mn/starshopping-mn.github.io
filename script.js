@@ -1,5 +1,11 @@
 gsap.registerPlugin(ScrollTrigger);
 
+/* A reload normally restores the previous scroll position. The hero is a
+   pinned, scrubbed section, so being measured from a half-scrolled start
+   leaves it stuck mid-zoom — the camera blown up and the type gone. Opting
+   out of scroll restoration makes every load begin from a known state. */
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
 /* ========================================================================
    DATA
    Live catalogue comes from the Apps Script web app bound to the shop's
@@ -1197,7 +1203,11 @@ loadCatalog()
     };
     renderCategories();
     showCat(0);
+    window.scrollTo(0, 0);
     route();
+    // one more pass after layout settles: fonts and images landing late can
+    // shift the pin's measurements
+    requestAnimationFrame(() => ScrollTrigger.refresh());
   })
   .catch((err) => {
     console.error("Каталог ачаалж чадсангүй:", err);
