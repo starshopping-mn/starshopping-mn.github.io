@@ -20,11 +20,21 @@ const DATA_FALLBACK = "data/catalog.json";
 
 let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [] };
 
+/* Assets shipped with the site that also exist as WebP. The sheet stores the
+   .png path, so swapping here keeps those cells untouched while cutting the
+   download by ~90%. Only files that genuinely have a .webp are listed — a
+   blind rewrite would break any image that does not. */
+const WEBP_ASSETS = {
+  "assets/product-clock.png": "assets/product-clock.webp",
+  "assets/product-turntable.png": "assets/product-turntable.webp",
+};
+
 /* Sheets get pasted full of Google Drive share links rather than direct
    image URLs, so normalise those into something an <img> can actually load. */
 function imageUrl(raw) {
   const s = String(raw || "").trim();
   if (!s) return "";
+  if (WEBP_ASSETS[s]) return WEBP_ASSETS[s];
   const drive = s.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/);
   if (drive) return `https://drive.google.com/thumbnail?id=${drive[1]}&sz=w1200`;
   return s;

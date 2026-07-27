@@ -10,6 +10,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<!-- the hero photo is the first thing anyone sees; start it before the parser
+     reaches the markup rather than after the stylesheet resolves -->
+<link rel="preload" as="image" href="assets/hero-camera.webp" type="image/webp" fetchpriority="high">
 
 <!-- Meta Pixel -->
 <script>
@@ -29,7 +32,7 @@ src="https://www.facebook.com/tr?id=1673931670377637&ev=PageView&noscript=1"/></
 <!-- fixed chrome ------------------------------------------------------- -->
 <header class="topbar">
   <a class="brand" href="#/">
-    <img class="brand__mark" src="assets/logo-mark.png" alt="">
+    <img class="brand__mark" src="assets/logo-mark.webp" alt="">
     <span class="brand__name">Starshopping</span>
   </a>
   <div class="topbar__icons">
@@ -65,7 +68,10 @@ src="https://www.facebook.com/tr?id=1673931670377637&ev=PageView&noscript=1"/></
       <div class="hero__inner">
         <span class="hero__word hero__word--back" style="--chars:4">STAR</span>
         <div class="hero__cam">
-          <img src="assets/hero-camera.png" alt="Онцлох бүтээгдэхүүн — камер">
+          <picture>
+            <source srcset="assets/hero-camera.webp" type="image/webp">
+            <img src="assets/hero-camera.png" alt="Онцлох бүтээгдэхүүн — камер" fetchpriority="high">
+          </picture>
         </div>
         <span class="hero__word hero__word--front" style="--chars:8">SHOPPING</span>
         <div class="hero__veil"></div>
@@ -127,7 +133,7 @@ src="https://www.facebook.com/tr?id=1673931670377637&ev=PageView&noscript=1"/></
 <footer class="foot">
   <div class="foot__inner">
     <a class="foot__brand" href="#/">
-      <img src="assets/logo-mark.png" alt="">
+      <img src="assets/logo-mark.webp" alt="">
       <span>Starshopping</span>
     </a>
     <nav class="foot__links">
