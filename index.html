@@ -149,8 +149,10 @@ src="https://www.facebook.com/tr?id=1673931670377637&ev=PageView&noscript=1"/></
   </div>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<!-- served from our own origin: a CDN hop is another DNS + TLS handshake
+     before any of the motion or the catalogue can start -->
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

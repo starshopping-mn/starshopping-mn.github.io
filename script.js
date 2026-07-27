@@ -1210,36 +1210,90 @@ window.addEventListener("hashchange", route);
    ===================================================================== */
 document.getElementById("year").textContent = new Date().getFullYear();
 
-function loadCatalog() {
-  return fetch(DATA_SOURCE)
-    .then((r) => {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    })
-    .catch((err) => {
-      console.warn("Sheet-ээс уншиж чадсангүй, локал каталог руу шилжлээ:", err);
-      return fetch(DATA_FALLBACK).then((r) => r.json());
-    });
+/* The Apps Script feed is the slow link in the chain — measured anywhere from
+   4 to 24 seconds depending on how cold Google's runtime is. Waiting on it
+   would leave the categories blank for that whole time, so the shop paints
+   from whatever is already on hand (last visit's copy, or the bundled file)
+   and quietly corrects itself once the live feed answers.
+
+   Showing a moment-old price is safe here: the backend recomputes every order
+   from the sheet and rejects anything that disagrees, so a stale figure on
+   screen can never turn into a wrong charge. */
+const CACHE_KEY = "ss_catalog_v2";
+
+const readCache = () => {
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+  } catch {
+    return null;
+  }
+};
+const writeCache = (data) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {
+    /* private mode or quota — the feed still works, just without the head start */
+  }
+};
+
+function setDB(data) {
+  DB = {
+    shop: data.shop || {},
+    categories: data.categories || [],
+    products: (data.products || []).map((p) => ({ ...p, images: listOf(p.images) })),
+    bundles: data.bundles || [],
+    reviews: data.reviews || [],
+  };
 }
 
-loadCatalog()
-  .then((data) => {
-    DB = {
-      shop: data.shop || {},
-      categories: data.categories || [],
-      products: (data.products || []).map((p) => ({ ...p, images: listOf(p.images) })),
-      bundles: data.bundles || [],
-      reviews: data.reviews || [],
-    };
-    renderCategories();
-    showCat(0);
+let booted = false;
+
+function paint(data, { first }) {
+  setDB(data);
+  renderCategories();
+  showCat(0);
+  if (first) {
     window.scrollTo(0, 0);
     route();
-    // one more pass after layout settles: fonts and images landing late can
-    // shift the pin's measurements
-    requestAnimationFrame(() => ScrollTrigger.refresh());
+    booted = true;
+  }
+  // fonts and images landing late can shift a pin's measurements
+  requestAnimationFrame(() => ScrollTrigger.refresh());
+}
+
+/* 1 — something on screen straight away */
+const cached = readCache();
+if (cached) {
+  paint(cached, { first: true });
+} else {
+  fetch(DATA_FALLBACK)
+    .then((r) => r.json())
+    .then((data) => {
+      if (!booted) paint(data, { first: true });
+    })
+    .catch(() => {});
+}
+
+/* 2 — the real catalogue, however long it takes */
+fetch(DATA_SOURCE)
+  .then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then((data) => {
+    if (!data || !(data.products || []).length) return;
+    writeCache(data);
+    paint(data, { first: !booted });
   })
   .catch((err) => {
-    console.error("Каталог ачаалж чадсангүй:", err);
-    catsStage.innerHTML = '<p style="opacity:.6;font-size:.85rem">Каталог ачаалж чадсангүй.</p>';
+    console.warn("Sheet-ийн feed ирсэнгүй, одоо байгаа хувилбараар үргэлжилж байна:", err);
+    if (!booted) {
+      fetch(DATA_FALLBACK)
+        .then((r) => r.json())
+        .then((data) => paint(data, { first: true }))
+        .catch(() => {
+          catsStage.innerHTML =
+            '<p style="opacity:.6;font-size:.85rem">Каталог ачаалж чадсангүй.</p>';
+        });
+    }
   });
