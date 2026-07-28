@@ -463,12 +463,50 @@ function readBundles() {
  */
 function readStock() {
   const out = {};
+  const needsCalc = [];
+
   rowsOf(SHEETS.stock).forEach(function (r) {
     const slug = String(r.slug || '').trim();
     if (!slug) return;
     const have = String(r['Агуулахад буй']).trim();
     if (have === '') return;               // тоо бичээгүй бол хязгаарлахгүй
-    out[slug] = Math.max(0, Number(r['Боломжит']) || 0);
+
+    const shown = String(r['Боломжит']).trim();
+    if (shown !== '' && !isNaN(Number(shown))) {
+      out[slug] = Math.max(0, Number(shown));
+    } else {
+      // Мөрийг гараар нэмэхэд томьёо байхгүй байж болно. Хоосныг 0 гэж
+      // уншвал бараа шалтгаангүйгээр хаагдана — тиймээс кодоор боддог.
+      needsCalc.push({ slug: slug, have: Number(have) || 0 });
+    }
+  });
+
+  if (needsCalc.length) {
+    const taken = orderedBySku_();
+    needsCalc.forEach(function (x) {
+      out[x.slug] = Math.max(0, x.have - (taken[x.slug] || 0));
+    });
+  }
+  return out;
+}
+
+/** slug -> цуцлагдаагүй захиалгын нийт тоо ширхэг (Orders + Archive, нэг уншилтаар). */
+function orderedBySku_() {
+  const qtyIdx = ORDER_HEADERS.indexOf('Тоо');
+  const statusIdx = ORDER_HEADERS.indexOf('Төлөв');
+  const skuIdx = ORDER_HEADERS.indexOf('SKU');
+  const out = {};
+
+  [SHEETS.orders, SHEETS.archive].forEach(function (name) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ORDER_HEADERS.length).getValues();
+    values.forEach(function (row) {
+      const sku = String(row[skuIdx]).trim();
+      if (!sku) return;
+      if (String(row[statusIdx]).trim() === CANCELLED) return;
+      out[sku] = (out[sku] || 0) + (Number(row[qtyIdx]) || 0);
+    });
   });
   return out;
 }
@@ -486,23 +524,7 @@ function availableFor_(slug) {
   const have = String(stockRow['Агуулахад буй']).trim();
   if (have === '') return null;
 
-  const qtyIdx = ORDER_HEADERS.indexOf('Тоо');
-  const statusIdx = ORDER_HEADERS.indexOf('Төлөв');
-  const skuIdx = ORDER_HEADERS.indexOf('SKU');
-
-  let taken = 0;
-  [SHEETS.orders, SHEETS.archive].forEach(function (name) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-    if (!sheet || sheet.getLastRow() < 2) return;
-    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ORDER_HEADERS.length).getValues();
-    values.forEach(function (row) {
-      if (String(row[skuIdx]).trim() !== slug) return;
-      if (String(row[statusIdx]).trim() === CANCELLED) return;
-      taken += Number(row[qtyIdx]) || 0;
-    });
-  });
-
-  return Math.max(0, (Number(have) || 0) - taken);
+  return Math.max(0, (Number(have) || 0) - (orderedBySku_()[slug] || 0));
 }
 
 function readReviews() {
