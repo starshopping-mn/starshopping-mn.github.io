@@ -691,6 +691,17 @@ textarea.input { resize: vertical; min-height: 74px; }
 }
 .pick__item.is-locked .pick__dot { border-color: rgba(255, 255, 255, 0.25); }
 
+.leadtime {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.8rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.leadtime b { font-size: 0.95rem; }
+.leadtime span { font-size: 0.75rem; line-height: 1.5; color: var(--fg-dim); }
+
 .pick__lock {
   margin-top: 0.6rem;
   border-left: 2px solid #ffb469;

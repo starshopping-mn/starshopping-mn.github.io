@@ -60,8 +60,18 @@ const PRODUCT_COLS = [
   'sizes', 'sizePrices',
   'colors', 'colorImages', 'sizeImages',
   'image1', 'image2', 'image3', 'image4', 'image5',
-  'stock', 'active'
+  'stock', 'active', 'Горим'
 ];
+
+// "Test" = туршилтын/захиалгат бараа: агуулахад байхгүй, төлбөр нь хойшид
+// тохирогдоно. Хоосон орхивол энгийн борлуулалт гэж үзнэ.
+const MODE_TEST = 'Test';
+const TEST_LEAD_TIME = '7–14 хоног';
+const TEST_PAYMENT = 'Тодорхойгүй (Test)';
+
+function isTestMode_(v) {
+  return String(v || '').trim().toLowerCase() === 'test';
+}
 
 const PRODUCT_NOTES = {
   slug: 'Барааны богино нэр. Латинаар, зайгүй, зурааснаас өөр тэмдэггүй.\nЖишээ: chako-thermos\nДавхардаж болохгүй.',
@@ -81,7 +91,8 @@ const PRODUCT_NOTES = {
   image4: 'Нэмэлт зураг (заавал биш).',
   image5: 'Нэмэлт зураг (заавал биш).',
   stock: 'Үлдэгдэл тоо. 5 ба түүнээс бага бол сайт дээр "Үлдсэн Nш" гэж харагдана.',
-  active: 'TRUE = сайт дээр харагдана.\nFALSE = түр нуугдана (устгах шаардлагагүй).'
+  active: 'TRUE = сайт дээр харагдана.\nFALSE = түр нуугдана (устгах шаардлагагүй).',
+  'Горим': 'Хоосон эсвэл "Идэвхтэй" = энгийн борлуулалт.\n\n"Test" = туршилтын бараа:\n  · төлбөрийн сонголт харагдахгүй\n  · хүргэлт "' + TEST_LEAD_TIME + '" гэж харагдана\n  · нөөц шалгахгүй (агуулахад байхгүй бараа)\n  · Sheet-д төлбөр нь "' + TEST_PAYMENT + '" гэж бичигдэнэ'
 };
 
 const CATEGORY_NOTES = {
@@ -438,6 +449,7 @@ function readProducts() {
         colorImages: splitList(r.colorImages),
         sizeImages: splitList(r.sizeImages),
         stock: Number(r.stock) || 0,
+        mode: isTestMode_(r['Горим']) ? MODE_TEST : 'Идэвхтэй',
         active: true
       };
     });
@@ -575,7 +587,7 @@ function doPost(e) {
       unit,
       ship,
       total,
-      String(body.payment || ''),
+      priced.payment,               // Test бараанд серверээс тогтоогдоно
       'Шинэ',
       String(body.phone2 || ''),
       String(body.slug || '')      // нөөцийн SUMIF энэ баганаар тоолно
@@ -633,17 +645,27 @@ function computeOrder_(body) {
   })[0];
   if (!opt) return { ok: false, error: 'Хүргэлтийн сонголт буруу.' };
 
-  const payment = String(body.payment || '').trim();
-  if (opt.prepaid && payment !== 'Шилжүүлгээр төлөх') {
-    return { ok: false, error: 'Энэ хүргэлтэд урьдчилсан төлбөр шаардлагатай.' };
-  }
+  /* Test бараа нь агуулахад байхгүй, төлбөр нь бэлэн болоход тохирогдоно.
+     Тиймээс төлбөрийн сонголт ч, нөөцийн шалгалт ч хамаарахгүй — төлбөрийн
+     утгыг браузераас биш, энд тогтоож бичнэ. */
+  const test = product.mode === MODE_TEST;
 
-  // Нөөцийн эцсийн хаалт. Хөтөч дээр товч идэвхгүй болсон ч энд дахин
-  // шалгана — хэт зарах нь кодын хувьд боломжгүй байх ёстой.
-  const left = availableFor_(slug);
-  if (left !== null) {
-    if (left <= 0) return { ok: false, error: 'Энэ бараа дууссан байна.' };
-    if (qty > left) return { ok: false, error: 'Үлдэгдэл хүрэлцэхгүй байна. Боломжит: ' + left };
+  let payment;
+  if (test) {
+    payment = TEST_PAYMENT;
+  } else {
+    payment = String(body.payment || '').trim();
+    if (opt.prepaid && payment !== 'Шилжүүлгээр төлөх') {
+      return { ok: false, error: 'Энэ хүргэлтэд урьдчилсан төлбөр шаардлагатай.' };
+    }
+
+    // Нөөцийн эцсийн хаалт. Хөтөч дээр товч идэвхгүй болсон ч энд дахин
+    // шалгана — хэт зарах нь кодын хувьд боломжгүй байх ёстой.
+    const left = availableFor_(slug);
+    if (left !== null) {
+      if (left <= 0) return { ok: false, error: 'Энэ бараа дууссан байна.' };
+      if (qty > left) return { ok: false, error: 'Үлдэгдэл хүрэлцэхгүй байна. Боломжит: ' + left };
+    }
   }
 
   return {
@@ -651,7 +673,9 @@ function computeOrder_(body) {
     qty: qty,
     unit: bundle ? Math.round(bundle.price / qty) : unit,
     ship: opt.price,
-    total: goods + opt.price
+    total: goods + opt.price,
+    payment: payment,
+    test: test
   };
 }
 
