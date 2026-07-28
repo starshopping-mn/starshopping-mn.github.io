@@ -18,7 +18,29 @@ const DATA_SOURCE =
   "https://script.google.com/macros/s/AKfycbzZK-I4L3Cow5KAlLbW0pud0766XduXHzuTys9FIEwXWDTQL36VPywm7bNsk3E6NMqORQ/exec";
 const DATA_FALLBACK = "data/catalog.json";
 
-let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [] };
+let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [], stock: {} };
+
+/* Units left for a SKU, or null when no limit is configured. A product with
+   no stock row stays orderable on purpose: losing sales because inventory was
+   never filled in is worse than the sheet simply not knowing. The backend
+   re-checks every order anyway, so nothing here can oversell. */
+function availableOf(slug) {
+  const v = DB.stock ? DB.stock[slug] : undefined;
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(0, n) : null;
+}
+const isSoldOut = (slug) => availableOf(slug) === 0;
+
+/* Sold out is stated plainly; a low count is only worth showing when it is
+   genuinely low, otherwise it reads as a sales tactic rather than a fact. */
+function stockBadge(slug) {
+  const left = availableOf(slug);
+  if (left === null) return "";
+  if (left === 0) return `<span class="tag tag--out">Дууссан</span>`;
+  if (left <= 5) return `<span class="tag tag--soft">Үлдсэн ${left}ш</span>`;
+  return "";
+}
 
 /* Assets shipped with the site that also exist as WebP. The sheet stores the
    .png path, so swapping here keeps those cells untouched while cutting the
@@ -359,7 +381,8 @@ function renderCategory(slug) {
         ${pr.on ? `<span class="price-was">${money(pr.was)}</span>` : ""}
       </span>
       ${pr.on ? `<span class="tag">-${pr.pct}%</span>` : ""}
-      ${Number(p.stock) > 0 && Number(p.stock) <= 5 ? `<span class="tag tag--soft">Үлдсэн ${p.stock}ш</span>` : ""}`;
+      ${stockBadge(p.slug)}`;
+    if (isSoldOut(p.slug)) row.classList.add("is-soldout");
     row.appendChild(info);
     plist.appendChild(row);
   });
@@ -381,7 +404,11 @@ function renderProduct(slug) {
   // price follows the selected size when the sheet gives one per size
   const priceForSize = (i) => (sizePrices[i] > 0 ? sizePrices[i] : Number(p.price));
   let pr = priceOf(p, sizes.length ? priceForSize(0) : p.price);
-  const bundles = bundlesFor(p.slug);
+  // named for stock specifically: `left` is already the gallery column below
+  const stockLeft = availableOf(p.slug);
+  const soldOut = stockLeft === 0;
+  // a pack you cannot actually fulfil should not be on offer
+  const bundles = bundlesFor(p.slug).filter((b) => stockLeft === null || b.qty <= stockLeft);
   const cat = categoryBy(p.category);
   const revs = reviewsFor(p.slug);
 
@@ -455,6 +482,7 @@ function renderProduct(slug) {
     <h1 class="pdp__name">${esc(p.name)}</h1>
     ${p.desc ? `<p class="pdp__desc">${esc(p.desc)}</p>` : ""}
     <div class="pdp__prices" id="pdpPrices"></div>
+    ${stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
       <div class="opt__row" data-opt="color">
@@ -480,10 +508,17 @@ function renderProduct(slug) {
            </div>`
     }
 
-    <a class="buy" href="#" id="buyBtn">
-      <span class="buy__total" id="buyTotal"></span>
-      <span class="buy__label">ЗАХИАЛАХ</span>
-    </a>
+    ${
+      soldOut
+        ? `<div class="buy buy--out" aria-disabled="true">
+             <span class="buy__label">ДУУССАН</span>
+           </div>
+           <p class="note">Энэ бараа түр дууссан байна. Дахин нөөцлөгдөх үед<br>захиалах боломжтой болно.</p>`
+        : `<a class="buy" href="#" id="buyBtn">
+             <span class="buy__total" id="buyTotal"></span>
+             <span class="buy__label">ЗАХИАЛАХ</span>
+           </a>`
+    }
 
     <div class="trust">
       <div><b>Хүргэлт</b>УБ 6,000₮ · Орон нутаг 6,000₮</div>
@@ -547,6 +582,8 @@ function renderProduct(slug) {
   };
 
   const refreshTotalLine = () => {
+    // absent when the product is sold out — the button is replaced, not hidden
+    if (!buyTotal) return;
     buyTotal.textContent = `${qty} ширхэг · ${money(orderTotal())}`;
   };
 
@@ -581,13 +618,14 @@ function renderProduct(slug) {
 
   right.querySelectorAll(".qty__btn").forEach((b) =>
     b.addEventListener("click", () => {
-      qty = Math.max(1, qty + Number(b.dataset.step));
+      const ceiling = stockLeft === null ? Infinity : stockLeft;
+      qty = Math.min(ceiling, Math.max(1, qty + Number(b.dataset.step)));
       if (qtyVal) qtyVal.textContent = String(qty);
       refreshTotalLine();
     })
   );
 
-  right.querySelector("#buyBtn").addEventListener("click", (e) => {
+  right.querySelector("#buyBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     setDraft({
       slug: p.slug,
@@ -1243,6 +1281,7 @@ function setDB(data) {
     products: (data.products || []).map((p) => ({ ...p, images: listOf(p.images) })),
     bundles: data.bundles || [],
     reviews: data.reviews || [],
+    stock: data.stock || {},
   };
 }
 

@@ -37,9 +37,19 @@ const SHEETS = {
   categories: 'Categories',
   bundles: 'Bundles',
   reviews: 'Reviews',
+  stock: 'Нөөц',
   orders: 'Orders',
   archive: 'Archive',
   guide: 'Заавар'
+};
+
+const STOCK_COLS = ['slug', 'Бараа', 'Агуулахад буй', 'Захиалагдсан', 'Боломжит'];
+const STOCK_NOTES = {
+  slug: 'Products хуудасны slug. Энэ мөр аль барааны нөөц болохыг заана.',
+  'Бараа': 'Барааны нэр — автоматаар татагдана. Гараар засах шаардлагагүй.',
+  'Агуулахад буй': 'ГАРААР БИЧНЭ. Танд агуулахад хэдэн ширхэг байгаа вэ.\nБараа ирэх бүрд энэ тоог нэмнэ.',
+  'Захиалагдсан': 'Автомат тооцоолол. Orders болон Archive дээрх\nцуцлагдаагүй захиалгын тоо ширхгийн нийлбэр.\nГараар засаж болохгүй.',
+  'Боломжит': 'Автомат: Агуулахад буй − Захиалагдсан.\n0 болмогц сайт дээр "Дууссан" болж, захиалга хаагдана.'
 };
 
 /* Products хуудасны багана — холбоотой талбарууд зэрэгцэж байхаар эрэмбэлсэн.
@@ -104,8 +114,22 @@ const ORDER_HEADERS = [
   'Огноо', 'Захиалгын код', 'Нэр', 'Утас', 'Хаяг',
   'Бараа', 'Өнгө', 'Хэмжээ', 'Тоо',
   'Нэгж үнэ', 'Хүргэлт', 'Нийт дүн', 'Төлбөрийн сонголт', 'Төлөв',
-  'Нэмэлт утас'
+  'Нэмэлт утас', 'SKU'
 ];
+
+// захиалга цуцлагдсаныг ийм төлвөөр таниулна — нөөцөд тооцогдохгүй
+const CANCELLED = 'Цуцлагдсан';
+
+/** 1 -> A, 27 -> AA ... томьёо бичихэд баганын үсэг хэрэгтэй */
+function colLetter_(n) {
+  let s = '';
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
 
 /* ====================================================================
    SETUP — дахин ажиллуулахад аюулгүй
@@ -136,11 +160,15 @@ function setup() {
   orderProductColumns_(ss);
   [SHEETS.orders, SHEETS.archive].forEach(function (n) { syncHeaders_(ss, n, ORDER_HEADERS); });
 
+  ensureSheet_(ss, SHEETS.stock, STOCK_COLS, []);
+  syncStock_(ss);
+
   // Тайлбарууд — гарчиг дээр хулгана авчрахад тусламж гарч ирнэ
   annotate_(ss, SHEETS.products, PRODUCT_NOTES);
   annotate_(ss, SHEETS.categories, CATEGORY_NOTES);
   annotate_(ss, SHEETS.bundles, BUNDLE_NOTES);
   annotate_(ss, SHEETS.reviews, REVIEW_NOTES);
+  annotate_(ss, SHEETS.stock, STOCK_NOTES);
 
   buildGuide_(ss);
 
@@ -154,6 +182,72 @@ function setup() {
 }
 
 function upgrade() { setup(); }
+
+/**
+ * Нөөц хуудсыг Products-той тааруулна: шинэ бараанд мөр нэмж, нэр болон
+ * тооцооллын томьёог сэргээнэ. "Агуулахад буй" баганад гараар бичсэн тоог
+ * хэзээ ч дарж бичихгүй.
+ */
+function syncStock_(ss) {
+  const sheet = ss.getSheetByName(SHEETS.stock);
+  const slugs = rowsOf(SHEETS.products)
+    .filter(function (r) { return String(r.slug || '').trim(); })
+    .map(function (r) { return String(r.slug).trim(); });
+
+  const last = sheet.getLastRow();
+  const existing = last > 1
+    ? sheet.getRange(2, 1, last - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); })
+    : [];
+
+  slugs.forEach(function (slug) {
+    if (existing.indexOf(slug) === -1) {
+      sheet.appendRow([slug, '', 0, '', '']);
+      existing.push(slug);
+    }
+  });
+
+  const rows = sheet.getLastRow() - 1;
+  if (rows < 1) return;
+
+  // Баганын байрлалыг гарчгаас нь олж томьёог барина — цаашид багана
+  // нэмэгдэхэд томьёо эвдрэхгүй.
+  const qty = colLetter_(ORDER_HEADERS.indexOf('Тоо') + 1);
+  const status = colLetter_(ORDER_HEADERS.indexOf('Төлөв') + 1);
+  const sku = colLetter_(ORDER_HEADERS.indexOf('SKU') + 1);
+
+  const name = [], ordered = [], avail = [];
+  for (let i = 0; i < rows; i++) {
+    const r = i + 2;
+    name.push(['=IFERROR(VLOOKUP($A' + r + ',' + SHEETS.products + '!$A:$C,3,FALSE),"")']);
+    // Archive-ийг хамт тоолно: 48 цагийн дараа зөөгдсөн захиалга ч нөөцийг
+    // аль хэдийн зарцуулсан байдаг тул хасагдах ёсгүй.
+    ordered.push([
+      '=SUMIFS(' + SHEETS.orders + '!' + qty + ':' + qty +
+        ',' + SHEETS.orders + '!' + sku + ':' + sku + ',$A' + r +
+        ',' + SHEETS.orders + '!' + status + ':' + status + ',"<>' + CANCELLED + '")' +
+      '+SUMIFS(' + SHEETS.archive + '!' + qty + ':' + qty +
+        ',' + SHEETS.archive + '!' + sku + ':' + sku + ',$A' + r +
+        ',' + SHEETS.archive + '!' + status + ':' + status + ',"<>' + CANCELLED + '")'
+    ]);
+    avail.push(['=MAX(0,N($C' + r + ')-N($D' + r + '))']);
+  }
+  sheet.getRange(2, 2, rows, 1).setFormulas(name);
+  sheet.getRange(2, 4, rows, 1).setFormulas(ordered);
+  sheet.getRange(2, 5, rows, 1).setFormulas(avail);
+  sheet.getRange(2, 4, rows, 2).setBackground('#f1f3f4'); // тооцоолол — гар хүрэхгүй
+}
+
+/** Sheet дээрх цэснээс нэг товшилтоор нөөцөө шинэчлэх боломж. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Starshopping')
+    .addItem('Нөөцийг шинэчлэх', 'refreshStock')
+    .addToUi();
+}
+
+function refreshStock() {
+  syncStock_(SpreadsheetApp.getActiveSpreadsheet());
+}
 
 function ensureSheet_(ss, name, headers, rows) {
   let s = ss.getSheetByName(name);
@@ -271,7 +365,8 @@ function doGet() {
       categories: readCategories(),
       products: readProducts(),
       bundles: readBundles(),
-      reviews: readReviews()
+      reviews: readReviews(),
+      stock: readStock()
     }))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -358,6 +453,55 @@ function readBundles() {
     });
 }
 
+/**
+ * slug -> боломжит тоо. Нөөц хуудсанд мөргүй бараа нь энд орохгүй бөгөөд
+ * сайт талдаа "хязгааргүй" гэж үзнэ — нөөц тохируулаагүйн улмаас борлуулалт
+ * зогсох нь тохируулсны улмаас хэт зарахаас дор.
+ */
+function readStock() {
+  const out = {};
+  rowsOf(SHEETS.stock).forEach(function (r) {
+    const slug = String(r.slug || '').trim();
+    if (!slug) return;
+    const have = String(r['Агуулахад буй']).trim();
+    if (have === '') return;               // тоо бичээгүй бол хязгаарлахгүй
+    out[slug] = Math.max(0, Number(r['Боломжит']) || 0);
+  });
+  return out;
+}
+
+/**
+ * Боломжит тоог Sheet-ийн томьёонд биш, кодоор дахин боддог. Томьёо нь
+ * appendRow-ийн дараа шууд дахин тооцоологдох баталгаагүй тул хоёр захиалга
+ * зэрэг ирэхэд хэт зарах эрсдэлтэй. Энэ нь doPost-ийн lock дотор ажиллана.
+ */
+function availableFor_(slug) {
+  const stockRow = rowsOf(SHEETS.stock).filter(function (r) {
+    return String(r.slug || '').trim() === slug;
+  })[0];
+  if (!stockRow) return null;                       // хязгаар тавиагүй
+  const have = String(stockRow['Агуулахад буй']).trim();
+  if (have === '') return null;
+
+  const qtyIdx = ORDER_HEADERS.indexOf('Тоо');
+  const statusIdx = ORDER_HEADERS.indexOf('Төлөв');
+  const skuIdx = ORDER_HEADERS.indexOf('SKU');
+
+  let taken = 0;
+  [SHEETS.orders, SHEETS.archive].forEach(function (name) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ORDER_HEADERS.length).getValues();
+    values.forEach(function (row) {
+      if (String(row[skuIdx]).trim() !== slug) return;
+      if (String(row[statusIdx]).trim() === CANCELLED) return;
+      taken += Number(row[qtyIdx]) || 0;
+    });
+  });
+
+  return Math.max(0, (Number(have) || 0) - taken);
+}
+
 function readReviews() {
   return rowsOf(SHEETS.reviews)
     .filter(function (r) { return (r.text || r.image) && truthy(r.active); })
@@ -408,7 +552,8 @@ function doPost(e) {
       total,
       String(body.payment || ''),
       'Шинэ',
-      String(body.phone2 || '')
+      String(body.phone2 || ''),
+      String(body.slug || '')      // нөөцийн SUMIF энэ баганаар тоолно
     ]);
 
     const count = sheet.getLastRow() - 1;
@@ -466,6 +611,14 @@ function computeOrder_(body) {
   const payment = String(body.payment || '').trim();
   if (opt.prepaid && payment !== 'Шилжүүлгээр төлөх') {
     return { ok: false, error: 'Энэ хүргэлтэд урьдчилсан төлбөр шаардлагатай.' };
+  }
+
+  // Нөөцийн эцсийн хаалт. Хөтөч дээр товч идэвхгүй болсон ч энд дахин
+  // шалгана — хэт зарах нь кодын хувьд боломжгүй байх ёстой.
+  const left = availableFor_(slug);
+  if (left !== null) {
+    if (left <= 0) return { ok: false, error: 'Энэ бараа дууссан байна.' };
+    if (qty > left) return { ok: false, error: 'Үлдэгдэл хүрэлцэхгүй байна. Боломжит: ' + left };
   }
 
   return {

@@ -414,6 +414,34 @@ a { color: inherit; text-decoration: none; }
   padding: 0.2rem 0.5rem; border-radius: 6px;
 }
 .tag--soft { background: rgba(255, 255, 255, 0.12); color: var(--fg-dim); }
+.tag--out {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: var(--fg-dim);
+  letter-spacing: 0.08em;
+}
+
+/* a sold-out row stays readable and still opens — people want to see what it
+   was — but it should not compete with what is actually buyable */
+.prow.is-soldout { opacity: 0.55; }
+.prow.is-soldout .frame { filter: grayscale(1); }
+
+.stockline {
+  margin: -0.9rem 0 1.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffb469;
+}
+
+/* same footprint as the buy button so the layout does not shift */
+.buy--out {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--fg-dim);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.buy--out .buy__label { letter-spacing: 0.16em; }
 
 /* -------- product detail -------- */
 .pdp__gallery {
