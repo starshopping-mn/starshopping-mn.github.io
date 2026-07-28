@@ -201,7 +201,10 @@ function syncStock_(ss) {
 
   slugs.forEach(function (slug) {
     if (existing.indexOf(slug) === -1) {
-      sheet.appendRow([slug, '', 0, '', '']);
+      // "Агуулахад буй" нь ХООСОН байж эхэлнэ — 0 гэдэг нь "дууссан" гэсэн
+      // утгатай тул шинэ бараа автоматаар хаагдах ёсгүй. Эзэн нь бодит
+      // тоогоо бичих хүртэл тухайн бараа хязгааргүй зарагдана.
+      sheet.appendRow([slug, '', '', '', '']);
       existing.push(slug);
     }
   });
