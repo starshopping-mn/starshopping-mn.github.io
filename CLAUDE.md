@@ -1,0 +1,235 @@
+# Starshopping — төслийн гарын авлага
+
+Энэ файлыг **шинэ сесс эхлэх бүрд эхлээд уншина**. Хуучин ярианы түүхийг
+дахин ярих шаардлагагүй — шаардлагатай бүх зүйл энд бий.
+
+---
+
+## 1. Энэ юу вэ
+
+Монгол dropshipping дэлгүүр. Reels/TikTok-ийн зараас ирсэн хүн бараа сонгож,
+захиалга өгөхөд Google Sheet-д бүртгэгддэг.
+
+| | |
+|---|---|
+| **Амьд сайт** | https://starshopping-mn.github.io |
+| **Repo (үндсэн)** | `starshopping-mn/starshopping-mn.github.io` — remote нэр `origin` |
+| **Хуучин repo** | `ariunboldagency-commits/Starshopping` — remote нэр `oldsite`, зөвхөн redirect |
+| **Локал зам** | `C:\Users\ariun\Documents\Starshopping-web` |
+| **Sheet** | [Starshopping — Каталог ба Захиалга](https://docs.google.com/spreadsheets/d/1ZU7rJfHKFqoK7taHpVYQAC3GnFbPGyo83vTgWlVqakM/edit) |
+| **Эзэн** | ariunbold.agency@gmail.com |
+| **Meta Pixel** | 1673931670377637 |
+
+Одоо байгаа бараа/зураг бол **тестийн placeholder**. Бодит бараа хараахан алга.
+
+---
+
+## 2. Архитектур
+
+```
+Хөтөч (GitHub Pages, статик)
+  index.html · style.css · script.js · vendor/gsap · assets/
+        │
+        │  GET  → каталог (бараа, үнэ, нөөц, багц, сэтгэгдэл)
+        │  POST → захиалга
+        ▼
+Google Apps Script Web App  (apps-script/Code.gs)
+        │
+        ▼
+Google Sheet
+  Products · Categories · Нөөц · Bundles · Reviews · Orders · Archive · Заавар
+```
+
+Framework байхгүй, build алхам байхгүй. Гурван файл + GSAP.
+
+**Чиглүүлэлт:** hash-based (`#/c/<slug>`, `#/p/<slug>`, `#/order`, `#/done`,
+`#/policy/<name>`). GitHub Pages дээр сервер тохиргоо шаардахгүй, бараа бүр
+өөрийн хаягтай (Pixel-д чухал).
+
+---
+
+## 3. ⚠️ Эвдэж болохгүй зүйлс
+
+Эдгээрийг олоход маш их зовсон. Өөрчлөхийн өмнө хэмжиж бат.
+
+### Hero-гийн линз рүү орох zoom — сайтын гол хүч
+- `--lens-x: 52.1%` / `--lens-y: 87.5%` — зургаас **программаар хэмжсэн**
+  линзний төв. Таамаглаж өөрчилж болохгүй.
+- `transform-origin` нь `.hero__cam img` дээр. `lensOffset()` нь линзийг
+  hero-гийн голд аваачдаг. Эцэст нь `scale 11`, линз голоос **0px** зөрөөтэй.
+- Zoom-ын урт `+=190%` — эзэн нь сонгосон, богиносгож болохгүй.
+
+### Pin-үүдийн дараалал
+- `#hero` pin → шууд `#cats` pin. **Хоорондох завсар 0 байх ёстой.**
+- `.cats { margin-top: -100svh; z-index: 2 }` — үүнийг хасвал pin суларсны
+  дараа hero өөрийн бүтэн дэлгэцээр хар хөшигтэйгээ урсаж, **1 дэлгэц цул
+  хар** үүснэ. Энэ алдааг нэг удаа гаргаад зассан.
+- `refreshPriority: 1` (hero) / `-1` (cats) — эс тэгвэл cats-ийн trigger
+  сөрөг эхлэлтэй болж эвдэрнэ.
+
+### `--chars` fallback
+`font-size: min(19vw, calc(92vw / (var(--chars, 6) * 0.72)))` — fallback
+заавал байх ёстой. GSAP-ийн `clearProps: "all"` нь inline style-ыг арчихад
+`--chars` алга болж, calc хүчингүй болоод үсэг 16px болж унадаг.
+`destroyHomeMotion()` дотор `.hero__word`-д зөвхөн `opacity` цэвэрлэнэ.
+
+### Гуравдагч серверийг эгзэгтэй замд оруулахгүй
+Google Fonts-ыг render-блоклож байснаас Монголоос **4 секунд цагаан дэлгэц**
+үүсдэг байсан. Одоо фонт, GSAP бүгд өөрийн серверээс. Шинэ CDN нэмэхгүй.
+Үлдсэн гадаад холбоос: Meta Pixel (async), Apps Script (эгзэгтэй биш).
+
+### `history.scrollRestoration = "manual"`
+Хуудсыг дунд нь refresh хийхэд pin буруу цэгээс хэмжигдэж hero zoom-ын дунд
+гацдаг байсан.
+
+### Серверийн үнийн шалгалт
+`computeOrder_()` нь үнийг **Sheet-ээс дахин боддог**, браузерын явуулсан
+тоог хүлээж авдаггүй. Өмнө нь 349,000₮-ийн барааг 1₮-өөр захиалах боломжтой
+байсан. Энэ шалгалтыг арилгаж болохгүй.
+
+### Нөөц: хоосон ≠ 0
+`Нөөц` хуудасны `Агуулахад буй`:
+- **хоосон** = хязгаар тавиагүй, үргэлж зарагдана
+- **0** = дууссан, товч хаагдана
+
+Шинэ мөр **хоосноор** үүсэх ёстой. Нэг удаа 0-оор үүсгээд бүх бараа
+"ДУУССАН" болсон.
+
+---
+
+## 4. Deploy — юу хэзээ
+
+| Юу өөрчлөгдсөн | Хийх зүйл |
+|---|---|
+| `index.html`, `style.css`, `script.js`, `assets/` | `git push origin main` → GitHub Actions автоматаар (~40 сек) |
+| `apps-script/Code.gs` | Эзэн гараар: код хуулах → `setup` Run → `Deploy` → **Manage deployments** → ✏️ → **New version** → Deploy |
+| Sheet дээрх өгөгдөл (бараа, үнэ, нөөц, горим) | **Юу ч хийхгүй** — дараагийн ачаалалтад тусна |
+
+**Apps Script deploy-г зөвхөн эзэн хийж чадна** (түүний Google эрх шаардлагатай).
+Код өөрчилсөн бол файлыг `SendUserFile`-аар явуулж, алхмуудыг сануул.
+
+Deploy хийсэн эсэхийг шалгах: feed-ээс шинэ талбар ирж байгаа эсэхийг
+`curl`-ээр үзнэ.
+
+---
+
+## 5. Sheet-ийн бүтэц
+
+Дэлгэрэнгүйг Sheet дэх **`Заавар`** хуудаснаас, эсвэл `Code.gs` доторх
+`PRODUCT_NOTES` тогтмолоос үз. Товчхон:
+
+- **Products** — `slug, category, name, desc, price, discount, sizes,
+  sizePrices, colors, colorImages, sizeImages, image1-5, stock, active, Горим`
+- **Нөөц** — `slug, Бараа, Агуулахад буй, Захиалагдсан, Боломжит`
+  (Захиалагдсан = Orders+Archive дээрх SUMIF, цуцлагдсаныг тооцохгүй)
+- **Bundles** — `product, qty, price, label, active` (2+1 маягийн багц)
+- **Reviews** — `product, name, text, rating, image, active`
+  (`product` хоосон = бүх бараанд)
+- **Orders / Archive** — 16 багана, төгсгөлд нь `SKU` (нөөцийн тооллого үүгээр)
+
+**Дүрэм:** нүд хоосон бол тухайн зүйл сайт дээр **огт харагдахгүй**
+(хямдрал, өнгө, size, багц бүгд ийм).
+
+### "Горим" багана — эрэлт хэмжих
+`Test` бичвэл: бараа жагсаалтад **ердийн адил** харагдана (шошго нэмэхгүй —
+эс бөгөөс шошгонд хүмүүс хэрхэн хариулж байгааг хэмжинэ), гэхдээ
+- нөөц шалгахгүй (агуулахад байхгүй бараа)
+- захиалгын хуудсанд төлбөрийн сонголт нуугдана
+- хугацаа "7–14 хоног" гэж харагдана
+- Sheet-д төлбөр `Тодорхойгүй (Test)` гэж бичигдэнэ
+
+---
+
+## 6. Хэрхэн шалгах
+
+**Таамаглаж болохгүй — хэмж.** Ажилласан арга:
+
+```bash
+# локал сервер
+cd C:/Users/ariun/Documents/Starshopping-web
+python -m http.server 8777 --bind 127.0.0.1
+```
+
+Дараа нь browser tool-оор `http://127.0.0.1:8777/` нээж `javascript_tool`-оор
+хэмжинэ. Заавал анхаарах хоёр урхи:
+
+1. **`scroll-behavior: smooth`** — `scrollTo(0,0)` нь анимацитай. Хэмжихдээ
+   `window.scrollTo({top:0, behavior:'instant'})` ашигла.
+2. **scrub-ийн 0.5 сек хоцролт** — гүйлгээд шууд уншвал хуучин утга гарна.
+   Timeline-г шууд жолоод: `heroPin.animation.progress(p).pause()`.
+
+Zoom эсэн мэнд эсэхийг батлах:
+```js
+const pin = ScrollTrigger.getAll().find(t => t.vars.pin && t.trigger?.id === 'hero');
+const img = document.querySelector('.hero__cam img');
+window.scrollTo({top:0, behavior:'instant'}); ScrollTrigger.update();
+pin.animation.progress(1).pause();
+const r = img.getBoundingClientRect();
+console.log('scale', getComputedStyle(img).transform,
+            'lens off centre Y', Math.round(r.top + r.height*0.875 - innerHeight/2));
+// хүлээгдэж буй: scale 11, зөрүү ~0
+pin.animation.progress(0).resume();
+```
+
+Хар зай үүсээгүй эсэх:
+```js
+const hero = ScrollTrigger.getAll().find(t => t.vars.pin && t.trigger?.id === 'hero');
+const cats = ScrollTrigger.getAll().find(t => t.vars.pin && t.trigger?.id === 'cats');
+console.log('pin gap', Math.round(cats.start - hero.end));  // 0 байх ёстой
+```
+
+Шалгах хэмжээнүүд: **1280×800** (desktop), **390×844** (утас),
+**390×600** (Instagram-ийн дотоод браузер — энд л ихэнх алдаа гардаг).
+
+Deploy-ийн дараа `starshopping-mn.github.io` дээр дахин шалга.
+
+---
+
+## 7. Өмнө хийсэн алдаанууд — давтахгүй
+
+| Алдаа | Тайлбар |
+|---|---|
+| **Library vs Web app URL** | Эзэн `/macros/library/d/...` явуулдаг. Хэрэгтэй нь `/macros/s/.../exec`. Байгаа deployment-ээ засвал **хаяг өөрчлөгддөггүй** — эхлээд хуучин хаягийг шалга. |
+| **`getUi().alert()`** | Скрипт засварлагчаас Run хийхэд цонх Sheet дээр гарч, хэн ч хариулахгүй → 6 минут гацна. `Logger.log` ашигла. |
+| **`clearProps: "all"`** | CSS custom property-г арчина. Зорилтот property л цэвэрлэ. |
+| **Нөөцийг 0-оор үүсгэх** | Бүх бараа хаагдана. Хоосноор үүсгэ. |
+| **Гараар нэмсэн нөөцийн мөр** | `Боломжит` томьёогүй байвал 0 гэж уншигдана. Одоо код өөрөө боддог (`orderedBySku_`). |
+| **Placeholder зурагт итгэх** | "Тунгалаг" гэж татсан PNG-д checkerboard **бодит пиксэлээр** шатсан байсан. `rembg` ашигла. |
+| **Хэмжилтийн артефакт** | Нэг удаа "zoom эвдэрсэн" гэж дүгнэсэн ч smooth-scroll + scrub lag байсан. Дүгнэхээсээ өмнө хэмжилтийн аргаа шалга. |
+
+---
+
+## 8. Ажлын хэв маяг
+
+Эзэн нь техникийн бус, монголоор ярина. Хүлээж буй зүйл:
+
+- **Монголоор хариул.**
+- **Дизайныг хамгаал.** Zoom, аварга үсэг, хар/цагаан загварыг эвдэхгүй.
+  "Загвараа олох гэж зовсон" гэж хэлсэн.
+- **Гацалт гарч болохгүй** — үйлчлүүлэгч шууд алдагдана.
+- **Таамаглахгүй, хэмж.** Бичлэг/зураг илгээвэл кадр задалж (`ffmpeg`),
+  амьд сайтыг хэмжиж оношил.
+- **Худал ажилладаг дүр эсгэхгүй.** Дуусаагүй бол дуусаагүй гэж хэл.
+- **Зохиомол сэтгэгдэл бичихгүй.** Reviews-д зөвхөн жинхэнэ хэрэглэгчийн үг.
+- Бизнесийн шийдвэр (багцын үнэ, маржин) эзэнийх — код бэлдээд өг.
+
+---
+
+## 9. Дараа хийх зүйлс
+
+- Бодит бараа, зураг оруулах (одоо placeholder)
+- `Bundles`, `Reviews` хуудас хоосон — эзэн бөглөнө
+- Тест захиалгуудыг `Orders`-оос устгах
+- Бодлогын хуудсуудыг эзэн уншиж батлах (буцаалт 1–3 өдөр, хүргэлт 08:00–12:00)
+- 10 захиалга тутмын имэйл (код бэлэн, 10 дахьд ажиллана)
+- Домэйн авбал GitHub Pages-д холбоно
+
+---
+
+## 10. Хэрэгслүүд
+
+Энэ машин дээр суулгасан: `ffmpeg` (бичлэг задлах), Python + `rembg`
+(зургийн дэвсгэр арилгах) + `Pillow`, `gh` CLI (хоёр account: `starshopping-mn`
+идэвхтэй, `ariunboldagency-commits` хуучин repo-д).
+
+`gh auth switch -u <нэр>` — account солих. Хуучин repo руу түлхэхэд хэрэгтэй.
