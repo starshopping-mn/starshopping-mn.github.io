@@ -81,7 +81,12 @@ src="https://www.facebook.com/tr?id=1673931670377637&ev=PageView&noscript=1"/></
     <section class="cats" id="cats">
       <div class="cats__emerge">
         <span class="cats__eyebrow">КАТЕГОРИ · <span id="catIndex">01</span> / <span id="catTotal">01</span></span>
-        <div class="cats__stage" id="catsStage"></div>
+        <div class="cats__main">
+          <div class="cats__stage" id="catsStage"></div>
+          <!-- after the stage in the markup so a phone reads it below the
+               artwork; on a wide screen `order` moves it back to the left -->
+          <div class="catrail" id="catRail" aria-label="Бүх категори"></div>
+        </div>
         <div class="cats__nav">
           <div class="cats__arrows">
             <button class="arrow" data-dir="-1" aria-label="Өмнөх категори">
@@ -91,7 +96,7 @@ src="https://www.facebook.com/tr?id=1673931670377637&ev=PageView&noscript=1"/></
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
-          <p class="cats__hint">Дараагийн категорийг сонгох бол<br>суман дээр дарна уу</p>
+          <p class="cats__hint">Категори солих бол хажуу тийш<br>шудрах эсвэл суман дээр дарна уу</p>
         </div>
       </div>
     </section>

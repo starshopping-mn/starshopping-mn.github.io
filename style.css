@@ -282,12 +282,70 @@ a { color: inherit; text-decoration: none; }
 }
 
 .cats__eyebrow { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.2em; }
+
+.cats__main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  /* hands sideways gestures to the script while leaving the page free to
+     scroll down and the visitor free to pinch-zoom */
+  touch-action: pan-y pinch-zoom;
+  /* a drag across the giant name would otherwise select it */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* clamped so the section still fits once browser chrome eats into the view */
 .cats__stage {
   position: relative;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   height: clamp(200px, 46svh, 360px);
 }
+
+/* ---------- the standing list of every category ----------
+   Phone first: a horizontal strip under the artwork, because a left-hand
+   column at 390px would eat the width the giant category name needs — and
+   that name is the whole point of the screen. `order` on the wide layout
+   below swings it round to the left without touching the markup. */
+.catrail {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  height: 30px;
+  overflow: hidden;
+  --gap: 104px;
+  /* the ends dissolve rather than being sliced off by the overflow */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+}
+
+/* Fallbacks on every custom property: the list paints from CSS alone before
+   the script has assigned a slot, and one missing value would otherwise
+   collapse the whole transform. */
+.catrail__item {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform-origin: 50% 50%;
+  transform: translate(calc(-50% + var(--off, 0) * var(--gap)), -50%) scale(var(--s, 1));
+  opacity: var(--o, 0);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+  color: var(--fg);
+  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.5s ease;
+  will-change: transform, opacity;
+}
+.catrail__item.is-on { letter-spacing: 0.05em; }
+.catrail__item:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; }
+
+/* one category is not a list — hide it rather than show a lone word that
+   nothing can scroll between */
+.catrail.is-solo { display: none; }
 
 .cat {
   position: absolute; inset: 0;
@@ -943,6 +1001,30 @@ textarea.input { resize: vertical; min-height: 74px; }
   .cats { padding: 6rem 3rem 3rem; }
   .cats__eyebrow { font-size: 0.88rem; }
   .cats__stage { height: 58svh; }
+  .cats__main { flex-direction: row; gap: 1.6rem; }
+
+  /* wide enough for the column: it stands to the left of the artwork, names
+     running top to bottom with the chosen one held in the middle */
+  .catrail {
+    order: -1;
+    width: 150px;
+    height: auto;
+    /* clears the fixed progress rail at the window edge, which reaches ~94px
+       in and would otherwise draw its dashes straight through these names */
+    margin-left: 60px;
+    --gap: 38px;
+    border-right: 1px solid rgba(255, 255, 255, 0.14);
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+    mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+  }
+  .catrail__item {
+    left: auto; right: 1.15rem;
+    text-align: right;
+    transform-origin: 100% 50%;
+    transform: translateY(calc(-50% + var(--off, 0) * var(--gap))) scale(var(--s, 1));
+    font-size: 0.95rem;
+  }
+
   .cat { gap: 2rem; }
   .cat__side { flex-basis: 44%; gap: 1.4rem; }
   .cat__name { font-size: min(7.5vw, calc(38vw / (var(--chars, 6) * 0.72))); }
@@ -972,6 +1054,9 @@ textarea.input { resize: vertical; min-height: 74px; }
   .cats { padding-top: 4.4rem; padding-bottom: 1.4rem; }
   .cats__emerge { gap: 0.7rem; }
   .cats__stage { height: clamp(180px, 42svh, 300px); }
+  .cats__main { gap: 0.3rem; }
+  .catrail { height: 24px; }
+  .catrail__item { font-size: 0.74rem; }
   .cats__nav { gap: 0.6rem; }
   .cats__hint { font-size: 0.86rem; }
   .arrow { width: 50px; height: 50px; }

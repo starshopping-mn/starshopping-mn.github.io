@@ -60,6 +60,7 @@ function stockBadge(slug) {
 const WEBP_ASSETS = {
   "assets/product-clock.png": "assets/product-clock.webp",
   "assets/product-turntable.png": "assets/product-turntable.webp",
+  "assets/cat-ger-ahui.png": "assets/cat-ger-ahui.webp",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -166,6 +167,7 @@ function stopFrames() {
    HOME · category browser
    ===================================================================== */
 const catsStage = document.getElementById("catsStage");
+const catRail = document.getElementById("catRail");
 const catIndexEl = document.getElementById("catIndex");
 const catTotalEl = document.getElementById("catTotal");
 let current = 0;
@@ -190,7 +192,7 @@ function renderCategories() {
         <h2 class="cat__name" style="--chars:${chars}">
           ${lines.map((l) => `<span>${esc(l)}</span>`).join("")}
         </h2>
-        <a class="cat__cta" href="#/c/${esc(c.slug)}">
+        <a class="cat__cta" href="#/c/${esc(encodeURIComponent(c.slug))}">
           <span class="cat__count">${count} бараа</span>
           <span class="cat__go">Үзэх →</span>
         </a>
@@ -198,6 +200,44 @@ function renderCategories() {
       <div class="cat__img"><img src="${imageUrl(c.image)}" alt="${esc(c.name)}"></div>`;
     catsStage.appendChild(art);
   });
+
+  catRail.innerHTML = "";
+  cats.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "catrail__item";
+    b.textContent = c.name;
+    b.addEventListener("click", () => {
+      showCat(i);
+      startCycle();
+    });
+    catRail.appendChild(b);
+  });
+  // a single name is not something you can scroll between
+  catRail.classList.toggle("is-solo", cats.length < 2);
+  paintRail();
+}
+
+/* Every name keeps its slot in the ring; the chosen one sits at full size in
+   the middle and the rest fall away from it in both directions. Offsets wrap
+   through the halfway point so the list turns endlessly instead of hitting an
+   end and snapping back across the whole column. */
+function paintRail() {
+  const items = catRail.children;
+  const n = items.length;
+  for (let i = 0; i < n; i++) {
+    let off = i - current;
+    if (off > n / 2) off -= n;
+    if (off < -n / 2) off += n;
+    const away = Math.abs(off);
+    const el = items[i];
+    el.style.setProperty("--off", off);
+    // only ever scaled down — text scaled above 1 rasterises soft
+    el.style.setProperty("--s", off === 0 ? 1 : Math.max(0.55, 1 - away * 0.24));
+    el.style.setProperty("--o", off === 0 ? 1 : Math.max(0, 0.44 - away * 0.13));
+    el.classList.toggle("is-on", off === 0);
+    el.setAttribute("aria-current", off === 0 ? "true" : "false");
+  }
 }
 
 function showCat(i) {
@@ -206,7 +246,90 @@ function showCat(i) {
   current = (i + cards.length) % cards.length;
   cards.forEach((c, n) => c.classList.toggle("is-active", n === current));
   catIndexEl.textContent = String(current + 1).padStart(2, "0");
+  paintRail();
 }
+
+/* Sideways gestures only — over the artwork as well as the list, since the
+   picture is what the visitor is looking at when they reach to change it.
+   Nothing here ever swallows a vertical scroll: whatever the visitor does, the
+   page keeps moving down the moment they push down, so this section cannot
+   trap anyone. */
+const catsMain = document.querySelector(".cats__main");
+const turnable = () => catRail.children.length > 1;
+
+let turnAt = 0;
+const turn = (dir) => {
+  const now = Date.now();
+  if (now - turnAt < 260) return;
+  turnAt = now;
+  showCat(current + dir);
+  startCycle();
+};
+
+/* A trackpad or a tilt wheel reports sideways travel as deltaX. Claiming it
+   also stops the browser treating the same gesture as "go back". */
+catsMain.addEventListener(
+  "wheel",
+  (e) => {
+    if (!turnable()) return;
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    turn(e.deltaX > 0 ? 1 : -1);
+  },
+  { passive: false }
+);
+
+/* Passive touch: a sideways swipe turns, a downward one is left alone. */
+let touchX = 0;
+let touchY = 0;
+let swiping = false;
+
+catsMain.addEventListener(
+  "touchstart",
+  (e) => {
+    if (!turnable()) return;
+    touchX = e.touches[0].clientX;
+    touchY = e.touches[0].clientY;
+    swiping = true;
+  },
+  { passive: true }
+);
+catsMain.addEventListener(
+  "touchmove",
+  (e) => {
+    if (!swiping) return;
+    const dx = e.touches[0].clientX - touchX;
+    const dy = e.touches[0].clientY - touchY;
+    if (Math.abs(dx) < 34 || Math.abs(dx) < Math.abs(dy)) return;
+    swiping = false;
+    turn(dx < 0 ? 1 : -1);
+  },
+  { passive: true }
+);
+catsMain.addEventListener("touchend", () => (swiping = false), { passive: true });
+
+/* An ordinary mouse has no sideways wheel, so dragging stands in for it. */
+let dragX = 0;
+let dragY = 0;
+let dragging = false;
+
+catsMain.addEventListener("pointerdown", (e) => {
+  if (!turnable() || e.pointerType !== "mouse" || e.button !== 0) return;
+  dragX = e.clientX;
+  dragY = e.clientY;
+  dragging = true;
+});
+catsMain.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - dragX;
+  const dy = e.clientY - dragY;
+  if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy)) return;
+  dragging = false;
+  turn(dx < 0 ? 1 : -1);
+});
+["pointerup", "pointercancel", "pointerleave"].forEach((ev) =>
+  catsMain.addEventListener(ev, () => (dragging = false))
+);
 
 const startCycle = () => {
   stopCycle();
@@ -380,7 +503,7 @@ function renderCategory(slug) {
     const pr = priceOf(p, lowestPrice(p));
     const row = document.createElement("a");
     row.className = "prow";
-    row.href = `#/p/${p.slug}`;
+    row.href = `#/p/${encodeURIComponent(p.slug)}`;
     row.appendChild(buildFrame(p.images));
 
     const info = document.createElement("div");
@@ -429,7 +552,7 @@ function renderProduct(slug) {
 
   const back = document.createElement("a");
   back.className = "back";
-  back.href = `#/c/${p.category}`;
+  back.href = `#/c/${encodeURIComponent(p.category)}`;
   back.textContent = `← ${cat ? cat.name : "Буцах"}`;
   pdp.appendChild(back);
 
@@ -714,7 +837,7 @@ function renderOrder() {
 
   const page = document.getElementById("orderPage");
   page.innerHTML = `
-    <a class="back" href="#/p/${esc(d.slug)}">← Бараа руу буцах</a>
+    <a class="back" href="#/p/${esc(encodeURIComponent(d.slug))}">← Бараа руу буцах</a>
     <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">Захиалга</h1>
 
     <div class="order-grid" style="margin-top:1.6rem">
@@ -1253,7 +1376,18 @@ function show(name) {
 }
 
 function route() {
-  const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
+  const [kind, rawSlug] = location.hash.replace(/^#\/?/, "").split("/");
+  /* Slugs are typed into the sheet by hand, so one arrives with spaces or
+     Cyrillic sooner or later. The browser stores those percent-encoded, and
+     comparing the encoded form against the sheet value matches nothing — the
+     visitor gets bounced back to the home page and the product is
+     unreachable. Decode before looking anything up. */
+  let slug = rawSlug;
+  try {
+    slug = decodeURIComponent(rawSlug || "");
+  } catch (ex) {
+    /* a malformed % sequence — fall back to the raw text */
+  }
   stopFrames();
 
   if (kind === "c" && slug) {
