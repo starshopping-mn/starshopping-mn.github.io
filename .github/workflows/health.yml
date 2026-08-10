@@ -1,0 +1,28 @@
+name: Shop health check
+
+# Kept apart from the deploy on purpose: this one is allowed to fail, and its
+# failure is the whole point. A red run here mails the owner.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "health"
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Walk the shop as a customer would
+        run: python tools/health-check.py
