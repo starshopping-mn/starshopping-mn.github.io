@@ -20,11 +20,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # Kept apart from the deploy on purpose. Anything in here may fail — a
+  # toolchain that will not install, a sheet that will not answer — and the shop
+  # must still publish, so the failure has to be contained in its own job rather
+  # than taking the run down with it.
+  cards:
     runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,19 +38,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: tools/requirements.txt
 
       - name: Install image tools
-        run: pip install --quiet Pillow
+        run: pip install --quiet -r tools/requirements.txt
 
-      # continue-on-error is deliberate: a preview card is worth having, but
-      # never at the price of the shop failing to publish
       - name: Build product preview cards
-        continue-on-error: true
         run: python tools/build-og.py
 
       - name: Commit any card changes
-        id: cards
-        continue-on-error: true
+        id: commit
         run: |
           if [ -n "$(git status --porcelain p og)" ]; then
             git config user.name "github-actions[bot]"
@@ -60,18 +61,34 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # A timed run that found nothing new stops here. Pages only allows a
+  deploy:
+    needs: cards
+    # `always()` so a broken card build cannot stop the shop from publishing
+    if: always()
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      # checked out after the card job has pushed, so the run publishes the
+      # cards it just built rather than the previous set
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # A timed run that found nothing new stops here. Pages allows only a
       # handful of builds an hour, and spending them republishing an unchanged
       # site would leave none for the moment something genuinely changes.
       - name: Setup Pages
-        if: github.event_name != 'schedule' || steps.cards.outputs.changed == 'true'
+        if: github.event_name != 'schedule' || needs.cards.outputs.changed == 'true'
         uses: actions/configure-pages@v5
       - name: Upload artifact
-        if: github.event_name != 'schedule' || steps.cards.outputs.changed == 'true'
+        if: github.event_name != 'schedule' || needs.cards.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: "."
       - name: Deploy to GitHub Pages
         id: deployment
-        if: github.event_name != 'schedule' || steps.cards.outputs.changed == 'true'
+        if: github.event_name != 'schedule' || needs.cards.outputs.changed == 'true'
         uses: actions/deploy-pages@v4
