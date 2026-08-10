@@ -38,22 +38,18 @@ function availableOf(slug) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, n) : null;
 }
-/* A "Test" product is one being trialled before it is stocked: nothing sits in
-   the warehouse and payment is agreed once it lands, so stock gating and the
-   payment picker both step aside for it. */
-const TEST_LEAD_TIME = "7–14 хоног";
-const isTest = (p) => String(p && p.mode).trim().toLowerCase() === "test";
-const testBySlug = (slug) => isTest(productBy(slug));
+/* How soon this one arrives, in the owner's own words: same day for something
+   sitting in the warehouse, weeks for something still being brought in. A
+   product being trialled before it is stocked simply says so here and leaves
+   its stock row empty, which is what keeps it orderable. */
+const DEFAULT_LEAD_TIME = "Өглөөний 08:00–12:00";
+const leadTimeOf = (p) => String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
 
-const isSoldOut = (slug) => !testBySlug(slug) && availableOf(slug) === 0;
+const isSoldOut = (slug) => availableOf(slug) === 0;
 
 /* Sold out is stated plainly; a low count is only worth showing when it is
    genuinely low, otherwise it reads as a sales tactic rather than a fact. */
 function stockBadge(slug) {
-  // A test product carries no stock marks at all — it has to browse exactly
-  // like a normal one, otherwise the demand signal measures the label rather
-  // than the product.
-  if (testBySlug(slug)) return "";
   const left = availableOf(slug);
   if (left === null) return "";
   if (left === 0) return `<span class="tag tag--out">Дууссан</span>`;
@@ -545,9 +541,9 @@ function renderProduct(slug) {
   // price follows the selected size when the sheet gives one per size
   const priceForSize = (i) => (sizePrices[i] > 0 ? sizePrices[i] : Number(p.price));
   let pr = priceOf(p, sizes.length ? priceForSize(0) : p.price);
-  const test = isTest(p);
+  const leadTime = leadTimeOf(p);
   // named for stock specifically: `left` is already the gallery column below
-  const stockLeft = test ? null : availableOf(p.slug);
+  const stockLeft = availableOf(p.slug);
   const soldOut = stockLeft === 0;
   // a pack you cannot actually fulfil should not be on offer
   const bundles = bundlesFor(p.slug).filter((b) => stockLeft === null || b.qty <= stockLeft);
@@ -664,8 +660,8 @@ function renderProduct(slug) {
 
     <div class="trust">
       <div><b>Хүргэлт</b>УБ 6,000₮ · Орон нутаг 6,000₮</div>
-      <div><b>Хугацаа</b>${test ? TEST_LEAD_TIME : "Өглөөний 08:00–12:00"}</div>
-      <div><b>Төлбөр</b>${test ? "Бэлэн болоход тохирно" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
+      <div><b>Хугацаа</b>${esc(leadTime)}</div>
+      <div><b>Төлбөр</b>Хүргэлтээр эсвэл шилжүүлгээр</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
     </div>
     <button class="share" type="button" data-slug="${esc(p.slug)}">Холбоос хуулах</button>`;
@@ -815,7 +811,7 @@ function renderProduct(slug) {
       pack: pack ? pack.label || `${pack.qty} ширхэгийн багц` : "",
       color,
       size,
-      test,
+      leadTime,
     });
     if (window.fbq)
       fbq("track", "InitiateCheckout", { content_name: p.name, value: orderTotal(), currency: "MNT" });
@@ -917,16 +913,12 @@ function renderOrder() {
         <div class="field">
           <span class="field__label">ХҮРГЭЛТИЙН ХУГАЦАА</span>
           <div class="leadtime">
-            <b>${d.test ? esc(TEST_LEAD_TIME) : "Өглөөний 08:00–12:00"}</b>
-            <span>${
-              d.test
-                ? "Энэ бол шинэ бараа тул захиалгаар авчирна. Бэлэн болмогц тантай холбогдоно."
-                : "Захиалга баталгаажсаны дараа хүргэнэ."
-            }</span>
+            <b>${esc(d.leadTime || DEFAULT_LEAD_TIME)}</b>
+            <span>Захиалга баталгаажсаны дараа хүргэнэ.</span>
           </div>
         </div>
 
-        <div class="field"${d.test ? " hidden" : ""}>
+        <div class="field">
           <span class="field__label">ТӨЛБӨРИЙН СОНГОЛТ</span>
           <div class="pick" id="payPick">
             <div class="pick__item is-active" data-pay="Хүргэлтээр төлөх">
@@ -999,9 +991,7 @@ function renderOrder() {
   /* ---- live totals ---- */
   let shipPrice = Number(ship[0].price) || 0;
   let shipName = ship[0].name;
-  // the backend decides this for test items regardless; kept in step so the
-  // confirmation screen renders the right thing
-  let payment = d.test ? "Тодорхойгүй (Test)" : "Хүргэлтээр төлөх";
+  let payment = "Хүргэлтээр төлөх";
 
   // a bundle carries its own fixed total, so trust it over unit × qty
   const goods = Number(d.goods) || d.unit * d.qty;
@@ -1119,7 +1109,7 @@ function renderOrder() {
 
       sessionStorage.setItem(
         "ss_done",
-        JSON.stringify({ code: out.code, total: goods + shipPrice, payment, name, phone, phone2, test: !!d.test })
+        JSON.stringify({ code: out.code, total: goods + shipPrice, payment, name, phone, phone2, leadTime: d.leadTime || "" })
       );
       location.hash = "#/done";
     } catch (ex) {
@@ -1152,13 +1142,8 @@ function renderDone() {
       <div class="done__mark">✓</div>
       <h1 class="done__title">Захиалга хүлээн авлаа</h1>
       <p class="done__lead">
-        ${
-          info.test
-            ? `${esc(info.name)}, баярлалаа. Таны захиалга <b>${esc(info.code)}</b> бүртгэгдлээ.<br>
-               Энэ бол шинэ бараа тул 7–14 хоногийн дотор бэлэн болно,<br>
-               тэр үед бид тантай холбогдоно.`
-            : `${esc(info.name)}, баярлалаа. Бид удахгүй тантай холбогдоно.`
-        }
+        ${esc(info.name)}, баярлалаа. Бид удахгүй тантай холбогдоно.
+        ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}
       </p>
 
       <div class="code">
@@ -1205,19 +1190,6 @@ function renderDone() {
                 <div class="acct__row">
                   <span class="acct__no">${esc(iban)}</span>
                   <button class="copy copy--sm" data-copy="${esc(iban)}">Хуулах</button>
-                </div>
-              </div>
-            </div>`
-          : info.test
-          ? `<div class="pay">
-              <div class="pay__head">
-                <div>
-                  <div class="pay__bank">Төлбөр хойшид тохирно</div>
-                  <div class="pay__holder">Бараа бэлэн болоход бид тантай холбогдож,<br>төлбөрийн нөхцөлөө хамт тохирно.</div>
-                </div>
-                <div class="pay__amount">
-                  <span>Ойролцоо дүн</span>
-                  <b>${money(info.total)}</b>
                 </div>
               </div>
             </div>`

@@ -60,18 +60,13 @@ const PRODUCT_COLS = [
   'sizes', 'sizePrices',
   'colors', 'colorImages', 'sizeImages',
   'image1', 'image2', 'image3', 'image4', 'image5',
-  'stock', 'active', 'Горим'
+  'stock', 'active', 'Хүргэлтийн хугацаа'
 ];
 
-// "Test" = туршилтын/захиалгат бараа: агуулахад байхгүй, төлбөр нь хойшид
-// тохирогдоно. Хоосон орхивол энгийн борлуулалт гэж үзнэ.
-const MODE_TEST = 'Test';
-const TEST_LEAD_TIME = '7–14 хоног';
-const TEST_PAYMENT = 'Тодорхойгүй (Test)';
-
-function isTestMode_(v) {
-  return String(v || '').trim().toLowerCase() === 'test';
-}
+/* Хугацааг бараа тус бүрээр эзэн өөрөө бичнэ: агуулахад байгаа бараа
+   өдөртөө, гадаадаас захиалах бараа хэдэн долоо хоног. Нүд хоосон бол
+   ердийн хугацаа харагдана. */
+const DEFAULT_LEAD_TIME = 'Өглөөний 08:00–12:00';
 
 const PRODUCT_NOTES = {
   slug: 'Барааны богино нэр. Латинаар, зайгүй, зурааснаас өөр тэмдэггүй.\nЖишээ: chako-thermos\nДавхардаж болохгүй.',
@@ -92,7 +87,7 @@ const PRODUCT_NOTES = {
   image5: 'Нэмэлт зураг (заавал биш).',
   stock: 'Үлдэгдэл тоо. 5 ба түүнээс бага бол сайт дээр "Үлдсэн Nш" гэж харагдана.',
   active: 'TRUE = сайт дээр харагдана.\nFALSE = түр нуугдана (устгах шаардлагагүй).',
-  'Горим': 'Хоосон эсвэл "Идэвхтэй" = энгийн борлуулалт.\n\n"Test" = туршилтын бараа:\n  · төлбөрийн сонголт харагдахгүй\n  · хүргэлт "' + TEST_LEAD_TIME + '" гэж харагдана\n  · нөөц шалгахгүй (агуулахад байхгүй бараа)\n  · Sheet-д төлбөр нь "' + TEST_PAYMENT + '" гэж бичигдэнэ'
+  'Хүргэлтийн хугацаа': 'Энэ барааг хэдийд хүргэхийг үйлчлүүлэгчид харуулах бичвэр.\nЯг бичсэнээр чинь сайт дээр гарна.\n\nЖишээ:\n  · Өдөртөө хүргэнэ\n  · Маргааш 08:00–12:00\n  · 7–14 хоног\n\nАгуулахад байгаа бараанд богино, гадаадаас захиалах бараанд урт хугацаа бич.\n\nХоосон бол "' + DEFAULT_LEAD_TIME + '" гэж харагдана.'
 };
 
 const CATEGORY_NOTES = {
@@ -449,7 +444,7 @@ function readProducts() {
         colorImages: splitList(r.colorImages),
         sizeImages: splitList(r.sizeImages),
         stock: Number(r.stock) || 0,
-        mode: isTestMode_(r['Горим']) ? MODE_TEST : 'Идэвхтэй',
+        leadTime: String(r['Хүргэлтийн хугацаа'] || '').trim(),
         active: true
       };
     });
@@ -587,7 +582,7 @@ function doPost(e) {
       unit,
       ship,
       total,
-      priced.payment,               // Test бараанд серверээс тогтоогдоно
+      priced.payment,
       'Шинэ',
       String(body.phone2 || ''),
       String(body.slug || '')      // нөөцийн SUMIF энэ баганаар тоолно
@@ -645,27 +640,20 @@ function computeOrder_(body) {
   })[0];
   if (!opt) return { ok: false, error: 'Хүргэлтийн сонголт буруу.' };
 
-  /* Test бараа нь агуулахад байхгүй, төлбөр нь бэлэн болоход тохирогдоно.
-     Тиймээс төлбөрийн сонголт ч, нөөцийн шалгалт ч хамаарахгүй — төлбөрийн
-     утгыг браузераас биш, энд тогтоож бичнэ. */
-  const test = product.mode === MODE_TEST;
+  const payment = String(body.payment || '').trim();
+  if (opt.prepaid && payment !== 'Шилжүүлгээр төлөх') {
+    return { ok: false, error: 'Энэ хүргэлтэд урьдчилсан төлбөр шаардлагатай.' };
+  }
 
-  let payment;
-  if (test) {
-    payment = TEST_PAYMENT;
-  } else {
-    payment = String(body.payment || '').trim();
-    if (opt.prepaid && payment !== 'Шилжүүлгээр төлөх') {
-      return { ok: false, error: 'Энэ хүргэлтэд урьдчилсан төлбөр шаардлагатай.' };
-    }
-
-    // Нөөцийн эцсийн хаалт. Хөтөч дээр товч идэвхгүй болсон ч энд дахин
-    // шалгана — хэт зарах нь кодын хувьд боломжгүй байх ёстой.
-    const left = availableFor_(slug);
-    if (left !== null) {
-      if (left <= 0) return { ok: false, error: 'Энэ бараа дууссан байна.' };
-      if (qty > left) return { ok: false, error: 'Үлдэгдэл хүрэлцэхгүй байна. Боломжит: ' + left };
-    }
+  /* Нөөцийн эцсийн хаалт. Хөтөч дээр товч идэвхгүй болсон ч энд дахин
+     шалгана — хэт зарах нь кодын хувьд боломжгүй байх ёстой.
+     Агуулахад байхгүй, гадаадаас захиалах бараанд `Нөөц` хуудасны
+     `Агуулахад буй` нүдийг ХООСОН орхи: тэгвэл availableFor_ нь null
+     буцааж, хязгаар тавихгүй. 0 бичвэл бараа хаагдана. */
+  const left = availableFor_(slug);
+  if (left !== null) {
+    if (left <= 0) return { ok: false, error: 'Энэ бараа дууссан байна.' };
+    if (qty > left) return { ok: false, error: 'Үлдэгдэл хүрэлцэхгүй байна. Боломжит: ' + left };
   }
 
   return {
@@ -674,8 +662,7 @@ function computeOrder_(body) {
     unit: bundle ? Math.round(bundle.price / qty) : unit,
     ship: opt.price,
     total: goods + opt.price,
-    payment: payment,
-    test: test
+    payment: payment
   };
 }
 
