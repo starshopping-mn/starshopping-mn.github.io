@@ -161,7 +161,7 @@ Deploy хийсэн эсэхийг шалгах: feed-ээс шинэ талба
 
 - **Products** — `slug, category, name, desc, price, discount, sizes,
   sizePrices, colors, colorImages, sizeImages, image1-5, stock, active,
-  `Хүргэлтийн хугацаа`
+  Хүргэлтийн хугацаа, Хүргэлтийн тайлбар`
 - **Нөөц** — `slug, Бараа, Агуулахад буй, Захиалагдсан, Боломжит`
   (Захиалагдсан = Orders+Archive дээрх SUMIF, цуцлагдсаныг тооцохгүй)
 - **Bundles** — `product, qty, price, label, active` (2+1 маягийн багц)
