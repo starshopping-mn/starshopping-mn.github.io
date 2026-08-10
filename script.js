@@ -43,7 +43,12 @@ function availableOf(slug) {
    product being trialled before it is stocked simply says so here and leaves
    its stock row empty, which is what keeps it orderable. */
 const DEFAULT_LEAD_TIME = "Өглөөний 08:00–12:00";
+const DEFAULT_LEAD_NOTE = "Захиалга баталгаажсаны дараа хүргэнэ.";
+/* Two parts because a wait needs both: the figure someone scans for, and the
+   sentence explaining it. Kept apart so a long explanation cannot swallow the
+   line the eye actually lands on. */
 const leadTimeOf = (p) => String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
+const leadNoteOf = (p) => String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
 
 const isSoldOut = (slug) => availableOf(slug) === 0;
 
@@ -542,6 +547,7 @@ function renderProduct(slug) {
   const priceForSize = (i) => (sizePrices[i] > 0 ? sizePrices[i] : Number(p.price));
   let pr = priceOf(p, sizes.length ? priceForSize(0) : p.price);
   const leadTime = leadTimeOf(p);
+  const leadNote = leadNoteOf(p);
   // named for stock specifically: `left` is already the gallery column below
   const stockLeft = availableOf(p.slug);
   const soldOut = stockLeft === 0;
@@ -664,6 +670,9 @@ function renderProduct(slug) {
       <div><b>Төлбөр</b>Хүргэлтээр эсвэл шилжүүлгээр</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
     </div>
+    <!-- full width rather than inside the grid above: the explanation runs long
+         and would leave one cell towering over the other three -->
+    <p class="leadnote">${esc(leadNote)}</p>
     <button class="share" type="button" data-slug="${esc(p.slug)}">Холбоос хуулах</button>`;
   wrap.appendChild(right);
   pdp.appendChild(wrap);
@@ -812,6 +821,7 @@ function renderProduct(slug) {
       color,
       size,
       leadTime,
+      leadNote,
     });
     if (window.fbq)
       fbq("track", "InitiateCheckout", { content_name: p.name, value: orderTotal(), currency: "MNT" });
@@ -914,7 +924,7 @@ function renderOrder() {
           <span class="field__label">ХҮРГЭЛТИЙН ХУГАЦАА</span>
           <div class="leadtime">
             <b>${esc(d.leadTime || DEFAULT_LEAD_TIME)}</b>
-            <span>Захиалга баталгаажсаны дараа хүргэнэ.</span>
+            <span>${esc(d.leadNote || DEFAULT_LEAD_NOTE)}</span>
           </div>
         </div>
 
