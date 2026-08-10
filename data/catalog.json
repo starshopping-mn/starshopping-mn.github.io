@@ -1,22 +1,76 @@
 {
-  "_note": "Зөвхөн офлайн нөөц (fallback) — localStorage хоосон, шинэ зочин орж ирэхэд эхний хормыг энэ зурна. Жинхэнэ өгөгдөл Sheet-ээс Apps Script-ээр ирнэ (script.js доторх DATA_SOURCE). Sheet дээр категори эсвэл зураг сольсон бол ЭНЭ ФАЙЛЫГ ЧУ мөн шинэчил — эс тэгвэл хуучин зураг хормын төдий анивчина.",
+  "_note": "Автоматаар үүсдэг — гараар засах шаардлагагүй. tools/build-og.py нь Sheet-ийн feed-ээс 20 минут тутам хуулна. Сайт эхлэхдээ үүнээс зурж, дараа нь Sheet-ийн жинхэнэ өгөгдлөөр солино. Хуучирсан байвал зарын холбоосоор ирсэн хүн хоосон категори эсвэл олдохгүй бараа хардаг.",
   "shop": {
     "bank": "Худалдаа Хөгжлийн банк",
     "account": "740004000460072440",
     "holder": "Аюурзана Ариунболд",
-    "phones": ["88104640", "94114495"],
+    "phones": [
+      "88104640",
+      "94114495"
+    ],
     "email": "Ariunbold.agency@gmail.com",
-    "orderPrefix": "SS-",
     "delivery": [
-      { "name": "Энгийн хүргэлт", "price": 6000, "note": "Улаанбаатар хот" },
-      { "name": "Шуурхай хүргэлт", "price": 12000, "note": "Улаанбаатар хот" },
-      { "name": "Орон нутаг", "price": 6000, "note": "Унаагаар илгээнэ · урьдчилж төлнө", "prepaid": true }
+      {
+        "name": "Энгийн хүргэлт",
+        "price": 6000,
+        "note": "Улаанбаатар хот"
+      },
+      {
+        "name": "Шуурхай хүргэлт",
+        "price": 12000,
+        "note": "Улаанбаатар хот"
+      },
+      {
+        "name": "Орон нутаг",
+        "price": 6000,
+        "note": "Унаагаар илгээнэ · урьдчилж төлнө",
+        "prepaid": true
+      }
     ]
   },
-
   "categories": [
-    { "slug": "ger-ahui", "name": "ГЭР АХУЙ", "image": "assets/product-clock.png", "order": 1, "active": true }
+    {
+      "slug": "ger-ahui",
+      "name": "ГЭР АХУЙ",
+      "image": "assets/product-clock.png",
+      "order": 1,
+      "active": true
+    }
   ],
-
-  "products": []
+  "products": [
+    {
+      "slug": "Huwtsas-hadgalah-sags",
+      "category": "ger-ahui",
+      "name": "Хувцас хадгалах сагсны шийд",
+      "desc": "🛠️ Хадаас, өрөм шаардлагагүй: Тусгай зориулалтын хүчтэй наалт эсвэл хаалганы дэгээгээр хана, хаалгаа зурахгүйгээр 1 минутанд угсарна. 🧺 Багтаамж сайтай & Хувцас авахад хялбар: Бат бөх сүлжмэл тор нь их хэмжээний хувцас даах бөгөөд доод талын зангилаагаар шууд угаалгын машин руу хийхэд амархан. Материал: Өндөр зэрэглэлийн акрил/модон самбар, бэхжүүлсэн нейлон тор, металл цагираг",
+      "price": 70000,
+      "discount": null,
+      "images": [
+        "https://drive.google.com/file/d/1Sf27-uJhmDj0J7kLXJ5SnS7HritowKId/view?usp=sharing",
+        "https://drive.google.com/file/d/19lN26dG1uWOWz8pi6FehcGPp6IVz98LH/view?usp=sharing",
+        "https://drive.google.com/file/d/1Co57isphLy63vXEVbXfDWtVElJwvds71/view?usp=sharing"
+      ],
+      "sizes": [],
+      "sizePrices": [],
+      "colors": [
+        "Шар"
+      ],
+      "colorImages": [],
+      "sizeImages": [],
+      "stock": 0,
+      "mode": "Идэвхтэй",
+      "active": true
+    }
+  ],
+  "bundles": [],
+  "reviews": [],
+  "stock": {
+    "chako-thermos-350": 0,
+    "chako-handle-bottle": 0,
+    "keep-cool-tumbler": 0,
+    "mini-travel-bottle": 0,
+    "flip-clock-retro": 0,
+    "victrola-suitcase": 0,
+    "Huwtsas-hadgalah-sags": 10
+  }
 }

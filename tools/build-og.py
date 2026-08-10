@@ -223,6 +223,41 @@ def render(product, image_name):
     )
 
 
+OFFLINE_NOTE = (
+    "Автоматаар үүсдэг — гараар засах шаардлагагүй. tools/build-og.py нь Sheet-ийн "
+    "feed-ээс 20 минут тутам хуулна. Сайт эхлэхдээ үүнээс зурж, дараа нь Sheet-ийн "
+    "жинхэнэ өгөгдлөөр солино. Хуучирсан байвал зарын холбоосоор ирсэн хүн хоосон "
+    "категори эсвэл олдохгүй бараа хардаг."
+)
+
+
+def write_offline_copy(feed):
+    """Keep the bundled catalogue in step with the sheet.
+
+    The shop paints from this file before the slow feed answers. When it held a
+    different catalogue than the sheet, a category reached from an ad listed
+    nothing and a product reached from a reel could not be found at all — the
+    visitor met an empty shelf on the way in. Copying the live answer here means
+    the first thing painted is already the truth.
+    """
+    body = {"_note": OFFLINE_NOTE}
+    for key in ("shop", "categories", "products", "bundles", "reviews", "stock"):
+        if key in feed:
+            body[key] = feed[key]
+
+    text = json.dumps(body, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
+    target = os.path.join(ROOT, "data", "catalog.json")
+    old = ""
+    if os.path.exists(target):
+        with io.open(target, encoding="utf-8") as fh:
+            old = fh.read()
+    if old != text:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with io.open(target, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        log("  offline catalogue refreshed from the sheet")
+
+
 def load_manifest():
     try:
         with io.open(MANIFEST, encoding="utf-8") as fh:
@@ -249,6 +284,8 @@ def main():
         # nothing in it, and acting on it would delete every card at once
         log("! the feed carried no products — leaving the published cards alone")
         return 0
+
+    write_offline_copy(feed)
 
     os.makedirs(PAGES_DIR, exist_ok=True)
     os.makedirs(OG_DIR, exist_ok=True)

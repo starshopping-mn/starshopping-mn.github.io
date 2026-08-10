@@ -1506,6 +1506,21 @@ function paint(data, { first }) {
     window.scrollTo(0, 0);
     route();
     booted = true;
+  } else if (!views.category.hidden) {
+    /* A category link opened against the offline copy lists whatever that copy
+       knew about, which is nothing — "0 БАРАА" on a page someone reached from
+       an ad. The real catalogue is here now, so fill the shelf. Only the list
+       is redrawn and the scroll is left alone; a product page is deliberately
+       not touched, since redrawing it would wipe a colour or a quantity the
+       visitor had already chosen. */
+    const [, slug] = location.hash.replace(/^#\/?/, "").split("/");
+    let want = slug;
+    try {
+      want = decodeURIComponent(slug || "");
+    } catch (ex) {
+      /* malformed escape — compare the raw text instead */
+    }
+    if (want) renderCategory(want);
   } else if (missedRoute && location.hash === "#/") {
     /* Only when they are still sitting on the home page we put them on: once
        they have gone anywhere themselves, moving them would be a hijack. */
