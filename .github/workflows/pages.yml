@@ -3,10 +3,15 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: ["main"]
+  # the catalogue lives in a sheet, which cannot tell GitHub it changed — so we
+  # look, often enough that a product added before a reel goes out has its
+  # preview card ready
+  schedule:
+    - cron: "*/20 * * * *"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -23,12 +28,50 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install image tools
+        run: pip install --quiet Pillow
+
+      # continue-on-error is deliberate: a preview card is worth having, but
+      # never at the price of the shop failing to publish
+      - name: Build product preview cards
+        continue-on-error: true
+        run: python tools/build-og.py
+
+      - name: Commit any card changes
+        id: cards
+        continue-on-error: true
+        run: |
+          if [ -n "$(git status --porcelain p og)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add p og
+            git commit -m "Rebuild the product preview cards from the sheet"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cards already match the sheet"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A timed run that found nothing new stops here. Pages only allows a
+      # handful of builds an hour, and spending them republishing an unchanged
+      # site would leave none for the moment something genuinely changes.
       - name: Setup Pages
+        if: github.event_name != 'schedule' || steps.cards.outputs.changed == 'true'
         uses: actions/configure-pages@v5
       - name: Upload artifact
+        if: github.event_name != 'schedule' || steps.cards.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: "."
       - name: Deploy to GitHub Pages
         id: deployment
+        if: github.event_name != 'schedule' || steps.cards.outputs.changed == 'true'
         uses: actions/deploy-pages@v4
