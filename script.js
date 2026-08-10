@@ -535,9 +535,15 @@ function renderCategory(slug) {
 /* ========================================================================
    PRODUCT VIEW
    ===================================================================== */
+/* Set the moment the visitor picks anything on a product page. Until then the
+   page is only what the shop guessed from its offline copy and is safe to draw
+   again; afterwards it holds their choices and must be left alone. */
+let pdpTouched = false;
+
 function renderProduct(slug) {
   const p = productBy(slug);
   if (!p) return goHome();
+  pdpTouched = false;
   const colors = listOf(p.colors);
   const sizes = listOf(p.sizes);
   const colorImgs = listOf(p.colorImages).map(imageUrl);
@@ -676,6 +682,8 @@ function renderProduct(slug) {
     <button class="share" type="button" data-slug="${esc(p.slug)}">Холбоос хуулах</button>`;
   wrap.appendChild(right);
   pdp.appendChild(wrap);
+
+  views.product.addEventListener("pointerdown", () => (pdpTouched = true), { once: true });
 
   /* The address bar shows the in-shop address, the one with the `#`, and that
      is the one that gets pasted under a reel — where the crawlers cannot read
@@ -1524,13 +1532,14 @@ function paint(data, { first }) {
     window.scrollTo(0, 0);
     route();
     booted = true;
-  } else if (!views.category.hidden) {
-    /* A category link opened against the offline copy lists whatever that copy
-       knew about, which is nothing — "0 БАРАА" on a page someone reached from
-       an ad. The real catalogue is here now, so fill the shelf. Only the list
-       is redrawn and the scroll is left alone; a product page is deliberately
-       not touched, since redrawing it would wipe a colour or a quantity the
-       visitor had already chosen. */
+  } else if (!views.category.hidden || (!views.product.hidden && !pdpTouched)) {
+    /* A page opened against the offline copy shows whatever that copy knew,
+       which can be a shelf listing nothing or a delivery promise the owner
+       changed this morning. The real catalogue is here now, so draw it again.
+
+       The product page is only redrawn while the visitor has not touched it
+       yet: past that point a redraw would throw away the colour, size or
+       quantity they had already picked. The scroll is left where it is. */
     const [, slug] = location.hash.replace(/^#\/?/, "").split("/");
     let want = slug;
     try {
@@ -1538,7 +1547,10 @@ function paint(data, { first }) {
     } catch (ex) {
       /* malformed escape — compare the raw text instead */
     }
-    if (want) renderCategory(want);
+    if (want) {
+      if (!views.category.hidden) renderCategory(want);
+      else if (productBy(want)) renderProduct(want);
+    }
   } else if (missedRoute && location.hash === "#/") {
     /* Only when they are still sitting on the home page we put them on: once
        they have gone anywhere themselves, moving them would be a hijack. */
