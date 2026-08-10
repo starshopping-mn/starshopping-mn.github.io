@@ -18,7 +18,7 @@
 | **Локал зам** | `C:\Users\ariun\Documents\Starshopping-web` |
 | **Sheet** | [Starshopping — Каталог ба Захиалга](https://docs.google.com/spreadsheets/d/1ZU7rJfHKFqoK7taHpVYQAC3GnFbPGyo83vTgWlVqakM/edit) |
 | **Эзэн** | ariunbold.agency@gmail.com |
-| **Meta Pixel** | 1673931670377637 |
+| **Meta Pixel** | 1409055724744932 (эзэн 2026-08-07-нд GitHub дээрээс шууд сольсон — өмнөх нь `1673931670377637`, буруу Business portfolio-д харьяалагдаж байсан) |
 
 Одоо байгаа бараа/зураг бол **тестийн placeholder**. Бодит бараа хараахан алга.
 
