@@ -1,5 +1,13 @@
 gsap.registerPlugin(ScrollTrigger);
 
+/* A phone browser hides and shows its toolbar as you scroll, which changes the
+   viewport height and would otherwise count as a resize. Both home sections are
+   pinned, so a refresh part-way down re-measures them under the scroll position
+   and throws the reader back to the top — worst in the Instagram and Facebook
+   in-app browsers, where the chrome moves constantly. This limits refreshes to a
+   real orientation change. */
+ScrollTrigger.config({ ignoreMobileResize: true });
+
 /* A reload normally restores the previous scroll position. The hero is a
    pinned, scrubbed section, so being measured from a half-scrolled start
    leaves it stuck mid-zoom — the camera blown up and the type gone. Opting
@@ -60,7 +68,6 @@ function stockBadge(slug) {
 const WEBP_ASSETS = {
   "assets/product-clock.png": "assets/product-clock.webp",
   "assets/product-turntable.png": "assets/product-turntable.webp",
-  "assets/cat-ger-ahui.png": "assets/cat-ger-ahui.webp",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -1367,7 +1374,19 @@ const views = {
   policy: document.getElementById("viewPolicy"),
 };
 
-const goHome = () => (location.hash = "#/");
+/* A link shared from a reel points straight at one product, but the catalogue
+   the shop opens with is the offline copy, which holds no products at all. The
+   slug matched nothing, the visitor was thrown to the home page, and the real
+   catalogue arriving a second later never sent them back — so the item they
+   tapped through for was simply unreachable. Remember where they were headed
+   and finish the trip once the goods are actually in hand. */
+let missedRoute = null;
+
+const goHome = () => {
+  const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
+  if ((kind === "p" || kind === "c") && slug) missedRoute = location.hash;
+  location.hash = "#/";
+};
 
 function show(name) {
   Object.entries(views).forEach(([k, el]) => (el.hidden = k !== name));
@@ -1439,7 +1458,17 @@ document.getElementById("year").textContent = new Date().getFullYear();
    Showing a moment-old price is safe here: the backend recomputes every order
    from the sheet and rejects anything that disagrees, so a stale figure on
    screen can never turn into a wrong charge. */
-const CACHE_KEY = "ss_catalog_v2";
+/* Bumped when a stored copy would paint something the sheet no longer says: a
+   browser holding the old key keeps showing the retired picture on every visit
+   until the slow feed lands. Raising the key abandons those copies outright. */
+const CACHE_KEY = "ss_catalog_v3";
+// the abandoned copy would otherwise sit in the browser for good, and another
+// dead one would join it every time the key is raised again
+try {
+  localStorage.removeItem("ss_catalog_v2");
+} catch {
+  /* private mode — nothing to clear anyway */
+}
 
 const readCache = () => {
   try {
@@ -1477,6 +1506,19 @@ function paint(data, { first }) {
     window.scrollTo(0, 0);
     route();
     booted = true;
+  } else if (missedRoute && location.hash === "#/") {
+    /* Only when they are still sitting on the home page we put them on: once
+       they have gone anywhere themselves, moving them would be a hijack. */
+    const wanted = missedRoute;
+    missedRoute = null;
+    const [, slug] = wanted.replace(/^#\/?/, "").split("/");
+    let want = slug;
+    try {
+      want = decodeURIComponent(slug || "");
+    } catch (ex) {
+      /* malformed escape — compare the raw text instead */
+    }
+    if (productBy(want) || categoryBy(want)) location.hash = wanted;
   }
   // fonts and images landing late can shift a pin's measurements
   requestAnimationFrame(() => ScrollTrigger.refresh());

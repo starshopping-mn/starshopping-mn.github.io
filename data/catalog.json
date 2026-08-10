@@ -1,5 +1,5 @@
 {
-  "_note": "Зөвхөн офлайн нөөц (fallback). Жинхэнэ өгөгдөл Sheet-ээс Apps Script-ээр ирнэ — script.js доторх DATA_SOURCE. Sheet дээр бараа нэмсний дараа энэ файлыг feed-ийн агуулгаар шинэчилбэл эхний зураг нь бодит байдалтай таарна.",
+  "_note": "Зөвхөн офлайн нөөц (fallback) — localStorage хоосон, шинэ зочин орж ирэхэд эхний хормыг энэ зурна. Жинхэнэ өгөгдөл Sheet-ээс Apps Script-ээр ирнэ (script.js доторх DATA_SOURCE). Sheet дээр категори эсвэл зураг сольсон бол ЭНЭ ФАЙЛЫГ ЧУ мөн шинэчил — эс тэгвэл хуучин зураг хормын төдий анивчина.",
   "shop": {
     "bank": "Худалдаа Хөгжлийн банк",
     "account": "740004000460072440",
@@ -15,7 +15,7 @@
   },
 
   "categories": [
-    { "slug": "ger-ahui", "name": "ГЭР АХУЙ", "image": "assets/cat-ger-ahui.png", "order": 1, "active": true }
+    { "slug": "ger-ahui", "name": "ГЭР АХУЙ", "image": "assets/product-clock.png", "order": 1, "active": true }
   ],
 
   "products": []
