@@ -667,9 +667,45 @@ function renderProduct(slug) {
       <div><b>Хугацаа</b>${test ? TEST_LEAD_TIME : "Өглөөний 08:00–12:00"}</div>
       <div><b>Төлбөр</b>${test ? "Бэлэн болоход тохирно" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
-    </div>`;
+    </div>
+    <button class="share" type="button" data-slug="${esc(p.slug)}">Холбоос хуулах</button>`;
   wrap.appendChild(right);
   pdp.appendChild(wrap);
+
+  /* The address bar shows the in-shop address, the one with the `#`, and that
+     is the one that gets pasted under a reel — where the crawlers cannot read
+     past the `#` and the post ends up captioned with nothing. Hand over the
+     address of the product's own page instead, so the right link is the easy
+     one to send. */
+  const shareBtn = right.querySelector(".share");
+  if (shareBtn) {
+    shareBtn.addEventListener("click", async () => {
+      const link = `${location.origin}/p/${encodeURIComponent(p.slug)}/`;
+      const said = (msg) => {
+        shareBtn.textContent = msg;
+        setTimeout(() => (shareBtn.textContent = "Холбоос хуулах"), 2200);
+      };
+      try {
+        // the in-app browsers this shop is opened from are the likeliest to
+        // withhold the clipboard, so the older route stays as a fallback
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(link);
+        } else {
+          const box = document.createElement("textarea");
+          box.value = link;
+          box.setAttribute("readonly", "");
+          box.style.cssText = "position:fixed;top:-1000px";
+          document.body.appendChild(box);
+          box.select();
+          document.execCommand("copy");
+          box.remove();
+        }
+        said("Хуулагдлаа ✓");
+      } catch (ex) {
+        said(link);
+      }
+    });
+  }
 
   /* ---- selection state ---- */
   let qty = 1;

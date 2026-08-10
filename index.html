@@ -7,6 +7,22 @@
 <title>Starshopping</title>
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="stylesheet" href="style.css">
+
+<!-- A product address carries its own tags on its own page under /p/. These are
+     the fallback for the shop's front door, and for the in-shop address a
+     crawler cannot read past the `#` — without them a shared link is captioned
+     with whatever picture the crawler happens to find first. -->
+<meta name="description" content="Гэр ахуйн шинэлэг бараа — Улаанбаатарт хүргэнэ. Захиалгын код, хяналттай хүргэлт.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Starshopping">
+<meta property="og:locale" content="mn_MN">
+<meta property="og:url" content="https://starshopping-mn.github.io/">
+<meta property="og:title" content="Starshopping — гэр ахуйн бараа">
+<meta property="og:description" content="Гэр ахуйн шинэлэг бараа — Улаанбаатарт хүргэнэ. Захиалгын код, хяналттай хүргэлт.">
+<meta property="og:image" content="https://starshopping-mn.github.io/og/site-card.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <!-- the hero photo and the display face are the first things anyone sees;
      start them before the parser reaches the markup rather than after the
      stylesheet resolves -->
