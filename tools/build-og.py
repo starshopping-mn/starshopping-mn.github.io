@@ -31,6 +31,9 @@ MANIFEST = os.path.join(OG_DIR, "manifest.json")
 
 SITE = "https://starshopping-mn.github.io"
 SITE_NAME = "Starshopping"
+# public identifier, not a secret: ties shares of these links back to the shop's
+# Meta app so they appear in its insights
+FB_APP_ID = "3475902549234725"
 CARD_W, CARD_H = 1200, 630
 # the shop is black; letterboxing to anything else would frame every card in a
 # colour the brand never uses
@@ -150,6 +153,7 @@ PAGE = """<!DOCTYPE html>
 <link rel="canonical" href="{url}">
 <meta name="description" content="{desc}">
 
+<meta property="fb:app_id" content="{fb_app_id}">
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="{site_name}">
 <meta property="og:locale" content="mn_MN">
@@ -214,6 +218,7 @@ def render(product, image_name):
         desc=esc(desc),
         url=esc(url),
         site_name=esc(SITE_NAME),
+        fb_app_id=esc(FB_APP_ID),
         price_raw=price,
         image_tags=image_tags,
         twitter_image=twitter_image,

@@ -169,7 +169,8 @@ def main():
         html = body.decode("utf-8", "replace")
         ok("card page", "200")
 
-        missing = [t for t in ("og:title", "og:description", "og:image", "og:url") if not meta(html, t)]
+        wanted = ("og:title", "og:description", "og:image", "og:url", "fb:app_id")
+        missing = [t for t in wanted if not meta(html, t)]
         if missing:
             fail(slug + " preview tags", "missing " + ", ".join(missing))
         else:
