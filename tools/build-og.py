@@ -154,7 +154,13 @@ PAGE = """<!DOCTYPE html>
 <meta name="description" content="{desc}">
 
 <meta property="fb:app_id" content="{fb_app_id}">
-<meta property="og:type" content="product">
+<!-- `website`, not `product`. Meta validates a typed object against the app
+     named above and reports the app id as missing when that app has not
+     declared the type — which flagged every product link while the front page,
+     typed `website`, passed. The preview is built from title, description and
+     image regardless of type, so nothing is lost by saying the plainer thing.
+     The price tags below stay: they cost nothing and a catalogue may read them. -->
+<meta property="og:type" content="website">
 <meta property="og:site_name" content="{site_name}">
 <meta property="og:locale" content="mn_MN">
 <meta property="og:url" content="{url}">
