@@ -42,12 +42,16 @@
 }
 
 :root {
-  --bg: #000000;
-  --bg-tint: #0d0711;
-  --fg: #ffffff;
-  --fg-dim: rgba(255, 255, 255, 0.5);
-  --line: rgba(255, 255, 255, 0.16);
-  --sale: #ff5a3c;
+  --bg: #fbf7f0;
+  --bg-tint: #f4ebdd;
+  --fg: #45241a;
+  --fg-dim: rgba(69, 36, 26, 0.72);
+  /* text sitting on a --fg coloured surface, such as the order button */
+  --on-fg: #fbf7f0;
+  /* a raised panel: image frames, gallery wells */
+  --surface: #efe7d9;
+  --line: rgba(69, 36, 26, 0.18);
+  --sale: #c0341b;
   --ok: #3ddc84;
   --font-display: "Montserrat", "Segoe UI", system-ui, sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -105,7 +109,7 @@ a { color: inherit; text-decoration: none; }
 .icon-btn {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(69, 36, 26, 0.1);
   display: grid; place-items: center;
   font-size: 0.95rem;
   color: var(--fg);
@@ -139,9 +143,9 @@ a { color: inherit; text-decoration: none; }
   padding: 0.9rem 1rem;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgba(14, 10, 16, 0.97);
+  background: rgba(251, 247, 240, 0.97);
   backdrop-filter: blur(10px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 18px 40px rgba(69, 36, 26, 0.18);
 }
 .helppop__title {
   font-size: 0.6rem;
@@ -150,7 +154,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--fg-dim);
 }
 .helppop a { font-size: 1rem; font-weight: 700; }
-.helppop a:hover { color: #ffb469; }
+.helppop a:hover { color: #e2a45c; }
 .helppop__note { font-size: 0.68rem; color: var(--fg-dim); margin-top: 0.2rem; }
 
 /* two-up field rows for the address block */
@@ -233,12 +237,12 @@ a { color: inherit; text-decoration: none; }
   max-width: none;
   transform-origin: var(--lens-x) var(--lens-y);
   will-change: transform;
-  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.7));
+  filter: drop-shadow(0 30px 50px rgba(69, 36, 26, 0.18));
 }
 
 .hero__veil {
   position: absolute; inset: 0;
-  z-index: 5; background: #000;
+  z-index: 5; background: var(--bg);
   opacity: 0; pointer-events: none;
 }
 
@@ -368,11 +372,11 @@ a { color: inherit; text-decoration: none; }
 
 .cat__cta {
   display: inline-flex; align-items: center; gap: 0.5rem;
-  background: var(--fg); color: #000;
+  background: var(--fg); color: var(--on-fg);
   border-radius: 999px;
   padding: 0.62rem 1.05rem;
   font-weight: 700; font-size: 0.8rem;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 10px 26px rgba(69, 36, 26, 0.14);
   transition: transform 0.25s ease;
 }
 .cat__cta:active { transform: scale(0.97); }
@@ -381,7 +385,7 @@ a { color: inherit; text-decoration: none; }
 .cat__img { flex: 1 1 53%; display: grid; place-items: center; height: 100%; }
 .cat__img img {
   max-height: 100%; width: auto; max-width: 100%;
-  filter: drop-shadow(0 26px 40px rgba(0, 0, 0, 0.75));
+  filter: drop-shadow(0 26px 40px rgba(69, 36, 26, 0.2));
 }
 
 .cats__nav { display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
@@ -390,12 +394,12 @@ a { color: inherit; text-decoration: none; }
 .arrow {
   width: 58px; height: 58px;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(69, 36, 26, 0.5);
   display: grid; place-items: center;
   transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
 }
 .arrow svg { width: 26px; height: 26px; }
-.arrow:hover { background: var(--fg); color: #000; }
+.arrow:hover { background: var(--fg); color: var(--on-fg); }
 .arrow:active { transform: scale(0.94); }
 
 .cats__hint { text-align: center; font-weight: 700; font-size: 0.95rem; line-height: 1.45; }
@@ -437,10 +441,10 @@ a { color: inherit; text-decoration: none; }
   padding: 0.75rem;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(69, 36, 26, 0.03);
   transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
 }
-.prow:hover { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.06); }
+.prow:hover { border-color: rgba(69, 36, 26, 0.4); background: rgba(69, 36, 26, 0.06); }
 .prow:active { transform: scale(0.995); }
 
 /* Photos come straight from the sheet at any size or aspect, so each sits in
@@ -451,7 +455,7 @@ a { color: inherit; text-decoration: none; }
   aspect-ratio: 1 / 1;
   border-radius: 14px;
   overflow: hidden;
-  background: #111;
+  background: var(--surface);
 }
 .frame__track {
   display: flex; height: 100%; width: 100%;
@@ -467,14 +471,14 @@ a { color: inherit; text-decoration: none; }
 
 .tag {
   align-self: flex-start;
-  background: var(--sale); color: #fff;
+  background: var(--sale); color: var(--on-fg);
   font-size: 0.65rem; font-weight: 700;
   padding: 0.2rem 0.5rem; border-radius: 6px;
 }
-.tag--soft { background: rgba(255, 255, 255, 0.12); color: var(--fg-dim); }
+.tag--soft { background: rgba(69, 36, 26, 0.12); color: var(--fg-dim); }
 .tag--out {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(69, 36, 26, 0.35);
   color: var(--fg-dim);
   letter-spacing: 0.08em;
 }
@@ -488,13 +492,13 @@ a { color: inherit; text-decoration: none; }
   margin: -0.9rem 0 1.2rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #ffb469;
+  color: #e2a45c;
 }
 
 /* same footprint as the buy button so the layout does not shift */
 .buy--out {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(69, 36, 26, 0.25);
   color: var(--fg-dim);
   cursor: not-allowed;
   box-shadow: none;
@@ -506,7 +510,7 @@ a { color: inherit; text-decoration: none; }
   position: relative; width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 22px; overflow: hidden;
-  background: #111;
+  background: var(--surface);
   margin-bottom: 1.1rem;
 }
 .pdp__dots { display: flex; justify-content: center; gap: 0.45rem; margin-bottom: 1.4rem; }
@@ -544,7 +548,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.82rem; color: var(--fg-dim);
   transition: all 0.25s ease;
 }
-.chip.is-active { border-color: var(--fg); background: var(--fg); color: #000; font-weight: 600; }
+.chip.is-active { border-color: var(--fg); background: var(--fg); color: var(--on-fg); font-weight: 600; }
 
 /* bundle picker — the saving has to be legible at a glance or it does not
    change what people buy */
@@ -561,12 +565,12 @@ a { color: inherit; text-decoration: none; }
   padding: 0.8rem 0.95rem;
   transition: border-color 0.25s ease, background-color 0.25s ease;
 }
-.pack.is-active { border-color: var(--fg); background: rgba(255, 255, 255, 0.08); }
+.pack.is-active { border-color: var(--fg); background: rgba(69, 36, 26, 0.08); }
 
 .pack__dot {
   width: 17px; height: 17px; flex-shrink: 0;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border: 1.5px solid rgba(69, 36, 26, 0.45);
   display: grid; place-items: center;
 }
 .pack.is-active .pack__dot { border-color: var(--fg); }
@@ -578,7 +582,7 @@ a { color: inherit; text-decoration: none; }
 .pack__qty { font-size: 0.92rem; font-weight: 700; }
 .pack__label {
   font-size: 0.72rem;
-  color: #ffb469;
+  color: #e2a45c;
   font-weight: 600;
 }
 .pack__per { font-size: 0.72rem; color: var(--fg-dim); }
@@ -592,8 +596,8 @@ a { color: inherit; text-decoration: none; }
 .pack__save {
   font-size: 0.64rem;
   font-weight: 700;
-  color: #0d0d0d;
-  background: #ffb469;
+  color: var(--on-fg);
+  background: #e2a45c;
   border-radius: 5px;
   padding: 0.1rem 0.35rem;
 }
@@ -603,8 +607,8 @@ a { color: inherit; text-decoration: none; }
   margin-left: 0.4rem;
   font-size: 0.68rem;
   font-weight: 700;
-  color: #0d0d0d;
-  background: #ffb469;
+  color: var(--on-fg);
+  background: #e2a45c;
   border-radius: 5px;
   padding: 0.1rem 0.4rem;
 }
@@ -625,10 +629,10 @@ a { color: inherit; text-decoration: none; }
   gap: 0.15rem;
   width: 100%;
   margin-top: 1.6rem;
-  background: var(--fg); color: #000;
+  background: var(--fg); color: var(--on-fg);
   border-radius: 999px;
   padding: 0.85rem 1rem;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 14px 34px rgba(69, 36, 26, 0.16);
   transition: transform 0.2s ease;
 }
 .buy:active { transform: scale(0.985); }
@@ -651,7 +655,7 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(69, 36, 26, 0.03);
   margin-bottom: 0.8rem;
 }
 .rev__stars { color: #ffcf5a; font-size: 0.8rem; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
@@ -708,11 +712,11 @@ a { color: inherit; text-decoration: none; }
   border-radius: 18px;
   padding: 0.75rem;
   margin-bottom: 1.6rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(69, 36, 26, 0.03);
 }
 .sum__img {
   width: 74px; height: 74px; flex-shrink: 0;
-  border-radius: 12px; overflow: hidden; background: #111;
+  border-radius: 12px; overflow: hidden; background: var(--surface);
 }
 .sum__img img { width: 100%; height: 100%; object-fit: cover; }
 .sum__name { font-weight: 600; font-size: 0.9rem; }
@@ -727,7 +731,7 @@ a { color: inherit; text-decoration: none; }
 }
 .input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(69, 36, 26, 0.05);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0.85rem 1rem;
@@ -736,8 +740,8 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.92rem;
   transition: border-color 0.25s ease, background-color 0.25s ease;
 }
-.input:focus { outline: none; border-color: var(--fg); background: rgba(255, 255, 255, 0.08); }
-.input::placeholder { color: rgba(255, 255, 255, 0.3); }
+.input:focus { outline: none; border-color: var(--fg); background: rgba(69, 36, 26, 0.08); }
+.input::placeholder { color: rgba(69, 36, 26, 0.55); }
 textarea.input { resize: vertical; min-height: 74px; }
 
 .pick { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -749,11 +753,11 @@ textarea.input { resize: vertical; min-height: 74px; }
   cursor: pointer;
   transition: border-color 0.25s ease, background-color 0.25s ease;
 }
-.pick__item.is-active { border-color: var(--fg); background: rgba(255, 255, 255, 0.08); }
+.pick__item.is-active { border-color: var(--fg); background: rgba(69, 36, 26, 0.08); }
 .pick__dot {
   width: 17px; height: 17px; flex-shrink: 0;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border: 1.5px solid rgba(69, 36, 26, 0.45);
   display: grid; place-items: center;
 }
 .pick__item.is-active .pick__dot { border-color: var(--fg); }
@@ -771,7 +775,7 @@ textarea.input { resize: vertical; min-height: 74px; }
   cursor: not-allowed;
   border-style: dashed;
 }
-.pick__item.is-locked .pick__dot { border-color: rgba(255, 255, 255, 0.25); }
+.pick__item.is-locked .pick__dot { border-color: rgba(69, 36, 26, 0.25); }
 
 .leadtime {
   border: 1px solid var(--line);
@@ -786,7 +790,7 @@ textarea.input { resize: vertical; min-height: 74px; }
 
 .pick__lock {
   margin-top: 0.6rem;
-  border-left: 2px solid #ffb469;
+  border-left: 2px solid #e2a45c;
   padding: 0.15rem 0 0.15rem 0.7rem;
   font-size: 0.76rem;
   line-height: 1.5;
@@ -828,7 +832,7 @@ textarea.input { resize: vertical; min-height: 74px; }
 .done__lead { font-size: 0.88rem; color: var(--fg-dim); line-height: 1.6; margin-bottom: 1.8rem; }
 
 .code {
-  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border: 1px dashed rgba(69, 36, 26, 0.35);
   border-radius: 18px;
   padding: 1.3rem 1rem;
   margin-bottom: 1.6rem;
@@ -856,14 +860,14 @@ textarea.input { resize: vertical; min-height: 74px; }
    brightest thing on the screen without turning into a loud alert box */
 .pay {
   text-align: left;
-  border: 1px solid rgba(255, 150, 60, 0.32);
+  border: 1px solid rgba(166, 92, 20, 0.32);
   border-radius: 20px;
   padding: 1.1rem;
   margin-bottom: 1.4rem;
   background:
-    radial-gradient(120% 90% at 0% 0%, rgba(255, 140, 45, 0.14), transparent 62%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 190, 130, 0.14);
+    radial-gradient(120% 90% at 0% 0%, rgba(214, 140, 60, 0.14), transparent 62%),
+    linear-gradient(160deg, rgba(69, 36, 26, 0.05), rgba(69, 36, 26, 0.015));
+  box-shadow: 0 18px 44px rgba(69, 36, 26, 0.14), inset 0 1px 0 rgba(255, 240, 220, 0.14);
 }
 
 .pay__head {
@@ -871,14 +875,14 @@ textarea.input { resize: vertical; min-height: 74px; }
   align-items: center;
   gap: 0.8rem;
   padding-bottom: 0.95rem;
-  border-bottom: 1px solid rgba(255, 150, 60, 0.2);
+  border-bottom: 1px solid rgba(166, 92, 20, 0.2);
   margin-bottom: 0.95rem;
 }
 .pay__logo {
   width: 40px; height: 40px;
   border-radius: 10px;
   flex-shrink: 0;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 16px rgba(69, 36, 26, 0.13);
 }
 .pay__bank { font-weight: 700; font-size: 0.92rem; }
 .pay__holder { font-size: 0.76rem; color: var(--fg-dim); margin-top: 0.12rem; }
@@ -893,7 +897,7 @@ textarea.input { resize: vertical; min-height: 74px; }
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 1.15rem;
-  color: #ffb469;
+  color: #e2a45c;
 }
 
 .acct + .acct { margin-top: 0.75rem; }
@@ -909,8 +913,8 @@ textarea.input { resize: vertical; min-height: 74px; }
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 150, 60, 0.22);
+  background: rgba(69, 36, 26, 0.05);
+  border: 1px solid rgba(166, 92, 20, 0.22);
   border-radius: 12px;
   padding: 0.6rem 0.6rem 0.6rem 0.85rem;
 }
@@ -921,23 +925,23 @@ textarea.input { resize: vertical; min-height: 74px; }
   font-weight: 800;
   font-size: 0.98rem;
   letter-spacing: 0.02em;
-  color: #ffd9b0;
+  color: #8a5a2b;
   overflow-wrap: anywhere;
 }
 .copy--sm {
   flex-shrink: 0;
   padding: 0.42rem 0.8rem;
   font-size: 0.72rem;
-  border-color: rgba(255, 150, 60, 0.4);
-  color: #ffb469;
+  border-color: rgba(166, 92, 20, 0.4);
+  color: #e2a45c;
 }
-.copy--sm:hover { border-color: #ffb469; }
+.copy--sm:hover { border-color: #e2a45c; }
 
 /* order code ↔ phone, so a lost code still has a way back to the order */
 .code__phone {
   margin-top: 1rem;
   padding-top: 0.85rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid rgba(69, 36, 26, 0.12);
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -958,8 +962,8 @@ textarea.input { resize: vertical; min-height: 74px; }
 .helpline__note { font-size: 0.72rem; color: var(--fg-dim); margin-top: 0.2rem; }
 
 .warn {
-  border: 1px solid rgba(255, 90, 60, 0.45);
-  background: rgba(255, 90, 60, 0.08);
+  border: 1px solid rgba(192, 52, 27, 0.45);
+  background: rgba(192, 52, 27, 0.08);
   border-radius: 14px;
   padding: 0.9rem 1rem;
   font-size: 0.82rem;
@@ -976,7 +980,7 @@ textarea.input { resize: vertical; min-height: 74px; }
   font-size: 1.05rem;
   margin: 1.7rem 0 0.6rem;
 }
-.prose p, .prose li { font-size: 0.9rem; line-height: 1.7; color: rgba(255, 255, 255, 0.75); }
+.prose p, .prose li { font-size: 0.9rem; line-height: 1.7; color: rgba(69, 36, 26, 0.75); }
 .prose ul { padding-left: 1.1rem; margin: 0.5rem 0; }
 .prose li { margin-bottom: 0.3rem; }
 
@@ -985,7 +989,7 @@ textarea.input { resize: vertical; min-height: 74px; }
   position: relative;
   z-index: 3;
   border-top: 1px solid var(--line);
-  background: #000;
+  background: var(--bg-tint);
   padding: 2.6rem 1.1rem 2.2rem;
 }
 .foot__inner {
@@ -1004,7 +1008,7 @@ textarea.input { resize: vertical; min-height: 74px; }
 }
 .foot__links a { transition: color 0.25s ease; }
 .foot__links a:hover { color: var(--fg); }
-.foot__note { font-size: 0.72rem; line-height: 1.8; color: rgba(255, 255, 255, 0.35); }
+.foot__note { font-size: 0.72rem; line-height: 1.8; color: rgba(69, 36, 26, 0.7); }
 
 /* ============================== desktop ============================== */
 @media (min-width: 860px) {
@@ -1037,7 +1041,7 @@ textarea.input { resize: vertical; min-height: 74px; }
        in and would otherwise draw its dashes straight through these names */
     margin-left: 60px;
     --gap: 38px;
-    border-right: 1px solid rgba(255, 255, 255, 0.14);
+    border-right: 1px solid rgba(69, 36, 26, 0.14);
     -webkit-mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
     mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
   }

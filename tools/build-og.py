@@ -35,9 +35,9 @@ SITE_NAME = "Starshopping"
 # Meta app so they appear in its insights
 FB_APP_ID = "3475902549234725"
 CARD_W, CARD_H = 1200, 630
-# the shop is black; letterboxing to anything else would frame every card in a
-# colour the brand never uses
-CARD_BG = (8, 8, 10)
+# the cream the shop is painted in; letterboxing to anything else would frame
+# every card in a colour the brand never uses
+CARD_BG = (251, 247, 240)
 TIMEOUT = 45
 
 # a slug becomes a directory name, so anything that could climb out of the tree
