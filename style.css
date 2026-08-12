@@ -672,6 +672,27 @@ a { color: inherit; text-decoration: none; }
   margin-top: 1.6rem;
 }
 
+/* A dead link is a lost sale unless it offers a way onward, so this is given
+   the same weight as a product page rather than being tucked away as an error */
+.missing { max-width: 520px; margin: 3rem auto 0; text-align: center; }
+.missing__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.missing__lead { margin-top: 0.8rem; font-size: 0.9rem; line-height: 1.6; color: var(--fg-dim); }
+.missing__acts { margin-top: 1.6rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: center; }
+.missing__go {
+  background: var(--fg); color: var(--on-fg);
+  border-radius: 999px;
+  padding: 0.8rem 1.6rem;
+  font-weight: 700; font-size: 0.9rem;
+}
+.missing__alt { font-size: 0.85rem; color: var(--fg-dim); text-decoration: underline; }
+.missing__help { margin-top: 1.8rem; font-size: 0.8rem; color: var(--fg-dim); }
+.missing__help a { font-weight: 700; color: var(--fg); }
+
 .leadnote {
   margin-top: 0.7rem;
   font-size: 0.75rem;

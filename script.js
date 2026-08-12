@@ -119,8 +119,45 @@ function lowestPrice(p) {
 }
 
 const productsIn = (slug) => DB.products.filter((p) => p.active !== false && p.category === slug);
-const categoryBy = (slug) => DB.categories.find((c) => c.slug === slug);
-const productBy = (slug) => DB.products.find((p) => p.slug === slug);
+
+/* Addresses that have already gone out under a reel or through the reply
+   automation cannot be recalled, so a slug tidied up in the sheet strands every
+   customer holding the old one. `Huwtsas hadgalah shiid` became
+   `Huwtsas-hadgalah-sags` and every link sent before that stopped resolving.
+
+   Two rescues, in order of confidence. Loosening the comparison catches the
+   ordinary kind of tidying — case, spaces for hyphens, a stray underscore —
+   which is most renames. The list below catches the rest: a word that actually
+   changed, where nothing can infer the connection. Add a line when a slug is
+   renamed after its address has been shared. */
+const ALIASES = {
+  "huwtsas-hadgalah-shiid": "Huwtsas-hadgalah-sags",
+};
+
+const loosen = (s) =>
+  String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const categoryBy = (slug) => {
+  const exact = DB.categories.find((c) => c.slug === slug);
+  if (exact) return exact;
+  const want = loosen(slug);
+  return DB.categories.find((c) => loosen(c.slug) === want);
+};
+
+const productBy = (slug) => {
+  const exact = DB.products.find((p) => p.slug === slug);
+  if (exact) return exact;
+  const want = loosen(slug);
+  const loose = DB.products.find((p) => loosen(p.slug) === want);
+  if (loose) return loose;
+  const alias = ALIASES[want];
+  return alias ? DB.products.find((p) => p.slug === alias) : undefined;
+};
 const reviewsFor = (slug) => DB.reviews.filter((r) => !r.product || r.product === slug);
 const bundlesFor = (slug) =>
   DB.bundles.filter((b) => b.product === slug && b.qty > 1 && b.price > 0).sort((a, b) => a.qty - b.qty);
@@ -540,9 +577,39 @@ function renderCategory(slug) {
    again; afterwards it holds their choices and must be left alone. */
 let pdpTouched = false;
 
+/* Someone who tapped a product link and landed on the hero with no explanation
+   has no idea what happened and no way onward — they leave. This says what went
+   wrong and puts the catalogue in front of them instead. */
+function renderMissing() {
+  const cat = DB.categories.filter((c) => c.active !== false)[0];
+  document.getElementById("pdp").innerHTML = `
+    <div class="missing">
+      <h1 class="missing__title">Энэ бараа олдсонгүй</h1>
+      <p class="missing__lead">
+        Холбоос хуучирсан эсвэл бараа түр хугацаанд хаагдсан байж болно.
+        Доорхоос бусад барааг үзнэ үү.
+      </p>
+      <div class="missing__acts">
+        ${cat ? `<a class="missing__go" href="#/c/${esc(cat.slug)}">${esc(cat.name)} үзэх</a>` : ""}
+        <a class="missing__alt" href="#/">Нүүр хуудас</a>
+      </div>
+      <p class="missing__help">Тодруулах бол: <a href="tel:88104640">8810-4640</a></p>
+    </div>`;
+}
+
 function renderProduct(slug) {
   const p = productBy(slug);
-  if (!p) return goHome();
+  /* Before the sheet's own catalogue lands the shop only knows its offline
+     copy, so a product missing from it may simply not have arrived yet — go
+     home and let `missedRoute` finish the trip. Once the real catalogue is in,
+     a slug that still resolves to nothing genuinely resolves to nothing. */
+  if (!p) {
+    if (liveLoaded) {
+      show("product");
+      return renderMissing();
+    }
+    return goHome();
+  }
   pdpTouched = false;
   const colors = listOf(p.colors);
   const sizes = listOf(p.sizes);
@@ -1410,9 +1477,25 @@ let missedRoute = null;
 
 const goHome = () => {
   const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
-  if ((kind === "p" || kind === "c") && slug) missedRoute = location.hash;
+  if ((kind === "p" || kind === "c") && slug) {
+    missedRoute = location.hash;
+    /* The rescue normally rides in with the sheet's catalogue, but that answer
+       has been measured at five seconds and can fail outright. Nobody who
+       tapped a product link should sit on the hero that long with no idea what
+       happened, so give the sheet a few seconds and then act on what is already
+       known — which lands them on the product or on a page that explains. */
+    clearTimeout(rescueTimer);
+    rescueTimer = setTimeout(() => {
+      if (!missedRoute || location.hash !== "#/") return;
+      liveLoaded = true;
+      const wanted = missedRoute;
+      missedRoute = null;
+      location.hash = wanted;
+    }, 4000);
+  }
   location.hash = "#/";
 };
+let rescueTimer = null;
 
 function show(name) {
   Object.entries(views).forEach(([k, el]) => (el.hidden = k !== name));
@@ -1523,6 +1606,9 @@ function setDB(data) {
 }
 
 let booted = false;
+/* True once the sheet's own catalogue has landed. Until then "no such product"
+   only means the offline copy has not heard of it yet. */
+let liveLoaded = false;
 
 function paint(data, { first }) {
   setDB(data);
@@ -1563,7 +1649,10 @@ function paint(data, { first }) {
     } catch (ex) {
       /* malformed escape — compare the raw text instead */
     }
-    if (productBy(want) || categoryBy(want)) location.hash = wanted;
+    /* Sent back to where they were headed either way. If it resolves they get
+       the product; if it does not they get told so and handed the catalogue,
+       which beats being left on the hero wondering what they tapped. */
+    if (want) location.hash = wanted;
   }
   // fonts and images landing late can shift a pin's measurements
   requestAnimationFrame(() => ScrollTrigger.refresh());
@@ -1591,10 +1680,15 @@ fetch(DATA_SOURCE)
   .then((data) => {
     if (!data || !(data.products || []).length) return;
     writeCache(data);
+    liveLoaded = true;
     paint(data, { first: !booted });
   })
   .catch((err) => {
     console.warn("Sheet-ийн feed ирсэнгүй, одоо байгаа хувилбараар үргэлжилж байна:", err);
+    /* No further catalogue is coming, so what is already loaded is as good as
+       it gets: a slug that does not resolve now will never resolve, and saying
+       so beats waiting for an answer that will not arrive. */
+    liveLoaded = true;
     if (!booted) {
       fetch(DATA_FALLBACK)
         .then((r) => r.json())
