@@ -69,6 +69,7 @@ function stockBadge(slug) {
 const WEBP_ASSETS = {
   "assets/product-clock.png": "assets/product-clock.webp",
   "assets/product-turntable.png": "assets/product-turntable.webp",
+  "assets/cat-huuhdiin-heregsel.png": "assets/cat-huuhdiin-heregsel.webp",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -260,8 +261,49 @@ function renderCategories() {
   });
   // a single name is not something you can scroll between
   catRail.classList.toggle("is-solo", cats.length < 2);
+  fitRail();
   paintRail();
 }
+
+/* Category names are written by hand in the sheet and some are long —
+   "ХҮҮХДИЙН ХЭРЭГСЭЛ" runs wider than the column it stands in, and the
+   overflow that keeps the list tidy would slice its first letters clean off.
+   Rather than cap the name or widen the column into the giant type's space,
+   each name is measured and set smaller only if it needs to be.
+
+   Down the side of a wide screen the limit is the column. Across the foot of a
+   phone it is the spacing between names, or neighbours would run together. */
+function fitRail() {
+  const items = [...catRail.children];
+  if (!items.length) return;
+  const wide = window.matchMedia("(min-width: 860px)").matches;
+  /* Down the side of a wide screen the column is the limit. Across the foot of
+     a phone the strip is the full width, and the names either side of the
+     chosen one are faded almost to nothing and dissolving into the mask — so
+     sizing the whole list down to keep them apart would shrink the one name
+     anybody reads. The strip is what constrains it there. */
+  const room = catRail.clientWidth - (wide ? 26 : 16);
+  /* The column has no width yet on the first pass through — the list is built
+     before the section has been laid out. Come back once it has. */
+  if (room <= 0) {
+    requestAnimationFrame(fitRail);
+    return;
+  }
+  items.forEach((el) => el.style.setProperty("--fit", 1));
+  const widest = Math.max(...items.map((el) => el.offsetWidth));
+  /* One factor for the whole list, taken from the longest name. Sizing each
+     name to its own length would leave them all slightly different, which
+     reads as a mistake rather than as a set. */
+  const fit = widest > room ? Math.max(0.8, room / widest) : 1;
+  items.forEach((el) => el.style.setProperty("--fit", fit));
+}
+
+/* the column's width follows the viewport, so a name that fitted at one size
+   may not at another */
+addEventListener("resize", () => {
+  clearTimeout(fitRail._t);
+  fitRail._t = setTimeout(fitRail, 150);
+});
 
 /* Every name keeps its slot in the ring; the chosen one sits at full size in
    the middle and the rest fall away from it in both directions. Offsets wrap

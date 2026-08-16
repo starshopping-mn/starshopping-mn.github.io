@@ -320,7 +320,9 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   height: 30px;
   overflow: hidden;
-  --gap: 104px;
+  /* room enough that a long name does not sit on its neighbours; the ones
+     either side are faded and running into the mask anyway */
+  --gap: 150px;
   /* the ends dissolve rather than being sliced off by the overflow */
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
@@ -337,7 +339,9 @@ a { color: inherit; text-decoration: none; }
   opacity: var(--o, 0);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 0.82rem;
+  /* --fit is measured in the script: a name too long for its lane is set
+     smaller rather than sliced off by the overflow */
+  font-size: calc(0.82rem * var(--fit, 1));
   letter-spacing: 0.09em;
   white-space: nowrap;
   color: var(--fg);
@@ -1056,7 +1060,9 @@ textarea.input { resize: vertical; min-height: 74px; }
      running top to bottom with the chosen one held in the middle */
   .catrail {
     order: -1;
-    width: 150px;
+    /* wide enough that a real Mongolian category name — "ХҮҮХДИЙН ХЭРЭГСЭЛ" —
+       stands at close to full size rather than being shrunk to fit */
+    width: 210px;
     height: auto;
     /* clears the fixed progress rail at the window edge, which reaches ~94px
        in and would otherwise draw its dashes straight through these names */
@@ -1071,7 +1077,7 @@ textarea.input { resize: vertical; min-height: 74px; }
     text-align: right;
     transform-origin: 100% 50%;
     transform: translateY(calc(-50% + var(--off, 0) * var(--gap))) scale(var(--s, 1));
-    font-size: 0.95rem;
+    font-size: calc(0.95rem * var(--fit, 1));
   }
 
   .cat { gap: 2rem; }
@@ -1105,7 +1111,7 @@ textarea.input { resize: vertical; min-height: 74px; }
   .cats__stage { height: clamp(180px, 42svh, 300px); }
   .cats__main { gap: 0.3rem; }
   .catrail { height: 24px; }
-  .catrail__item { font-size: 0.74rem; }
+  .catrail__item { font-size: calc(0.74rem * var(--fit, 1)); }
   .cats__nav { gap: 0.6rem; }
   .cats__hint { font-size: 0.86rem; }
   .arrow { width: 50px; height: 50px; }
