@@ -76,17 +76,23 @@
       "desc": "Онцлог\n1 минутанд угсарна — багаж, хадаас шаардлагагүй. Задлаад холбоход л болно.\n60см хайрцаг болж эвхэгдэнэ — зуслан явахад, зочин ирэхэд, эсвэл хэрэггүй улиралд шүүгээнд багтана.\nГулсахгүй — хүчтэй сорогчоор шалан дээр бэхлэгдэнэ. Хүүхэд түшиж босоход хөдлөхгүй.\nХуруу хавчуулахгүй  — оёдолгүй Оксфорд даавуу. Зузаан ган хоолойн хүрээ дотор нь нуугдсан.\n30ш бөмбөг, сагстай — Хүүхэд тулж босход тусалсан резинэн зөөлхөн бариултай",
       "price": 119000,
       "discount": null,
-      "images": [],
+      "images": [
+        "https://drive.google.com/file/d/19pgRw0BWuyzRHTnxwNbEN0aDER6yxAiY/view?usp=sharing",
+        "https://drive.google.com/file/d/1L7QKdTJFltskEvweQ8K668FhLM8fzDoV/view?usp=sharing",
+        "https://drive.google.com/file/d/1vpM0ozxeTb5a6O96l-gJRlVkdK8Gieqs/view?usp=sharing",
+        "https://drive.google.com/file/d/1fIIKuNZV-uJuX52NXdhHEOhzaV0h8HQT/view?usp=sharing",
+        "https://drive.google.com/file/d/1NFiCyTRoi2P7E-G0jpUlfwoWGXXk2MVD/view?usp=sharing"
+      ],
       "sizes": [],
       "sizePrices": [],
       "colors": [
-        "Ногоон"
+        "Усан ногоон"
       ],
       "colorImages": [],
       "sizeImages": [],
       "stock": 0,
-      "leadTime": "",
-      "leadNote": "",
+      "leadTime": "5-7 хоногт",
+      "leadNote": "Одоогоор бараа хил дээр агуулхад байгаа.  Ирээд 24 цагийн дотор хүргэлтээр очин😊",
       "active": true
     }
   ],
@@ -99,6 +105,7 @@
     "mini-travel-bottle": 0,
     "flip-clock-retro": 0,
     "victrola-suitcase": 0,
-    "Huwtsas-hadgalah-sags": 8
+    "Huwtsas-hadgalah-sags": 0,
+    "Huuhdiin-hashiwch": 30
   }
 }
