@@ -443,6 +443,41 @@ const camImg = document.querySelector(".hero__cam img");
 let homeTriggers = [];
 let heroTl = null;
 
+/* Reached only with ?diag on the address, and never by a customer. A band of
+   bare background appears under the camera part-way through the zoom on a real
+   phone and on no desktop, and two fixes reasoned from a desk have already
+   missed. This reports the real geometry from the real device as it scrolls:
+   how tall the pinned hero actually is, where the photograph's bottom edge sits,
+   and how much of the screen is left bare beneath it. */
+if (/(^|[?&])diag/.test(location.search)) {
+  const box = document.createElement("div");
+  box.style.cssText =
+    "position:fixed;left:6px;right:6px;top:6px;z-index:9999;pointer-events:none;" +
+    "background:rgba(251,247,240,.94);border:1px solid rgba(69,36,26,.3);border-radius:10px;" +
+    "padding:8px 10px;font:12px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;color:#45241a;" +
+    "font-variant-numeric:tabular-nums;white-space:pre";
+  addEventListener("DOMContentLoaded", () => document.body.appendChild(box));
+  let worst = 0;
+  const report = () => {
+    const vh = window.visualViewport ? window.visualViewport.height : innerHeight;
+    const h = heroEl.getBoundingClientRect();
+    const c = camImg.getBoundingClientRect();
+    const pin = ScrollTrigger.getAll().find((t) => t.vars.pin && t.trigger?.id === "hero");
+    const bare = Math.round(vh - c.bottom);
+    if (bare > worst) worst = bare;
+    box.textContent =
+      "дэлгэц       " + Math.round(vh) + "\n" +
+      "hero өндөр   " + Math.round(h.height) + "  дээд " + Math.round(h.top) + "\n" +
+      "камер доод   " + Math.round(c.bottom) + "  өндөр " + Math.round(c.height) + "\n" +
+      "НҮЦГЭН ЗАЙ   " + bare + "   хамгийн их " + worst + "\n" +
+      "zoom явц     " + (pin ? pin.progress.toFixed(2) : "-") +
+      "  scale " + (getComputedStyle(camImg).transform.match(/[\d.]+/) || ["-"])[0];
+  };
+  addEventListener("scroll", report, { passive: true });
+  addEventListener("resize", report);
+  setInterval(report, 120);
+}
+
 const lensOffset = (axis) => () => {
   const hero = heroEl.getBoundingClientRect();
   const img = camImg.getBoundingClientRect();
