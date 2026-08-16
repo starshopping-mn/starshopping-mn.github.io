@@ -1,12 +1,13 @@
 gsap.registerPlugin(ScrollTrigger);
 
-/* A phone browser hides and shows its toolbar as you scroll, which changes the
-   viewport height and would otherwise count as a resize. Both home sections are
-   pinned, so a refresh part-way down re-measures them under the scroll position
-   and throws the reader back to the top — worst in the Instagram and Facebook
-   in-app browsers, where the chrome moves constantly. This limits refreshes to a
-   real orientation change. */
-ScrollTrigger.config({ ignoreMobileResize: true });
+/* ScrollTrigger is deliberately left to refresh when a phone's viewport height
+   changes. `ignoreMobileResize: true` was tried here and caused the opposite of
+   what it promised: the hero is sized in svh — the height with the toolbar
+   showing — and measured at load, so when the toolbar slides away and the
+   viewport grows, the pin has to be measured again or the section no longer
+   reaches the bottom of the screen. Suppressing that left a band of bare
+   background under the camera part-way through the zoom, on a real phone, where
+   no amount of desktop emulation reproduced it. */
 
 /* A reload normally restores the previous scroll position. The hero is a
    pinned, scrubbed section, so being measured from a half-scrolled start
