@@ -597,6 +597,17 @@ function doPost(e) {
     const count = sheet.getLastRow() - 1;
     if (count > 0 && count % CONFIG.notifyEvery === 0) notifyBatch(sheet, count);
 
+    /* The order is already written and the customer is already owed their goods,
+       so nothing about telling the owner may undo that. Failures are swallowed. */
+    notifyTelegram_({
+      code: code, name: String(body.name || ''), phone: String(body.phone || ''),
+      phone2: String(body.phone2 || ''), address: String(body.address || ''),
+      product: String(body.product || ''), color: String(body.color || ''),
+      size: String(body.size || ''), qty: qty, unit: unit, ship: ship,
+      total: total, payment: priced.payment,
+      delivery: String(body.deliveryName || '')
+    });
+
     return json({ ok: true, code: code });
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -712,6 +723,100 @@ function notifyBatch(sheet, count) {
     to: CONFIG.notifyEmail,
     subject: 'Starshopping — ' + count + ' дэх захиалга',
     htmlBody: html
+  });
+}
+
+/* ====================================================================
+   TELEGRAM — захиалга бүрд шууд мэдэгдэнэ
+
+   Токеныг ЭНЭ ФАЙЛД БИЧИХГҮЙ. Энэ файл нийтийн GitHub repo-д байдаг тул
+   бичсэн даруйдаа хэн ч таны ботыг удирдах боломжтой болно.
+
+   Оронд нь: Apps Script → ⚙ Project Settings → Script properties → Add:
+       TELEGRAM_TOKEN   BotFather-аас авсан токен
+       TELEGRAM_CHAT    таны chat id
+
+   Хоёулаа тавигдаагүй бол энэ функц юу ч хийхгүй чимээгүй буцна — өмнөх
+   шигээ имэйл л ажиллана.
+   ==================================================================== */
+function notifyTelegram_(o) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const token = props.getProperty('TELEGRAM_TOKEN');
+    const chat = props.getProperty('TELEGRAM_CHAT');
+    if (!token || !chat) return;
+
+    const money = function (n) { return Number(n || 0).toLocaleString('en-US') + '₮'; };
+    const line = [];
+    line.push('🛒 <b>Шинэ захиалга</b>  ' + o.code);
+    line.push('');
+    line.push('<b>' + esc_(o.product) + '</b>');
+    const opts = [o.color, o.size].filter(String).join(' · ');
+    if (opts) line.push(esc_(opts));
+    line.push(o.qty + ' ширхэг × ' + money(o.unit));
+    line.push('');
+    line.push('👤 ' + esc_(o.name));
+    line.push('📞 ' + esc_(o.phone) + (o.phone2 ? ' / ' + esc_(o.phone2) : ''));
+    if (o.address) line.push('📍 ' + esc_(o.address));
+    line.push('');
+    if (o.delivery) line.push('🚚 ' + esc_(o.delivery) + ' — ' + money(o.ship));
+    line.push('💳 ' + esc_(o.payment));
+    line.push('<b>НИЙТ ' + money(o.total) + '</b>');
+
+    UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({
+        chat_id: chat,
+        text: line.join('\n'),
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+      }),
+      muteHttpExceptions: true
+    });
+  } catch (err) {
+    // an order must never fail because a message did
+    Logger.log('Telegram: ' + err);
+  }
+}
+
+function esc_(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* Гараар нэг удаа ажиллуулж холболтоо шалгах. Apps Script дээр функцээ
+   сонгоод Run дарна; Logger-т үр дүн бичигдэнэ. */
+function telegramTest() {
+  const props = PropertiesService.getScriptProperties();
+  const token = props.getProperty('TELEGRAM_TOKEN');
+  const chat = props.getProperty('TELEGRAM_CHAT');
+  if (!token) { Logger.log('TELEGRAM_TOKEN тавигдаагүй байна.'); return; }
+  if (!chat) { Logger.log('TELEGRAM_CHAT тавигдаагүй байна.'); return; }
+
+  const res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ chat_id: chat, text: 'Starshopping — холболт ажиллаж байна ✅' }),
+    muteHttpExceptions: true
+  });
+  Logger.log('Telegram хариу: ' + res.getResponseCode() + ' ' + res.getContentText());
+}
+
+/* Chat id-гаа мэдэхгүй бол: ботдоо ямар нэг зурвас бичээд энэ функцийг
+   ажиллуул. Logger-т chat id гарч ирнэ. */
+function telegramFindChatId() {
+  const token = PropertiesService.getScriptProperties().getProperty('TELEGRAM_TOKEN');
+  if (!token) { Logger.log('TELEGRAM_TOKEN тавигдаагүй байна.'); return; }
+  const res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/getUpdates', { muteHttpExceptions: true });
+  const data = JSON.parse(res.getContentText());
+  if (!data.ok || !data.result || !data.result.length) {
+    Logger.log('Зурвас олдсонгүй. Ботдоо Telegram-аас нэг зурвас бичээд дахин ажиллуулна уу.');
+    return;
+  }
+  data.result.forEach(function (u) {
+    const m = u.message || u.channel_post;
+    if (m && m.chat) Logger.log('chat id: ' + m.chat.id + '   (' + (m.chat.title || m.chat.first_name || '') + ')');
   });
 }
 
