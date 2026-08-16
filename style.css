@@ -1082,7 +1082,12 @@ textarea.input { resize: vertical; min-height: 74px; }
 
   .cat { gap: 2rem; }
   .cat__side { flex-basis: 44%; gap: 1.4rem; }
-  .cat__name { font-size: min(7.5vw, calc(38vw / (var(--chars, 6) * 0.72))); }
+  /* The second term only binds for a long name: "ХҮҮХДИЙН ХЭРЭГСЭЛ" ran 486px
+     wide and left the artwork 231px of an 804px stage, using barely half the
+     height available to it. Lowered until the two share the room. A short name
+     is capped by the first term and is not touched — ГЭР АХУЙ is the same size
+     it has always been. */
+  .cat__name { font-size: min(7.5vw, calc(33vw / (var(--chars, 6) * 0.72))); }
   .cat__cta { font-size: 0.92rem; padding: 0.8rem 1.4rem; }
   .cat__img { flex-basis: 56%; }
   .arrow { width: 70px; height: 70px; }
