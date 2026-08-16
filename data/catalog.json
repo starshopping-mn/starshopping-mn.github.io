@@ -35,6 +35,13 @@
       "image": "assets/product-clock.png",
       "order": 1,
       "active": true
+    },
+    {
+      "slug": "huuhdiin-heregsel",
+      "name": "ХҮҮХДИЙН ХЭРЭГСЭЛ",
+      "image": "assets/cat-huuhdiin-heregsel.png",
+      "order": 2,
+      "active": true
     }
   ],
   "products": [
