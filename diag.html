@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Starshopping — оношилгоо</title>
+<style>
+  /* Probes, not decoration: each box is one CSS height unit, measured on the
+     device rather than guessed at from a desktop. The whole point is to learn
+     what svh, lvh and dvh actually resolve to on the phone that shows the
+     fault, and how far apart they drift as the toolbar slides away. */
+  :root { --ink: #45241a; --bg: #fbf7f0; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  .probe { position: absolute; visibility: hidden; width: 1px; }
+  #p-svh { height: 100svh; }
+  #p-lvh { height: 100lvh; }
+  #p-dvh { height: 100dvh; }
+  #p-vh  { height: 100vh; }
+
+  .panel {
+    position: fixed; inset: 8px 8px auto 8px; z-index: 10;
+    background: rgba(251, 247, 240, 0.96);
+    border: 1px solid rgba(69, 36, 26, 0.25);
+    border-radius: 12px; padding: 12px 14px;
+    box-shadow: 0 10px 30px rgba(69, 36, 26, 0.18);
+  }
+  h1 { font-size: 15px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td { padding: 3px 0; font-size: 14px; }
+  td:last-child { text-align: right; font-weight: 700; }
+  .warn td { color: #c0341b; }
+  .hint { margin-top: 9px; font-size: 12px; opacity: .75; line-height: 1.45; }
+
+  /* a stand-in for the hero: same height rule the real one uses */
+  .stage { height: 100svh; background: linear-gradient(#d9c9b4, #b9a68d); position: relative; }
+  .stage span { position: absolute; bottom: 6px; left: 10px; font-size: 12px; font-weight: 700; }
+  .after { height: 60vh; background: repeating-linear-gradient(45deg, #efe7d9, #efe7d9 14px, #e6dbc9 14px, #e6dbc9 28px); }
+  .after span { display: block; padding: 10px; font-size: 12px; font-weight: 700; }
+  .tall { height: 220vh; }
+</style>
+</head>
+<body>
+
+<div class="probe" id="p-svh"></div>
+<div class="probe" id="p-lvh"></div>
+<div class="probe" id="p-dvh"></div>
+<div class="probe" id="p-vh"></div>
+
+<div class="panel">
+  <h1>Утасны хэмжилт</h1>
+  <table id="out"></table>
+  <p class="hint">Доош удаан гүйлгэнэ үү. Toolbar нуугдахад тоонууд өөрчлөгдөнө.
+  <b>Хамгийн их зөрүү гарсан үед</b> дэлгэцийн зураг аваарай.</p>
+</div>
+
+<div class="stage"><span>Энэ хэсэг hero-тэй ижил дүрмээр өндөрлөнө (100svh)</span></div>
+<div class="after"><span>Доорх зураастай хэсэг = hero дуусмагц юу харагдах</span></div>
+<div class="tall"></div>
+
+<script>
+  var out = document.getElementById('out');
+  var peak = { drift: -1 };
+
+  function h(id) { return document.getElementById(id).getBoundingClientRect().height; }
+
+  function row(label, value, warn) {
+    return '<tr' + (warn ? ' class="warn"' : '') + '><td>' + label + '</td><td>' + value + '</td></tr>';
+  }
+
+  function tick() {
+    var svh = h('p-svh'), lvh = h('p-lvh'), dvh = h('p-dvh'), vh = h('p-vh');
+    var vis = window.visualViewport ? window.visualViewport.height : innerHeight;
+    var drift = Math.round(lvh - svh);
+    var gap = Math.round(vis - svh);       // bare background under a 100svh section
+    if (drift > peak.drift) peak = { drift: drift, svh: Math.round(svh), lvh: Math.round(lvh), gap: gap };
+
+    out.innerHTML =
+      row('Дэлгэцийн өндөр', Math.round(vis) + 'px') +
+      row('100svh', Math.round(svh) + 'px') +
+      row('100lvh', Math.round(lvh) + 'px') +
+      row('100dvh', Math.round(dvh) + 'px') +
+      row('100vh', Math.round(vh) + 'px') +
+      row('lvh − svh (toolbar-ын өндөр)', drift + 'px', drift > 0) +
+      row('hero-гийн доорх хоосон зай', gap + 'px', gap > 2) +
+      row('хамгийн их зөрүү', peak.drift + 'px', peak.drift > 0) +
+      row('devicePixelRatio', (window.devicePixelRatio || 1).toFixed(2));
+  }
+
+  addEventListener('scroll', tick, { passive: true });
+  addEventListener('resize', tick);
+  if (window.visualViewport) {
+    visualViewport.addEventListener('resize', tick);
+    visualViewport.addEventListener('scroll', tick);
+  }
+  setInterval(tick, 250);
+  tick();
+</script>
+</body>
+</html>
