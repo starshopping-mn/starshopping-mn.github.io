@@ -1643,6 +1643,38 @@ function route() {
 
 window.addEventListener("hashchange", route);
 
+/* Opened from a chat app, the shop is measured while Safari is still sliding
+   its window into place. On an iPhone reached from Viber the page laid itself
+   out against a 355px-tall screen and then sat in a 710px one, so the hero
+   finished half way down and bare background filled the rest — the measurement
+   was never wrong, it was just taken too early and never taken again.
+
+   So it is taken again, after the window has stopped moving and whenever the
+   viewport genuinely changes. Refreshing keeps the scroll position, so nobody
+   is thrown anywhere; it only re-measures. */
+const settle = () => ScrollTrigger.refresh();
+addEventListener("load", () => {
+  setTimeout(settle, 250);
+  setTimeout(settle, 1200);
+});
+addEventListener("pageshow", (e) => {
+  if (e.persisted) setTimeout(settle, 250);
+});
+addEventListener("orientationchange", () => setTimeout(settle, 300));
+if (window.visualViewport) {
+  let seen = Math.round(visualViewport.height);
+  visualViewport.addEventListener("resize", () => {
+    const now = Math.round(visualViewport.height);
+    /* A toolbar sliding away moves this by a few dozen pixels and is handled by
+       ScrollTrigger already. A jump this large means the window itself changed
+       and the whole layout was measured against the wrong one. */
+    if (Math.abs(now - seen) > 120) {
+      seen = now;
+      setTimeout(settle, 120);
+    }
+  });
+}
+
 /* ========================================================================
    BOOT
    ===================================================================== */
