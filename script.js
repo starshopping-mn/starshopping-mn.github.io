@@ -510,9 +510,21 @@ function buildHomeMotion() {
     .to(".hero__cue", { opacity: 0, duration: 0.12 }, 0)
     .to(".hero__word", { opacity: 0, duration: 0.34, ease: "power1.in" }, 0.04)
     .to(camImg, { scale: 11, x: lensOffset("x"), y: lensOffset("y"), duration: 1, ease: "power2.in" }, 0)
-    // black only at the very end — any earlier and the tail of the pin is
-    // spent staring at an empty screen
-    .to(".hero__veil", { opacity: 1, duration: 0.14 }, 0.86);
+    /* The veil closes over the second half rather than the last sliver, and
+       that timing is not taste — it is the point past which the photograph
+       cannot be drawn.
+
+       Scaling an image is free while the browser can hand the GPU the texture
+       it already holds. Past a certain size it cannot: on an iPhone 11 Pro,
+       measured through ?diag, the picture came through whole at scale 2.35 and
+       was sliced across the middle at 4.35 — geometry reporting a bottom edge
+       well past the foot of the screen while only a band of it was painted.
+       Three device pixels to the CSS pixel and a scale of eleven asks for a
+       surface no phone will allocate.
+
+       So the screen is covered before it gets there. The dive still reads as a
+       dive; it simply resolves into the page rather than into a torn frame. */
+    .to(".hero__veil", { opacity: 1, duration: 0.18 }, 0.42);
 
   /* Pinned for its own short beat so the categories grow out of the black in
      place. Without the pin they would scale up while sliding past, which
