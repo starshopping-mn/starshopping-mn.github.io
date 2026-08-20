@@ -51,6 +51,41 @@ const DEFAULT_LEAD_NOTE = "Захиалга баталгаажсаны дара�
 const leadTimeOf = (p) => String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
 const leadNoteOf = (p) => String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
 
+/* Delivery prices were written out in the markup of the product badge and
+   again in the delivery policy, so a change in the sheet left two pages
+   quoting the old figure — and the badge never mentioned the express option
+   at all. Both now read the sheet, and only the sheet. */
+const deliveryOptions = () => (DB.shop.delivery || []).filter((d) => d && d.name);
+const deliverySummary = () => {
+  const prices = deliveryOptions().map((d) => Number(d.price) || 0);
+  if (!prices.length) return "Захиалга өгөхөд харагдана";
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
+};
+
+/* Every page of the shop reported itself as plain "Starshopping". Six tabs
+   open and none of them says which product; a link pasted into a chat that
+   the crawler cards do not cover carries the same blank name; the back button
+   offers an undifferentiated list. The card pages under /p/ hold the markup a
+   crawler reads — this is what a person sees. */
+const SITE_NAME = "Starshopping";
+const SITE_ORIGIN = "https://starshopping-mn.github.io";
+/* Only a latin slug gets a card page built for it (see tools/build-og.py), so
+   only those have a real address to point at; the rest name the shop. */
+const CARD_SLUG = /^[A-Za-z0-9-]+$/;
+
+function setHead(title, path) {
+  document.title = title ? `${title} · ${SITE_NAME}` : `${SITE_NAME} — гэр ахуйн бараа`;
+  let link = document.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "canonical";
+    document.head.appendChild(link);
+  }
+  link.href = SITE_ORIGIN + (path || "/");
+}
+
 const isSoldOut = (slug) => availableOf(slug) === 0;
 
 /* Sold out is stated plainly; a low count is only worth showing when it is
@@ -190,7 +225,7 @@ function hydrateFrame(track, idx) {
   });
 }
 
-function buildFrame(images, className = "frame", size = 1200) {
+function buildFrame(images, className = "frame", size = 1200, alt = "") {
   const urls = images.map((u) => imageUrl(u, size)).filter(Boolean);
   const el = document.createElement("div");
   el.className = className;
@@ -204,7 +239,11 @@ function buildFrame(images, className = "frame", size = 1200) {
     } else {
       img.dataset.src = u;
     }
-    img.alt = "";
+    /* A product photo is the content, not decoration: with an empty alt a
+       reader hears nothing where the goods should be, and the picture carries
+       no name into image search. The logos stay empty on purpose — the shop's
+       name is written beside them. */
+    img.alt = alt ? (i === 0 ? alt : `${alt} — зураг ${i + 1}`) : "";
     img.loading = i === 0 ? "eager" : "lazy";
     img.decoding = "async";
     track.appendChild(img);
@@ -666,6 +705,7 @@ function renderCategory(slug) {
   const cat = categoryBy(slug);
   const items = productsIn(slug);
   document.getElementById("catTitle").textContent = cat ? cat.name : "Категори";
+  setHead(cat ? cat.name : "Категори", "/");
   document.getElementById("catMeta").textContent = `${items.length} БАРАА`;
 
   const plist = document.getElementById("plist");
@@ -677,7 +717,7 @@ function renderCategory(slug) {
     row.className = "prow";
     row.href = `#/p/${encodeURIComponent(p.slug)}`;
     // drawn ~150 points wide, so the full-size file is pure waiting
-    row.appendChild(buildFrame(p.images, "frame", 400));
+    row.appendChild(buildFrame(p.images, "frame", 400, p.name));
 
     const info = document.createElement("div");
     info.className = "prow__info";
@@ -746,6 +786,36 @@ function renderMissing() {
    measured on a wired line, and longer on a phone. They had every reason to
    think the link was broken and leave. Now they stay on the page they asked
    for and watch it fill in. */
+/* The sheet holds a description as separate lines — a heading, then one
+   selling point per line. Escaped into a single paragraph they ran together
+   into an eight-sentence wall, which is the one thing nobody reads on a page
+   they are deciding to spend money on. Each line gets its own block, a short
+   opening line with no full stop is the heading it plainly is, and the part
+   before an em dash is the point being made, so it is set in bold. */
+function descBlock(desc) {
+  const lines = String(desc || "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return "";
+  if (lines.length === 1) return `<p class="pdp__desc">${esc(lines[0])}</p>`;
+
+  let head = "";
+  if (lines[0].length <= 30 && !/[.!?…]$/.test(lines[0])) head = lines.shift();
+
+  const items = lines
+    .map((l) => {
+      const parts = l.split(/\s+—\s+/);
+      return parts.length > 1
+        ? `<li><b>${esc(parts[0])}</b> — ${esc(parts.slice(1).join(" — "))}</li>`
+        : `<li>${esc(l)}</li>`;
+    })
+    .join("");
+
+  return `${head ? `<h2 class="pdp__desc-head">${esc(head)}</h2>` : ""}
+      <ul class="pdp__desc-list">${items}</ul>`;
+}
+
 function renderPending() {
   document.getElementById("pdp").innerHTML = `
     <div class="pending">
@@ -764,8 +834,14 @@ function renderProduct(slug) {
      slug that still resolves to nothing genuinely resolves to nothing. */
   if (!p) {
     show("product");
-    return liveLoaded ? renderMissing() : renderPending();
+    if (liveLoaded) {
+      setHead("Бараа олдсонгүй", "/");
+      return renderMissing();
+    }
+    setHead("Ачаалж байна", "/");
+    return renderPending();
   }
+  setHead(p.name, CARD_SLUG.test(p.slug) ? `/p/${p.slug}/` : "/");
   pdpTouched = false;
   pdpNav = null; // reassigned below only when there is a set to step through
   const colors = listOf(p.colors);
@@ -804,11 +880,15 @@ function renderProduct(slug) {
   /* ---- gallery ---- */
   const left = document.createElement("div");
   left.className = "pdp__left";
-  const gallery = buildFrame(p.images, "pdp__gallery", 1200);
+  const gallery = buildFrame(p.images, "pdp__gallery", 1200, p.name);
   left.appendChild(gallery);
 
   const track = gallery.querySelector(".frame__track");
   const galleryCount = Number(gallery.dataset.count || 1);
+  /* The sheet's own addresses for what the gallery is showing, kept in step
+     with it, so the order summary can carry the picture the visitor was
+     actually looking at instead of always the first one in the sheet. */
+  const rawImages = [...p.images];
   let dots = null;
   if (galleryCount > 1) {
     dots = document.createElement("div");
@@ -882,9 +962,10 @@ function renderProduct(slug) {
     if (idx === -1) {
       const extra = document.createElement("img");
       extra.src = url;
-      extra.alt = "";
+      extra.alt = p.name;
       extra.decoding = "async";
       track.appendChild(extra);
+      rawImages.push(url);
       idx = imgs.length;
       gallery.dataset.count = String(idx + 1);
       if (dots) {
@@ -904,7 +985,7 @@ function renderProduct(slug) {
   const right = document.createElement("div");
   right.innerHTML = `
     <h1 class="pdp__name">${esc(p.name)}</h1>
-    ${p.desc ? `<p class="pdp__desc">${esc(p.desc)}</p>` : ""}
+    ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
     ${stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
@@ -945,7 +1026,7 @@ function renderProduct(slug) {
     }
 
     <div class="trust">
-      <div><b>Хүргэлт</b>УБ 6,000₮ · Орон нутаг 6,000₮</div>
+      <div><b>Хүргэлт</b>${deliverySummary()}</div>
       <div><b>Хугацаа</b>${esc(leadTime)}</div>
       <div><b>Төлбөр</b>Хүргэлтээр эсвэл шилжүүлгээр</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
@@ -1095,7 +1176,10 @@ function renderProduct(slug) {
     setDraft({
       slug: p.slug,
       name: p.name,
-      image: p.images[0] || "",
+      /* Whatever is on screen — the colour they picked, the angle they
+         stopped on. It used to be the sheet's first photo no matter what,
+         which on this shop is often the supplier's advert. */
+      image: rawImages[Number(gallery.dataset.index || 0)] || p.images[0] || "",
       unit: pack ? Math.round(pack.price / pack.qty) : pr.now,
       qty,
       goods: orderTotal(),
@@ -1157,6 +1241,7 @@ const getDraft = () => {
 function renderOrder() {
   const d = getDraft();
   if (!d) return goHome();
+  setHead("Захиалга", "/");
 
   const ship = (DB.shop.delivery || []).length
     ? DB.shop.delivery
@@ -1174,7 +1259,7 @@ function renderOrder() {
     <div class="order-grid" style="margin-top:1.6rem">
       <div>
         <div class="sum">
-          <div class="sum__img"><img src="${imageUrl(d.image)}" alt=""></div>
+          <div class="sum__img"><img src="${imageUrl(d.image, 400)}" alt="${esc(d.name)}" decoding="async"></div>
           <div>
             <div class="sum__name">${esc(d.name)}</div>
             <div class="sum__meta">
@@ -1242,41 +1327,53 @@ function renderOrder() {
       </div>
 
       <div>
+        <!-- A real form, not a heap of inputs: Enter sends it, the phone
+             keyboard offers "next" down the fields, and the browser is willing
+             to fill an address it can see belongs together. Validation is left
+             to us — the novalidate flag — because the browser's own warnings arrive in
+             the wrong language and say less than ours do. -->
+        <form id="orderForm" novalidate>
         <div class="field">
-          <span class="field__label">НЭР</span>
-          <input class="input" id="fName" type="text" placeholder="Таны нэр" autocomplete="name">
+          <label class="field__label" for="fName">НЭР</label>
+          <input class="input" id="fName" name="name" type="text" placeholder="Таны нэр" autocomplete="name" required>
         </div>
         <div class="grid2">
           <div class="field">
-            <span class="field__label">УТАС</span>
-            <input class="input" id="fPhone" type="tel" inputmode="numeric" maxlength="8" placeholder="8 оронтой" autocomplete="tel">
+            <label class="field__label" for="fPhone">УТАС</label>
+            <input class="input" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
           </div>
           <div class="field">
-            <span class="field__label">НЭМЭЛТ УТАС</span>
-            <input class="input" id="fPhone2" type="tel" inputmode="numeric" maxlength="8" placeholder="8 оронтой">
+            <!-- Marked optional because it is. It used to be demanded, and had
+                 to differ from the first, while being labelled "additional" and
+                 carrying no required mark — the form asked for the opposite of
+                 what it enforced, and the order stopped there. -->
+            <label class="field__label" for="fPhone2">НЭМЭЛТ УТАС <span class="field__opt">(заавал биш)</span></label>
+            <input class="input" id="fPhone2" name="tel2" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="off">
           </div>
         </div>
 
         <span class="field__label">ХҮРГҮҮЛЭХ ХАЯГ</span>
         <div class="grid2">
-          <div class="field"><input class="input" id="aCity" type="text" placeholder="Хот / Аймаг"></div>
-          <div class="field"><input class="input" id="aDist" type="text" placeholder="Дүүрэг / Сум"></div>
-          <div class="field"><input class="input" id="aKhoroo" type="text" placeholder="Хороо / Баг"></div>
-          <div class="field"><input class="input" id="aBuilding" type="text" placeholder="Байр / Гудамж"></div>
-          <div class="field"><input class="input" id="aEntrance" type="text" placeholder="Орц"></div>
-          <div class="field"><input class="input" id="aDoor" type="text" placeholder="Тоот"></div>
+          <div class="field"><label class="sr-only" for="aCity">Хот / Аймаг</label><input class="input" id="aCity" name="city" type="text" placeholder="Хот / Аймаг" autocomplete="address-level1" required></div>
+          <div class="field"><label class="sr-only" for="aDist">Дүүрэг / Сум</label><input class="input" id="aDist" name="district" type="text" placeholder="Дүүрэг / Сум" autocomplete="address-level2" required></div>
+          <div class="field"><label class="sr-only" for="aKhoroo">Хороо / Баг</label><input class="input" id="aKhoroo" name="khoroo" type="text" placeholder="Хороо / Баг" autocomplete="address-level3" required></div>
+          <div class="field"><label class="sr-only" for="aBuilding">Байр / Гудамж</label><input class="input" id="aBuilding" name="building" type="text" placeholder="Байр / Гудамж" autocomplete="address-line1" required></div>
+          <div class="field"><label class="sr-only" for="aEntrance">Орц</label><input class="input" id="aEntrance" name="entrance" type="text" placeholder="Орц" autocomplete="address-line2" required></div>
+          <div class="field"><label class="sr-only" for="aDoor">Тоот</label><input class="input" id="aDoor" name="door" type="text" placeholder="Тоот" autocomplete="address-line3" required></div>
         </div>
         <div class="field">
-          <input class="input" id="aExtra" type="text" placeholder="Нэмэлт заавар (заавал биш)">
+          <label class="sr-only" for="aExtra">Нэмэлт заавар</label>
+          <input class="input" id="aExtra" name="note" type="text" placeholder="Нэмэлт заавар (заавал биш)" autocomplete="off">
         </div>
 
         <p class="err" id="formErr"></p>
 
-        <a class="buy" href="#" id="submitBtn">
+        <button class="buy" type="submit" id="submitBtn">
           <span class="buy__total" id="submitTotal"></span>
           <span class="buy__label">ЗАХИАЛГА БАТАЛГААЖУУЛАХ</span>
-        </a>
+        </button>
         <p class="note">Илгээснээр таны захиалгын код үүсэж, бид тантай утсаар холбогдоно.</p>
+        </form>
       </div>
     </div>`;
 
@@ -1338,11 +1435,76 @@ function renderOrder() {
   applyPrepaid(Boolean(ship[0] && ship[0].prepaid));
 
   /* ---- submit ---- */
+  const form = page.querySelector("#orderForm");
   const btn = page.querySelector("#submitBtn");
   const err = page.querySelector("#formErr");
+  const errHome = err.parentNode;
+  // where it belongs when it is not pinned to a field: just above the button,
+  // never appended to the end of the form under the small print
+  const errAnchor = err.nextElementSibling;
+  const homeErr = () => {
+    if (err.parentNode !== errHome || err.nextElementSibling !== errAnchor) {
+      errHome.insertBefore(err, errAnchor);
+    }
+  };
   let sending = false;
 
-  btn.addEventListener("click", async (e) => {
+  /* A number field that lets letters in only to reject them at the end wastes
+     the visitor's time twice. Nothing but digits ever lands in these. */
+  ["fPhone", "fPhone2"].forEach((id) => {
+    const el = page.querySelector("#" + id);
+    el.addEventListener("input", () => {
+      const digits = el.value.replace(/[^0-9]/g, "").slice(0, 8);
+      if (el.value !== digits) el.value = digits;
+      el.classList.remove("is-invalid");
+    });
+  });
+  page.querySelectorAll(".input").forEach((el) =>
+    el.addEventListener("input", () => el.classList.remove("is-invalid"))
+  );
+
+  /* The complaint used to be shown in one line above the button, at the foot
+     of a form longer than a phone screen. Someone with an empty box near the
+     top pressed send, nothing appeared to happen, and they left. The message
+     now travels to the field it is about, which is also where the cursor and
+     the screen go. */
+  /* Getting there is not optional, so it does not ride on an animation. The
+     document is set to scroll smoothly, and a smooth scroll is skipped when
+     the visitor has asked for less motion and can be throttled to nothing in
+     an in-app browser — measured here scrolling zero pixels. The cursor would
+     then move to a field below the fold and the page would look like it had
+     ignored the button, which is the dead end this exists to prevent. */
+  const bring = (el) => {
+    const box = el.getBoundingClientRect();
+    if (box.top >= 8 && box.bottom <= innerHeight - 8) return; // already in sight
+    const root = document.documentElement;
+    const had = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    el.scrollIntoView({ block: "center" });
+    root.style.scrollBehavior = had;
+  };
+
+  const fail = (id, msg) => {
+    page.querySelectorAll(".input.is-invalid").forEach((n) => n.classList.remove("is-invalid"));
+    const el = page.querySelector("#" + id);
+    err.textContent = msg;
+    if (!el) {
+      homeErr();
+      return;
+    }
+    el.classList.add("is-invalid");
+    (el.closest(".field") || errHome).appendChild(err);
+    el.focus({ preventScroll: true });
+    bring(el);
+  };
+
+  const clearFail = () => {
+    err.textContent = "";
+    page.querySelectorAll(".input.is-invalid").forEach((n) => n.classList.remove("is-invalid"));
+    homeErr();
+  };
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sending) return;
 
@@ -1351,23 +1513,28 @@ function renderOrder() {
     const phone = val("fPhone");
     const phone2 = val("fPhone2");
 
+    // the field id travels with each piece so a complaint can point at it
     const parts = [
-      ["Хот/Аймаг", val("aCity")],
-      ["Дүүрэг/Сум", val("aDist")],
-      ["Хороо/Баг", val("aKhoroo")],
-      ["Байр/Гудамж", val("aBuilding")],
-      ["Орц", val("aEntrance")],
-      ["Тоот", val("aDoor")],
+      ["Хот/Аймаг", val("aCity"), "aCity"],
+      ["Дүүрэг/Сум", val("aDist"), "aDist"],
+      ["Хороо/Баг", val("aKhoroo"), "aKhoroo"],
+      ["Байр/Гудамж", val("aBuilding"), "aBuilding"],
+      ["Орц", val("aEntrance"), "aEntrance"],
+      ["Тоот", val("aDoor"), "aDoor"],
     ];
 
-    if (!name) return (err.textContent = "Нэрээ бичнэ үү.");
-    if (!/^\d{8}$/.test(phone)) return (err.textContent = "Утасны дугаар 8 оронтой тоо байх ёстой.");
-    if (!/^\d{8}$/.test(phone2)) return (err.textContent = "Нэмэлт утасны дугаар 8 оронтой тоо байх ёстой.");
-    if (phone === phone2) return (err.textContent = "Нэмэлт утас нь өөр хүний дугаар байх ёстой.");
+    if (!name) return fail("fName", "Нэрээ бичнэ үү.");
+    if (!/^\d{8}$/.test(phone)) return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
+    /* Only checked when they chose to give one — it is a second contact, not
+       a second hurdle. */
+    if (phone2 && !/^\d{8}$/.test(phone2))
+      return fail("fPhone2", "Нэмэлт утасны дугаар 8 оронтой тоо байх ёстой.");
+    if (phone2 && phone === phone2)
+      return fail("fPhone2", "Нэмэлт утас нь өөр дугаар байх ёстой. Эсвэл хоосон орхино уу.");
 
     const missing = parts.find(([, v]) => !v);
-    if (missing) return (err.textContent = `Хаягийн "${missing[0]}" талбарыг бөглөнө үү.`);
-    err.textContent = "";
+    if (missing) return fail(missing[2], `Хаягийн "${missing[0]}" талбарыг бөглөнө үү.`);
+    clearFail();
 
     // The sheet keeps one row per order, so the address pieces are folded into
     // a single readable line for the delivery driver.
@@ -1375,13 +1542,30 @@ function renderOrder() {
     const addr = parts.map(([k, v]) => `${k}: ${v}`).join(", ") + (extra ? ` (${extra})` : "");
 
     sending = true;
+    btn.disabled = true;
     btn.querySelector(".buy__label").textContent = "ИЛГЭЭЖ БАЙНА…";
+
+    /* Nothing bounded this request. On a signal that dies mid-send the button
+       read "ИЛГЭЭЖ БАЙНА…" for as long as the visitor was willing to look at
+       it, and no second attempt was possible because `sending` never came
+       back down — the one screen where a freeze costs an actual sale. The
+       sheet answers in about three seconds when it is well, so thirty is a
+       dead line rather than a slow one. */
+    const bail = typeof AbortController === "function" ? new AbortController() : null;
+    const deadline = setTimeout(() => bail && bail.abort(), 30000);
+    const release = (label) => {
+      clearTimeout(deadline);
+      btn.disabled = false;
+      btn.querySelector(".buy__label").textContent = label;
+      sending = false;
+    };
 
     try {
       // text/plain keeps the browser from firing a CORS preflight that Apps
       // Script cannot answer; doPost reads the raw body either way.
       const res = await fetch(DATA_SOURCE, {
         method: "POST",
+        signal: bail ? bail.signal : undefined,
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           name, phone, phone2, address: addr,
@@ -1395,6 +1579,7 @@ function renderOrder() {
       });
       const out = await res.json();
       if (!out.ok) throw new Error(out.error || "Тодорхойгүй алдаа");
+      clearTimeout(deadline);
 
       if (window.fbq)
         fbq("track", "Purchase", { value: goods + shipPrice, currency: "MNT", content_name: d.name });
@@ -1406,9 +1591,15 @@ function renderOrder() {
       location.hash = "#/done";
     } catch (ex) {
       console.error(ex);
-      err.textContent = "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 8810-4640 руу залгана уу.";
-      btn.querySelector(".buy__label").textContent = "ЗАХИАЛГА БАТАЛГААЖУУЛАХ";
-      sending = false;
+      /* A request we gave up on may still have reached the sheet, so the
+         wording stops short of telling them to fire a second one blind — a
+         duplicate order is worse for them than a phone call. */
+      err.textContent =
+        ex && ex.name === "AbortError"
+          ? "Сүлжээ хариу өгсөнгүй. 8810-4640 руу залгавал бид захиалгыг тань шууд бүртгэнэ."
+          : "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 8810-4640 руу залгана уу.";
+      homeErr();
+      release("ЗАХИАЛГА БАТАЛГААЖУУЛАХ");
     }
   });
 }
@@ -1422,6 +1613,8 @@ function renderDone() {
     info = JSON.parse(sessionStorage.getItem("ss_done") || "null");
   } catch {}
   if (!info) return goHome();
+
+  setHead("Захиалга хүлээн авлаа", "/");
 
   const s = DB.shop || {};
   const transfer = info.payment === "Шилжүүлгээр төлөх";
@@ -1553,16 +1746,34 @@ function bindCopyButtons(root) {
 const POLICIES = {
   delivery: {
     title: "Хүргэлтийн нөхцөл",
-    body: `
+    /* Built when the page is drawn, not written into the markup. The prices
+       used to be typed here as well as in the sheet, so raising one left this
+       page quoting the old figure to the very customer who came to check it. */
+    body: () => `
       <h2>Хүргэлтийн төрөл, төлбөр</h2>
       <ul>
-        <li><b>Энгийн хүргэлт</b> — 6,000₮ (Улаанбаатар хот)</li>
-        <li><b>Шуурхай хүргэлт</b> — 12,000₮ (Улаанбаатар хот)</li>
-        <li><b>Орон нутаг</b> — 6,000₮ (унаагаар илгээнэ)</li>
+        ${
+          deliveryOptions().length
+            ? deliveryOptions()
+                .map(
+                  (d) =>
+                    `<li><b>${esc(d.name)}</b> — ${money(d.price)}${d.note ? ` (${esc(d.note)})` : ""}</li>`
+                )
+                .join("")
+            : "<li>Захиалгын хуудсан дээр харагдана.</li>"
+        }
       </ul>
       <h2>Хугацаа</h2>
-      <p>Захиалга баталгаажсаны дараа өглөөний 08:00–12:00 цагийн хооронд хүргэнэ.
-      Хүргэлтийн ажилтан очихоосоо өмнө таны утсанд заавал холбогдоно.</p>
+      <!-- This used to promise one morning window flatly, while a product
+           brought in from abroad said "5-7 хоногт" on its own page. Both were
+           true about different things and read as a contradiction. The wait
+           belongs to the product; the window belongs to the drive. -->
+      <p>Бараа бүрийн ирэх хугацаа өөр өөр тул <b>тухайн барааны хуудсан дээр</b>
+      бичсэн хугацааг үзнэ үү — агуулахад байгаа бараа шууд, гадаадаас ирж буй
+      бараа заасан хоногийн дараа хүргэгдэнэ.</p>
+      <p>Бараа агуулахад ирсний дараа хүргэлт <b>өглөөний 08:00–12:00</b> цагийн
+      хооронд явагдана. Хүргэлтийн ажилтан очихоосоо өмнө таны утсанд заавал
+      холбогдоно.</p>
       <h2>Орон нутгийн захиалга</h2>
       <p>Орон нутгийн захиалгыг тухайн чиглэлийн унаанд тавьж илгээдэг. Унаанд
       хүлээлгэж өгсний дараа хүргэлтийн ажилтан төлбөр авах боломжгүй тул
@@ -1656,10 +1867,13 @@ const POLICIES = {
 
 function renderPolicy(key) {
   const p = POLICIES[key] || POLICIES.contact;
+  // a page whose figures come from the sheet supplies a function, not a string
+  const body = typeof p.body === "function" ? p.body() : p.body;
   document.getElementById("policyPage").innerHTML = `
     <a class="back" href="#/">← Нүүр</a>
     <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">${esc(p.title)}</h1>
-    <div class="prose">${p.body}</div>`;
+    <div class="prose">${body}</div>`;
+  setHead(p.title, "/");
 }
 
 /* ========================================================================
@@ -1747,6 +1961,7 @@ function route() {
     renderPolicy(slug);
   } else {
     show("home");
+    setHead("", "/");
     buildHomeMotion();
     setRail("hero");
   }

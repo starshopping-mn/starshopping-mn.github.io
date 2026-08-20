@@ -597,6 +597,41 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 0.6rem;
 }
 .pdp__desc { font-size: 0.9rem; line-height: 1.6; color: var(--fg-dim); margin-bottom: 1.2rem; }
+
+/* The sheet writes a description as a heading and one selling point per line.
+   Rendered as a single paragraph it was eight sentences with nowhere for the
+   eye to rest, on the page where the decision to buy is actually made. */
+.pdp__desc-head {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 0.7rem;
+}
+.pdp__desc-list {
+  list-style: none;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--fg-dim);
+  margin-bottom: 1.4rem;
+}
+.pdp__desc-list li {
+  position: relative;
+  padding-left: 1.05rem;
+  margin-bottom: 0.6rem;
+}
+.pdp__desc-list li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.62em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--fg);
+  opacity: 0.45;
+}
+.pdp__desc-list b { color: var(--fg); font-weight: 700; }
 .pdp__prices { display: flex; align-items: baseline; gap: 0.7rem; margin-bottom: 1.4rem; }
 .pdp__prices .price-now { font-size: 1.6rem; }
 
@@ -704,6 +739,18 @@ a { color: inherit; text-decoration: none; }
   transition: transform 0.2s ease;
 }
 .buy:active { transform: scale(0.985); }
+/* The order button is a real submit control now, so it arrives carrying the
+   browser's own button styling — which has to go before it looks like the
+   others. */
+button.buy {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: center;
+}
+button.buy:disabled { opacity: 0.72; cursor: progress; }
 .buy__total { font-size: 0.8rem; font-weight: 600; opacity: 0.62; }
 .buy__label {
   font-family: var(--font-display);
@@ -830,6 +877,26 @@ a { color: inherit; text-decoration: none; }
   transition: border-color 0.25s ease, background-color 0.25s ease;
 }
 .input:focus { outline: none; border-color: var(--fg); background: rgba(69, 36, 26, 0.08); }
+/* The field the complaint is about, so the eye lands on it rather than
+   hunting the form for whatever went wrong. */
+.input.is-invalid { border-color: var(--sale); background: rgba(192, 52, 27, 0.06); }
+.input.is-invalid:focus { border-color: var(--sale); }
+
+/* Reads as optional to a person and to a screen reader, without shouting. */
+.field__opt { font-weight: 600; letter-spacing: 0.04em; text-transform: none; opacity: 0.75; }
+
+/* A placeholder is not a label: it disappears the moment someone types and a
+   screen reader may never announce it. These name each address box without
+   changing anything on screen. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .input::placeholder { color: rgba(69, 36, 26, 0.55); }
 textarea.input { resize: vertical; min-height: 74px; }
 
