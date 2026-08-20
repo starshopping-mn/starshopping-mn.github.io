@@ -122,6 +122,47 @@ function imageUrl(raw, size = 1200) {
   return s;
 }
 
+/* Every product photo used to be fetched from Drive as a PNG: 505KB for one
+   picture, and a product page draws several. `tools/build-og.py` now re-encodes
+   each of them to WebP on our own domain — measured at 30-45KB, a tenth of the
+   weight, from the host already serving the page rather than a third party the
+   shop does not control.
+
+   The mirror is rebuilt every twenty minutes, so a photo added to the sheet
+   minutes ago may not have one yet. Rather than making the shop wait to find
+   out, the picture is asked for by its mirrored name and carries the Drive
+   address as `data-fallback`; if the mirror is not there yet the listener below
+   quietly puts the original in its place. Nobody sees a broken image and no
+   product has to wait for the builder to catch up. */
+const PHOTO_MIRROR = "img/";
+const DRIVE_FILE = /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/;
+
+function photoSrc(raw, size = 1200) {
+  const s = String(raw || "").trim();
+  const drive = s.match(DRIVE_FILE);
+  if (!drive) return { src: imageUrl(raw, size), fallback: "" };
+  const width = size <= 400 ? 400 : 1200;
+  return {
+    src: `${PHOTO_MIRROR}${drive[1]}-${width}.webp`,
+    fallback: `https://drive.google.com/thumbnail?id=${drive[1]}&sz=w${width}`,
+  };
+}
+
+/* One listener for the whole document, and in the capture phase because an
+   image's `error` does not bubble. Registered once so no redraw can stack it. */
+document.addEventListener(
+  "error",
+  (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    const spare = img.dataset.fallback;
+    if (!spare) return;
+    delete img.dataset.fallback; // one attempt only, never a loop
+    img.src = spare;
+  },
+  true
+);
+
 /* A cell can arrive as a real array (json) or as "Улаан, Хөх" (sheet). */
 function listOf(v) {
   if (Array.isArray(v)) return v.filter((x) => String(x).trim() !== "");
@@ -226,18 +267,19 @@ function hydrateFrame(track, idx) {
 }
 
 function buildFrame(images, className = "frame", size = 1200, alt = "") {
-  const urls = images.map((u) => imageUrl(u, size)).filter(Boolean);
+  const urls = images.map((u) => photoSrc(u, size)).filter((u) => u.src);
   const el = document.createElement("div");
   el.className = className;
   const track = document.createElement("div");
   track.className = "frame__track";
-  (urls.length ? urls : [""]).forEach((u, i) => {
+  (urls.length ? urls : [{ src: "", fallback: "" }]).forEach((u, i) => {
     const img = document.createElement("img");
+    if (u.fallback) img.dataset.fallback = u.fallback;
     if (i === 0) {
-      img.src = u;
+      img.src = u.src;
       img.setAttribute("fetchpriority", "high");
     } else {
-      img.dataset.src = u;
+      img.dataset.src = u.src;
     }
     /* A product photo is the content, not decoration: with an empty alt a
        reader hears nothing where the goods should be, and the picture carries
@@ -320,7 +362,7 @@ function renderCategories() {
           <span class="cat__go">Үзэх →</span>
         </a>
       </div>
-      <div class="cat__img"><img src="${imageUrl(c.image)}" alt="${esc(c.name)}"></div>`;
+      <div class="cat__img"><img src="${photoSrc(c.image).src}" data-fallback="${esc(photoSrc(c.image).fallback)}" alt="${esc(c.name)}"></div>`;
     catsStage.appendChild(art);
   });
 
@@ -792,11 +834,30 @@ function renderMissing() {
    they are deciding to spend money on. Each line gets its own block, a short
    opening line with no full stop is the heading it plainly is, and the part
    before an em dash is the point being made, so it is set in bold. */
+/* A supplier's copy arrives pasted into one cell as a single run, its points
+   separated by nothing but an emoji — four hundred characters with no break in
+   them. The sheet's own newlines are the tidy way to write this and are used
+   when they are there; failing that, a leading emoji is treated as the bullet
+   the writer plainly meant it to be. Guarded so it can only ever fire on a
+   genuinely long run that splits into substantial pieces: an emoji inside an
+   ordinary sentence leaves the text exactly as it was. */
+function emojiBullets(line) {
+  if (line.length < 150) return null;
+  const parts = line
+    .split(/(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  if (parts.some((s) => s.length < 25)) return null;
+  return parts;
+}
+
 function descBlock(desc) {
-  const lines = String(desc || "")
+  let lines = String(desc || "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
+  if (lines.length === 1) lines = emojiBullets(lines[0]) || lines;
   if (!lines.length) return "";
   if (lines.length === 1) return `<p class="pdp__desc">${esc(lines[0])}</p>`;
 
@@ -805,10 +866,16 @@ function descBlock(desc) {
 
   const items = lines
     .map((l) => {
-      const parts = l.split(/\s+—\s+/);
-      return parts.length > 1
-        ? `<li><b>${esc(parts[0])}</b> — ${esc(parts.slice(1).join(" — "))}</li>`
-        : `<li>${esc(l)}</li>`;
+      const dash = l.split(/\s+—\s+/);
+      if (dash.length > 1) {
+        return `<li><b>${esc(dash[0])}</b> — ${esc(dash.slice(1).join(" — "))}</li>`;
+      }
+      // "🛠️ Хадаас шаардлагагүй: тусгай наалтаар…" — the same shape, punctuated
+      // the other way. Only a short opener counts, so a colon inside a sentence
+      // does not turn half of it bold.
+      const colon = l.match(/^(.{4,48}?):\s+(.+)$/);
+      if (colon) return `<li><b>${esc(colon[1])}</b> — ${esc(colon[2])}</li>`;
+      return `<li>${esc(l)}</li>`;
     })
     .join("");
 
@@ -849,8 +916,12 @@ function renderProduct(slug) {
   /* Called through a lambda, not handed to `map` directly: `map` passes the
      index as the second argument, which `imageUrl` now reads as the width —
      the first variant photo would be asked for at zero pixels wide. */
-  const colorImgs = listOf(p.colorImages).map((u) => imageUrl(u, 1200));
-  const sizeImgs = listOf(p.sizeImages).map((u) => imageUrl(u, 1200));
+  /* The sheet's own address is carried along with the mirrored one: the order
+     summary asks for a small copy of whichever photo was on screen, and it can
+     only do that from the original. */
+  const variantPhoto = (u) => Object.assign(photoSrc(u, 1200), { raw: u });
+  const colorImgs = listOf(p.colorImages).map(variantPhoto);
+  const sizeImgs = listOf(p.sizeImages).map(variantPhoto);
   const sizePrices = listOf(p.sizePrices).map(Number);
   // price follows the selected size when the sheet gives one per size
   const priceForSize = (i) => (sizePrices[i] > 0 ? sizePrices[i] : Number(p.price));
@@ -955,17 +1026,24 @@ function renderProduct(slug) {
      the picture always matches what is actually being ordered. The sheet
      supplies those photos in colorImages / sizeImages, in the same order as
      the options themselves. */
-  const showVariantImage = (url) => {
-    if (!url) return;
+  const showVariantImage = (photo) => {
+    if (!photo || !photo.src) return;
+    const url = photo.src;
     const imgs = Array.from(track.querySelectorAll("img"));
-    let idx = imgs.findIndex((im) => im.src === url || im.getAttribute("src") === url);
+    /* `data-src` counts too: a slide the visitor has not reached yet holds its
+       address there and not in `src`, and missing it would append a second copy
+       of a photo the gallery already has. */
+    let idx = imgs.findIndex(
+      (im) => im.getAttribute("src") === url || im.dataset.src === url || im.src === url
+    );
     if (idx === -1) {
       const extra = document.createElement("img");
       extra.src = url;
+      if (photo.fallback) extra.dataset.fallback = photo.fallback;
       extra.alt = p.name;
       extra.decoding = "async";
       track.appendChild(extra);
-      rawImages.push(url);
+      rawImages.push(photo.raw || url);
       idx = imgs.length;
       gallery.dataset.count = String(idx + 1);
       if (dots) {
@@ -1259,7 +1337,7 @@ function renderOrder() {
     <div class="order-grid" style="margin-top:1.6rem">
       <div>
         <div class="sum">
-          <div class="sum__img"><img src="${imageUrl(d.image, 400)}" alt="${esc(d.name)}" decoding="async"></div>
+          <div class="sum__img"><img src="${photoSrc(d.image, 400).src}" data-fallback="${esc(photoSrc(d.image, 400).fallback)}" alt="${esc(d.name)}" decoding="async"></div>
           <div>
             <div class="sum__name">${esc(d.name)}</div>
             <div class="sum__meta">

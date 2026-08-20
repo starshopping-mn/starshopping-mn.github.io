@@ -28,6 +28,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGES_DIR = os.path.join(ROOT, "p")
 OG_DIR = os.path.join(ROOT, "og")
 MANIFEST = os.path.join(OG_DIR, "manifest.json")
+PHOTO_DIR = os.path.join(ROOT, "img")
+PHOTO_MANIFEST = os.path.join(PHOTO_DIR, "manifest.json")
+# what the shop actually draws: a shelf thumbnail about 150 points wide, and a
+# gallery photo filling a phone at three times density
+PHOTO_WIDTHS = (400, 1200)
+PHOTO_QUALITY = 82
 
 SITE = "https://starshopping-mn.github.io"
 SITE_NAME = "Starshopping"
@@ -78,6 +84,140 @@ def direct_image_url(raw):
     if s.startswith("http://") or s.startswith("https://"):
         return s
     return SITE + "/" + s.lstrip("/")
+
+
+DRIVE_ID = re.compile(r"drive\.google\.com/(?:file/d/|open\?id=|uc\?id=)([\w-]+)")
+
+
+def drive_id(raw):
+    m = DRIVE_ID.search(str(raw or ""))
+    return m.group(1) if m else ""
+
+
+def photo_name(file_id, width):
+    return "%s-%d.webp" % (file_id, width)
+
+
+def drive_length(file_id):
+    """How many bytes Drive says the photo is, without downloading it.
+
+    A file id is stable, so on its own it cannot tell us the owner swapped the
+    picture behind it. Asking for the length costs one header round trip and
+    catches exactly that. When Drive declines to say, we keep what we have
+    rather than re-fetching every photo every twenty minutes.
+    """
+    url = "https://drive.google.com/thumbnail?id=%s&sz=w%d" % (file_id, max(PHOTO_WIDTHS))
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            return int(resp.headers.get("Content-Length") or 0)
+    except Exception:
+        return 0
+
+
+def mirror_photo(file_id):
+    """Put one product photo on our own domain, as WebP, at both widths.
+
+    The sheet holds Drive share links, so every photo on a product page came
+    from a third party as a half-megabyte PNG — measured at 505KB and up to
+    four seconds apiece on a wired line, and on a phone that is the whole wait
+    before anyone sees what they are buying. Google is not slow; it is a hop
+    the shop does not control, and PNG is the wrong format for a photograph.
+    Re-encoded here they land around a tenth of the size, served from the same
+    host as the page that needs them.
+
+    Raises if Drive will not answer, and the caller leaves the previous mirror
+    (or the Drive address itself) in place.
+    """
+    from PIL import Image
+
+    url = "https://drive.google.com/thumbnail?id=%s&sz=w%d" % (file_id, max(PHOTO_WIDTHS))
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        blob = resp.read()
+
+    im = Image.open(io.BytesIO(blob))
+    # a cut-out with transparency is laid on the shop's own cream rather than
+    # left to whatever happens to be painted behind it
+    if im.mode in ("RGBA", "LA", "P"):
+        im = im.convert("RGBA")
+        flat = Image.new("RGB", im.size, CARD_BG)
+        flat.paste(im, mask=im.split()[-1])
+        im = flat
+    else:
+        im = im.convert("RGB")
+
+    written = []
+    for width in PHOTO_WIDTHS:
+        out = im.copy()
+        # never enlarged: the sheet's photos are often smaller than the box
+        # they are drawn in, and upscaling only costs bytes
+        if out.width > width:
+            out.thumbnail((width, width * 20), Image.LANCZOS)
+        name = photo_name(file_id, width)
+        out.save(os.path.join(PHOTO_DIR, name), "WEBP", quality=PHOTO_QUALITY, method=6)
+        written.append(name)
+    return written
+
+
+def mirror_photos(products):
+    """Mirror every photo the shop draws, and retire the ones it no longer does.
+
+    Nothing here is allowed to matter to whether the shop works: each photo
+    that cannot be fetched is simply left unmirrored, and the page falls back
+    to the Drive address it used before any of this existed.
+    """
+    try:
+        with io.open(PHOTO_MANIFEST, encoding="utf-8") as fh:
+            have = json.load(fh)
+    except Exception:
+        have = {}
+
+    wanted = []
+    for p in products:
+        for raw in list(p.get("images") or []) + list(p.get("colorImages") or []) + list(
+            p.get("sizeImages") or []
+        ):
+            fid = drive_id(raw)
+            if fid and fid not in wanted:
+                wanted.append(fid)
+
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    fresh = {}
+    built = 0
+    for fid in wanted:
+        known = have.get(fid) or {}
+        files = known.get("files") or []
+        on_disk = files and all(os.path.exists(os.path.join(PHOTO_DIR, f)) for f in files)
+        length = drive_length(fid)
+        # a length of zero means Drive would not say, so we keep what we have
+        unchanged = on_disk and (length == 0 or length == known.get("len"))
+        if unchanged:
+            fresh[fid] = known
+            continue
+        try:
+            files = mirror_photo(fid)
+            fresh[fid] = {"len": length, "files": files}
+            built += 1
+            log("  photo mirrored: %s" % fid)
+        except Exception as err:
+            log("  ! could not mirror photo %s (%s) — the page will use Drive" % (fid, err))
+            if on_disk:
+                fresh[fid] = known
+
+    for gone in sorted(set(have) - set(fresh)):
+        for f in (have[gone].get("files") or []):
+            try:
+                os.remove(os.path.join(PHOTO_DIR, f))
+            except OSError:
+                pass
+        log("  photo retired: %s" % gone)
+
+    with io.open(PHOTO_MANIFEST, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(fresh, fh, ensure_ascii=False, indent=2, sort_keys=True)
+        fh.write("\n")
+
+    log("photos on our own domain: %d (%d rebuilt this run)" % (len(fresh), built))
 
 
 def esc(s):
@@ -297,6 +437,13 @@ def main():
         return 0
 
     write_offline_copy(feed)
+
+    # kept apart from the card build: a photo that will not mirror must not
+    # stop a single card from being written
+    try:
+        mirror_photos(products)
+    except Exception as err:
+        log("! photo mirroring failed outright (%s) — pages will use Drive" % err)
 
     os.makedirs(PAGES_DIR, exist_ok=True)
     os.makedirs(OG_DIR, exist_ok=True)

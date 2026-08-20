@@ -88,6 +88,30 @@ def drive_direct(raw):
     return SITE + "/" + s.lstrip("/") if s else ""
 
 
+PHOTO_WIDTHS = (400, 1200)
+
+
+def drive_id(raw):
+    m = re.search(r"drive\.google\.com/(?:file/d/|open\?id=|uc\?id=)([\w-]+)", str(raw or ""))
+    return m.group(1) if m else ""
+
+
+def mirror_urls(raw):
+    """The addresses the shop actually asks for, in the order it asks for them.
+
+    The photographs are no longer fetched from Drive: `tools/build-og.py`
+    re-encodes them onto our own domain and the page names those copies, with
+    Drive kept only as a silent fallback. Checking Drive therefore stopped
+    telling us anything about what a customer sees — a mirror that failed to
+    publish leaves the page working but slow, which is exactly the sort of
+    quiet decay this check exists to catch.
+    """
+    fid = drive_id(raw)
+    if not fid:
+        return []
+    return [SITE + "/img/%s-%d.webp" % (fid, w) for w in PHOTO_WIDTHS]
+
+
 def price_of(p):
     try:
         base = float(p.get("price") or 0)
@@ -207,6 +231,20 @@ def main():
                 fail(slug + " photographs", "; ".join(bad))
             else:
                 ok("all %d photograph(s) load" % len(shots))
+
+            # and the copies on our own domain, which is what the page names
+            missing = []
+            for raw in shots + [s for s in (p.get("colorImages") or []) if str(s).strip()]:
+                for url in mirror_urls(raw):
+                    code, _ = fetch(url, head=True)
+                    if code != 200:
+                        missing.append("%s -> %s" % (url.rsplit("/", 1)[-1], code))
+            if missing:
+                # not a failure: the page still draws, from Drive, and the next
+                # build makes the copy. Silence here would hide it for good.
+                log("  ~ photographs not yet mirrored for %s: %s" % (slug, "; ".join(missing)))
+            else:
+                ok("all photograph(s) served from our own domain")
 
     return finish()
 
