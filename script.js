@@ -75,12 +75,15 @@ const WEBP_ASSETS = {
 
 /* Sheets get pasted full of Google Drive share links rather than direct
    image URLs, so normalise those into something an <img> can actually load. */
-function imageUrl(raw) {
+/* `size` is the width asked of Drive. A shelf thumbnail is drawn about 150
+   points wide and was being handed the same half-megabyte file as the full
+   product photo — measured at 505KB against 207KB for the small one. */
+function imageUrl(raw, size = 1200) {
   const s = String(raw || "").trim();
   if (!s) return "";
   if (WEBP_ASSETS[s]) return WEBP_ASSETS[s];
   const drive = s.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/);
-  if (drive) return `https://drive.google.com/thumbnail?id=${drive[1]}&sz=w1200`;
+  if (drive) return `https://drive.google.com/thumbnail?id=${drive[1]}&sz=w${size}`;
   return s;
 }
 
@@ -169,37 +172,71 @@ const bundlesFor = (slug) =>
    ===================================================================== */
 let frameTimers = [];
 
-function buildFrame(images, className = "frame") {
-  const urls = images.map(imageUrl).filter(Boolean);
+/* Every photo of a product used to come down at once: five half-megabyte
+   files from Drive, in parallel, ahead of everything else the page still
+   needed. `loading="lazy"` did nothing about it — the slides sit side by side
+   inside the frame, near enough to the viewport that the browser fetches the
+   lot. Measured on a wired line that was 2.5MB and several seconds; on a
+   phone it is the whole wait. So only the picture on screen and the one after
+   it carry a `src`, and the rest wait in `data-src` until they are reached. */
+function hydrateFrame(track, idx) {
+  const imgs = track.querySelectorAll("img");
+  [idx, idx + 1, idx - 1].forEach((n) => {
+    const img = imgs[n];
+    if (img && img.dataset.src) {
+      img.src = img.dataset.src;
+      delete img.dataset.src;
+    }
+  });
+}
+
+function buildFrame(images, className = "frame", size = 1200) {
+  const urls = images.map((u) => imageUrl(u, size)).filter(Boolean);
   const el = document.createElement("div");
   el.className = className;
   const track = document.createElement("div");
   track.className = "frame__track";
-  (urls.length ? urls : [""]).forEach((u) => {
+  (urls.length ? urls : [""]).forEach((u, i) => {
     const img = document.createElement("img");
-    img.src = u;
+    if (i === 0) {
+      img.src = u;
+      img.setAttribute("fetchpriority", "high");
+    } else {
+      img.dataset.src = u;
+    }
     img.alt = "";
-    img.loading = "lazy";
+    img.loading = i === 0 ? "eager" : "lazy";
+    img.decoding = "async";
     track.appendChild(img);
   });
   el.appendChild(track);
   el.dataset.count = String(urls.length || 1);
+  el.dataset.index = "0";
   return el;
+}
+
+/* One way to move a frame, whether the clock moved it, an arrow did, or a
+   colour was picked — so the position, the dots and the loading all stay in
+   step no matter who asked. */
+function showFrame(frame, idx) {
+  const track = frame.querySelector(".frame__track");
+  if (!track) return;
+  const count = Number(frame.dataset.count || 1);
+  const n = ((idx % count) + count) % count;
+  hydrateFrame(track, n);
+  track.style.transform = `translateX(-${n * 100}%)`;
+  frame.dataset.index = String(n);
+  frame.dispatchEvent(new CustomEvent("frame:index", { detail: n }));
 }
 
 function startFrames(root) {
   stopFrames();
   root.querySelectorAll(".frame, .pdp__gallery").forEach((frame, i) => {
-    if (frame.dataset.manual === "1") return; // gallery driven by option picks
-    const count = Number(frame.dataset.count || 1);
-    if (count < 2) return;
-    const track = frame.querySelector(".frame__track");
-    let idx = 0;
+    if (frame.dataset.manual === "1") return; // handed over to the visitor
+    if (Number(frame.dataset.count || 1) < 2) return;
     frameTimers.push(
       setInterval(() => {
-        idx = (idx + 1) % count;
-        track.style.transform = `translateX(-${idx * 100}%)`;
-        frame.dispatchEvent(new CustomEvent("frame:index", { detail: idx }));
+        showFrame(frame, Number(frame.dataset.index || 0) + 1);
       }, 2600 + (i % 4) * 320)
     );
   });
@@ -639,7 +676,8 @@ function renderCategory(slug) {
     const row = document.createElement("a");
     row.className = "prow";
     row.href = `#/p/${encodeURIComponent(p.slug)}`;
-    row.appendChild(buildFrame(p.images));
+    // drawn ~150 points wide, so the full-size file is pure waiting
+    row.appendChild(buildFrame(p.images, "frame", 400));
 
     const info = document.createElement("div");
     info.className = "prow__info";
@@ -656,6 +694,17 @@ function renderCategory(slug) {
     plist.appendChild(row);
   });
 
+  /* An empty shelf reads as "there is nothing here" and sends the visitor
+     away, but before the catalogue lands it only means the shop has not been
+     told yet. Say which one it is. */
+  if (!items.length) {
+    plist.innerHTML = liveLoaded
+      ? '<p class="plist__note">Энэ ангилалд одоогоор бараа алга.</p>'
+      : '<p class="plist__note">Ачаалж байна…</p>';
+    // "0 БАРАА" over a shelf that is still loading says the opposite thing
+    if (!liveLoaded) document.getElementById("catMeta").textContent = "";
+  }
+
   if (window.fbq) fbq("trackCustom", "ViewCategory", { category: cat ? cat.name : slug });
 }
 
@@ -666,6 +715,10 @@ function renderCategory(slug) {
    page is only what the shop guessed from its offline copy and is safe to draw
    again; afterwards it holds their choices and must be left alone. */
 let pdpTouched = false;
+
+/* The current product gallery's stepper, so the keyboard can reach it without
+   a listener being added per render and never taken away. */
+let pdpNav = null;
 
 /* Someone who tapped a product link and landed on the hero with no explanation
    has no idea what happened and no way onward — they leave. This says what went
@@ -687,24 +740,41 @@ function renderMissing() {
     </div>`;
 }
 
+/* Shown while the catalogue is still on its way. It replaces being thrown to
+   the home page: someone who tapped a product link was put on the hero, made
+   to sit through its animation, and only carried back four seconds later —
+   measured on a wired line, and longer on a phone. They had every reason to
+   think the link was broken and leave. Now they stay on the page they asked
+   for and watch it fill in. */
+function renderPending() {
+  document.getElementById("pdp").innerHTML = `
+    <div class="pending">
+      <div class="pending__frame"></div>
+      <div class="pending__bar pending__bar--wide"></div>
+      <div class="pending__bar"></div>
+      <p class="pending__note">Бараа ачаалж байна…</p>
+    </div>`;
+}
+
 function renderProduct(slug) {
   const p = productBy(slug);
   /* Before the sheet's own catalogue lands the shop only knows its offline
-     copy, so a product missing from it may simply not have arrived yet — go
-     home and let `missedRoute` finish the trip. Once the real catalogue is in,
-     a slug that still resolves to nothing genuinely resolves to nothing. */
+     copy, so a product missing from it may simply not have arrived yet —
+     hold the page and redraw when it does. Once the real catalogue is in, a
+     slug that still resolves to nothing genuinely resolves to nothing. */
   if (!p) {
-    if (liveLoaded) {
-      show("product");
-      return renderMissing();
-    }
-    return goHome();
+    show("product");
+    return liveLoaded ? renderMissing() : renderPending();
   }
   pdpTouched = false;
+  pdpNav = null; // reassigned below only when there is a set to step through
   const colors = listOf(p.colors);
   const sizes = listOf(p.sizes);
-  const colorImgs = listOf(p.colorImages).map(imageUrl);
-  const sizeImgs = listOf(p.sizeImages).map(imageUrl);
+  /* Called through a lambda, not handed to `map` directly: `map` passes the
+     index as the second argument, which `imageUrl` now reads as the width —
+     the first variant photo would be asked for at zero pixels wide. */
+  const colorImgs = listOf(p.colorImages).map((u) => imageUrl(u, 1200));
+  const sizeImgs = listOf(p.sizeImages).map((u) => imageUrl(u, 1200));
   const sizePrices = listOf(p.sizePrices).map(Number);
   // price follows the selected size when the sheet gives one per size
   const priceForSize = (i) => (sizePrices[i] > 0 ? sizePrices[i] : Number(p.price));
@@ -734,7 +804,7 @@ function renderProduct(slug) {
   /* ---- gallery ---- */
   const left = document.createElement("div");
   left.className = "pdp__left";
-  const gallery = buildFrame(p.images, "pdp__gallery");
+  const gallery = buildFrame(p.images, "pdp__gallery", 1200);
   left.appendChild(gallery);
 
   const track = gallery.querySelector(".frame__track");
@@ -752,6 +822,53 @@ function renderProduct(slug) {
     gallery.addEventListener("frame:index", (e) => {
       dots.querySelectorAll(".pdot").forEach((d, n) => d.classList.toggle("is-active", n === e.detail));
     });
+
+    /* The set moved on its own and there was no way back to the photo someone
+       wanted a second look at — they either caught it or waited for the loop.
+       These put it in their hands. The rotation runs until they touch it and
+       then stays out of the way, because a gallery that moves under a finger
+       is worse than one that never moved at all. */
+    const nav = (dir) => {
+      gallery.dataset.manual = "1";
+      stopFrames();
+      showFrame(gallery, Number(gallery.dataset.index || 0) + dir);
+    };
+    pdpNav = nav;
+
+    [
+      ["prev", "‹", "Өмнөх зураг"],
+      ["next", "›", "Дараагийн зураг"],
+    ].forEach(([which, glyph, label]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `gnav gnav--${which}`;
+      b.setAttribute("aria-label", label);
+      b.textContent = glyph;
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        nav(which === "prev" ? -1 : 1);
+      });
+      gallery.appendChild(b);
+    });
+
+    dots.addEventListener("click", (e) => {
+      const dot = e.target.closest(".pdot");
+      if (!dot) return;
+      const n = Array.from(dots.children).indexOf(dot);
+      gallery.dataset.manual = "1";
+      stopFrames();
+      showFrame(gallery, n);
+    });
+
+    /* On a phone the arrows are a courtesy; the swipe is what people try. */
+    let swipeX = null;
+    gallery.addEventListener("touchstart", (e) => { swipeX = e.touches[0].clientX; }, { passive: true });
+    gallery.addEventListener("touchend", (e) => {
+      if (swipeX === null) return;
+      const dx = e.changedTouches[0].clientX - swipeX;
+      swipeX = null;
+      if (Math.abs(dx) > 40) nav(dx < 0 ? 1 : -1);
+    }, { passive: true });
   }
 
   /* Picking a colour or size jumps the gallery to that variant's photo, so
@@ -766,6 +883,7 @@ function renderProduct(slug) {
       const extra = document.createElement("img");
       extra.src = url;
       extra.alt = "";
+      extra.decoding = "async";
       track.appendChild(extra);
       idx = imgs.length;
       gallery.dataset.count = String(idx + 1);
@@ -777,8 +895,7 @@ function renderProduct(slug) {
     }
     gallery.dataset.manual = "1"; // stop the auto-rotation fighting the pick
     stopFrames();
-    track.style.transform = `translateX(-${idx * 100}%)`;
-    if (dots) dots.querySelectorAll(".pdot").forEach((d, n) => d.classList.toggle("is-active", n === idx));
+    showFrame(gallery, idx);
   };
 
   wrap.appendChild(left);
@@ -1557,35 +1674,33 @@ const views = {
   policy: document.getElementById("viewPolicy"),
 };
 
-/* A link shared from a reel points straight at one product, but the catalogue
-   the shop opens with is the offline copy, which holds no products at all. The
-   slug matched nothing, the visitor was thrown to the home page, and the real
-   catalogue arriving a second later never sent them back — so the item they
-   tapped through for was simply unreachable. Remember where they were headed
-   and finish the trip once the goods are actually in hand. */
-let missedRoute = null;
+/* A link shared from a reel points straight at one product. When the copy of
+   the catalogue the shop opens with does not know that slug yet, the visitor
+   used to be thrown to the home page and carried back four seconds later —
+   the hero animation, then a wait, then the product. Measured on a wired line;
+   a phone in Mongolia waits longer still, and by then they are gone.
 
+   Nobody is moved anywhere now. The product page stays put and says it is
+   loading, and `paint` draws it properly the moment the goods are in hand.
+   This is only for a view that cannot exist at all — an order with no draft. */
 const goHome = () => {
-  const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
-  if ((kind === "p" || kind === "c") && slug) {
-    missedRoute = location.hash;
-    /* The rescue normally rides in with the sheet's catalogue, but that answer
-       has been measured at five seconds and can fail outright. Nobody who
-       tapped a product link should sit on the hero that long with no idea what
-       happened, so give the sheet a few seconds and then act on what is already
-       known — which lands them on the product or on a page that explains. */
-    clearTimeout(rescueTimer);
-    rescueTimer = setTimeout(() => {
-      if (!missedRoute || location.hash !== "#/") return;
-      liveLoaded = true;
-      const wanted = missedRoute;
-      missedRoute = null;
-      location.hash = wanted;
-    }, 4000);
-  }
   location.hash = "#/";
 };
-let rescueTimer = null;
+
+/* Does the address currently point at something the loaded catalogue cannot
+   resolve? Answering yes is what makes the shop reach for a fresher copy. */
+const routeUnresolved = () => {
+  const [kind, raw] = location.hash.replace(/^#\/?/, "").split("/");
+  if (kind !== "p" && kind !== "c") return false;
+  let slug = raw;
+  try {
+    slug = decodeURIComponent(raw || "");
+  } catch (ex) {
+    /* malformed escape — compare the raw text instead */
+  }
+  if (!slug) return false;
+  return kind === "p" ? !productBy(slug) : !productsIn(slug).length;
+};
 
 function show(name) {
   Object.entries(views).forEach(([k, el]) => (el.hidden = k !== name));
@@ -1642,6 +1757,14 @@ function route() {
 }
 
 window.addEventListener("hashchange", route);
+
+/* Registered once, not per render: a listener added with every redraw of a
+   product page stacks up and keeps the old gallery alive with it. */
+document.addEventListener("keydown", (e) => {
+  if (!pdpNav || views.product.hidden) return;
+  if (e.key === "ArrowLeft") pdpNav(-1);
+  else if (e.key === "ArrowRight") pdpNav(1);
+});
 
 /* Opened from a chat app, the shop is measured while Safari is still sliding
    its window into place. On an iPhone reached from Viber the page laid itself
@@ -1740,41 +1863,33 @@ function paint(data, { first }) {
     window.scrollTo(0, 0);
     route();
     booted = true;
-  } else if (!views.category.hidden || (!views.product.hidden && !pdpTouched)) {
+  } else {
     /* A page opened against the offline copy shows whatever that copy knew,
-       which can be a shelf listing nothing or a delivery promise the owner
-       changed this morning. The real catalogue is here now, so draw it again.
+       which can be a shelf listing nothing, a page still saying it is loading,
+       or a delivery promise the owner changed this morning. The real catalogue
+       is here now, so draw it again.
 
        The product page is only redrawn while the visitor has not touched it
        yet: past that point a redraw would throw away the colour, size or
        quantity they had already picked. The scroll is left where it is. */
-    const [, slug] = location.hash.replace(/^#\/?/, "").split("/");
+    const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
     let want = slug;
     try {
       want = decodeURIComponent(slug || "");
     } catch (ex) {
       /* malformed escape — compare the raw text instead */
     }
-    if (want) {
-      if (!views.category.hidden) renderCategory(want);
-      else if (productBy(want)) renderProduct(want);
+    /* Restarting the rotation is not a detail. The redraw replaces the very
+       elements the running timers were moving, so without this the photos on
+       every product reached by a link simply stopped — measured at twenty
+       seconds on screen without a single change of picture. */
+    if (want && kind === "c" && !views.category.hidden) {
+      renderCategory(want);
+      startFrames(views.category);
+    } else if (want && kind === "p" && !views.product.hidden && !pdpTouched) {
+      renderProduct(want);
+      startFrames(views.product);
     }
-  } else if (missedRoute && location.hash === "#/") {
-    /* Only when they are still sitting on the home page we put them on: once
-       they have gone anywhere themselves, moving them would be a hijack. */
-    const wanted = missedRoute;
-    missedRoute = null;
-    const [, slug] = wanted.replace(/^#\/?/, "").split("/");
-    let want = slug;
-    try {
-      want = decodeURIComponent(slug || "");
-    } catch (ex) {
-      /* malformed escape — compare the raw text instead */
-    }
-    /* Sent back to where they were headed either way. If it resolves they get
-       the product; if it does not they get told so and handed the catalogue,
-       which beats being left on the hero wondering what they tapped. */
-    if (want) location.hash = wanted;
   }
   // fonts and images landing late can shift a pin's measurements
   requestAnimationFrame(() => ScrollTrigger.refresh());
@@ -1782,19 +1897,36 @@ function paint(data, { first }) {
 
 /* 1 — something on screen straight away */
 const cached = readCache();
-if (cached) {
-  paint(cached, { first: true });
-} else {
-  fetch(DATA_FALLBACK)
-    .then((r) => r.json())
-    .then((data) => {
-      if (!booted) paint(data, { first: true });
-    })
-    .catch(() => {});
-}
+if (cached) paint(cached, { first: true });
 
-/* 2 — the real catalogue, however long it takes */
-fetch(DATA_SOURCE)
+/* 1b — the offline copy, always. It used to be skipped whenever the browser
+   held a stored one, which is exactly the visitor this shop lives on: someone
+   who looked a few days ago, saw a reel today and tapped the product. Their
+   stored copy predates the item, so the shop knew nothing about it and had
+   only the sheet to wait for — measured at four to five seconds, and that is
+   on a wired line. This file is rebuilt every twenty minutes, sits on our own
+   domain and answers in half a second, so it is asked every time and used
+   whenever the address points at something the stored copy cannot resolve. */
+fetch(DATA_FALLBACK, { cache: "no-cache" })
+  .then((r) => r.json())
+  .then((data) => {
+    if (liveLoaded) return; // the sheet itself already answered
+    if (!booted) return paint(data, { first: true });
+    if (routeUnresolved()) paint(data, { first: false });
+  })
+  .catch(() => {});
+
+/* 2 — the real catalogue. A phone on a weak signal can hold a request open for
+   a minute, and until it settles the shop cannot tell a slug that is missing
+   from one that is merely late — so it is given a deadline. */
+const feedDeadline = () => {
+  if (typeof AbortController !== "function") return undefined;
+  const c = new AbortController();
+  setTimeout(() => c.abort(), 15000);
+  return c.signal;
+};
+
+fetch(DATA_SOURCE, { signal: feedDeadline() })
   .then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();

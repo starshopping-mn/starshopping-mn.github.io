@@ -527,11 +527,67 @@ a { color: inherit; text-decoration: none; }
 }
 .pdp__dots { display: flex; justify-content: center; gap: 0.45rem; margin-bottom: 1.4rem; }
 .pdot {
+  position: relative;
   width: 22px; height: 3px; border-radius: 10px;
   background: var(--fg); opacity: 0.28;
   transition: opacity 0.3s ease, width 0.3s ease;
+  cursor: pointer;
 }
+/* a 3px bar is not something a thumb can hit, so the target is grown around
+   it without changing anything that is drawn */
+.pdot::after { content: ""; position: absolute; inset: -11px -4px; }
 .pdot.is-active { opacity: 1; width: 38px; }
+
+/* -------- gallery arrows --------
+   The set moved on a timer and a visitor who wanted another look at a photo
+   had to wait for it to come round again — or, on a product with five, give
+   up. These hand the set over. They sit inside the frame rather than beside
+   it so they cost no height on a phone, and they carry their own scrim
+   because a photo can be light or dark underneath. */
+.gnav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  z-index: 2;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 999px;
+  background: rgba(251, 247, 240, 0.82);
+  color: var(--fg);
+  font-size: 1.5rem; line-height: 1;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(69, 36, 26, 0.16);
+  transition: background 0.2s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.gnav--prev { left: 10px; padding-right: 3px; }
+.gnav--next { right: 10px; padding-left: 3px; }
+.gnav:hover { background: rgba(251, 247, 240, 0.96); }
+.gnav:active { transform: translateY(-50%) scale(0.92); }
+
+/* -------- waiting for the catalogue --------
+   Drawn in place of the product while the shop is still being told what it
+   sells. It is the shape of the page that is coming, so nothing jumps when
+   the real thing lands. */
+.pending { max-width: 520px; margin: 0 auto; }
+.pending__frame {
+  width: 100%; aspect-ratio: 1 / 1;
+  border-radius: 22px; margin-bottom: 1.4rem;
+}
+.pending__bar { height: 18px; border-radius: 8px; margin-bottom: 0.7rem; }
+.pending__bar--wide { height: 30px; width: 72%; }
+.pending__frame, .pending__bar {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--bg-tint) 37%, var(--surface) 63%);
+  background-size: 400% 100%;
+  animation: pendingSweep 1.4s ease infinite;
+}
+.pending__note { margin-top: 1.6rem; text-align: center; font-size: 0.85rem; color: var(--fg-dim); }
+@keyframes pendingSweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+/* someone who asked not to see movement should not be given a shimmer */
+@media (prefers-reduced-motion: reduce) {
+  .pending__frame, .pending__bar { animation: none; }
+}
+
+.plist__note { padding: 2.2rem 0; text-align: center; font-size: 0.9rem; color: var(--fg-dim); }
 
 .pdp__name {
   font-family: var(--font-display);
