@@ -15,6 +15,20 @@ gsap.registerPlugin(ScrollTrigger);
    out of scroll restoration makes every load begin from a known state. */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
+/* An ad link ends in ?ref=<creative id>, and that id is the only thing tying an
+   order back to the advert that earned it. It is read once, on arrival, and
+   kept: someone who looks today and orders next week still belongs to the same
+   advert, and so does their second order, so nothing here ever clears it. A
+   later visit through a different advert overwrites it. Storage can be refused
+   outright in a private window, which must not stop the shop from loading. */
+try {
+  const ref = new URLSearchParams(location.search).get("ref");
+  if (ref) localStorage.setItem("ss_ref", ref.trim().slice(0, 80));
+} catch (e) { /* unattributed is better than broken */ }
+const creativeId = () => {
+  try { return localStorage.getItem("ss_ref") || ""; } catch (e) { return ""; }
+};
+
 /* ========================================================================
    DATA
    Live catalogue comes from the Apps Script web app bound to the shop's

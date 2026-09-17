@@ -317,8 +317,10 @@ PAGE = """<!DOCTYPE html>
 
 <!-- A crawler stops at the markup above; a person never sees this page. The
      redirect is script-only on purpose, because a meta refresh would send the
-     crawler on to the shop, where there is nothing for it to read. -->
-<script>location.replace({target});</script>
+     crawler on to the shop, where there is nothing for it to read.
+     The query string rides along: an ad link ends in ?ref=<creative>, and a
+     redirect that drops it leaves every order unattributed. -->
+<script>location.replace({base} + location.search + {hash});</script>
 <style>
   body {{ margin:0; min-height:100vh; display:grid; place-items:center;
           background:#08080a; color:#fff;
@@ -369,7 +371,8 @@ def render(product, image_name):
         image_tags=image_tags,
         twitter_image=twitter_image,
         twitter_card=twitter_card,
-        target=json.dumps(target),
+        base=json.dumps(SITE + "/"),
+        hash=json.dumps("#/p/%s" % urllib.parse.quote(slug, safe="")),
         target_plain=esc(target),
     )
 

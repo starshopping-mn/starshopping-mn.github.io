@@ -36,8 +36,10 @@
 
 <!-- A crawler stops at the markup above; a person never sees this page. The
      redirect is script-only on purpose, because a meta refresh would send the
-     crawler on to the shop, where there is nothing for it to read. -->
-<script>location.replace("https://starshopping-mn.github.io/#/p/Huuhdiin-hashiwch");</script>
+     crawler on to the shop, where there is nothing for it to read.
+     The query string rides along: an ad link ends in ?ref=<creative>, and a
+     redirect that drops it leaves every order unattributed. -->
+<script>location.replace("https://starshopping-mn.github.io/" + location.search + "#/p/Huuhdiin-hashiwch");</script>
 <style>
   body { margin:0; min-height:100vh; display:grid; place-items:center;
           background:#08080a; color:#fff;
