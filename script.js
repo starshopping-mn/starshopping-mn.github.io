@@ -1799,8 +1799,12 @@ function orderRefusal(reply) {
   const codes = [].concat(reply.error || [], reply.errors || []).map(String);
   const code = codes[0] || "";
   const phoneTrouble = /^phone_/.test(code);
+  /* Only the backend's own refusal is quoted, and only when it is written in
+     Mongolian: n8n's generic failure page also carries a `message`, and it
+     said "Error in workflow" to a customer once. */
+  const said = reply.ok === false ? String(reply.message || "").trim() : "";
   const text =
-    String(reply.message || "").trim() ||
+    (/[\u0400-\u04FF]/.test(said) ? said : "") ||
     {
       out_of_stock: "Энэ бараа түр дууссан байна.",
       product_not_found: "Энэ бараа одоогоор байхгүй байна.",
