@@ -918,6 +918,7 @@ function renderPending() {
     </div>`;
 }
 
+let stickyWatch = null; // the observer behind the product page's bottom bar
 function renderProduct(slug) {
   const p = productBy(slug);
   /* Before the sheet's own catalogue lands the shop only knows its offline
@@ -1125,7 +1126,12 @@ function renderProduct(slug) {
         : `<a class="buy" href="#" id="buyBtn">
              <span class="buy__total" id="buyTotal"></span>
              <span class="buy__label">ЗАХИАЛАХ</span>
-           </a>`
+           </a>
+           <!-- The people this shop sells to are used to ordering by talking to
+                someone. The number is the one already in the header; here it
+                is a way to order, not a complaint line. -->
+           <a class="callbuy" href="tel:88104640">Залгаж захиалах · 8810-4640</a>
+           <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 8810-4640</p>`
     }
 
     <div class="trust">
@@ -1142,6 +1148,40 @@ function renderProduct(slug) {
   pdp.appendChild(wrap);
 
   views.product.addEventListener("pointerdown", () => (pdpTouched = true), { once: true });
+
+  /* The button sat 1.8 screens down a phone, under the gallery, the description
+     and the options, and the price went out of sight with it. This bar keeps
+     both under the thumb for as long as the real button is off screen, and
+     steps aside the moment it is not — two of the same button in view at once
+     reads as a mistake. It belongs to the view, so it goes when the view does,
+     and it is rebuilt with the page so it never outlives the product it names. */
+  views.product.querySelectorAll(".stickybuy").forEach((n) => n.remove());
+  if (stickyWatch) stickyWatch.disconnect();
+  stickyWatch = null;
+  const realBuy = right.querySelector("#buyBtn");
+  let stickyPrice = null;
+  if (realBuy) {
+    const bar = document.createElement("div");
+    bar.className = "stickybuy";
+    bar.hidden = true;
+    bar.innerHTML = `
+      <span class="stickybuy__price"></span>
+      <a class="stickybuy__go" href="#">ЗАХИАЛАХ</a>`;
+    stickyPrice = bar.querySelector(".stickybuy__price");
+    bar.querySelector(".stickybuy__go").addEventListener("click", (e) => {
+      e.preventDefault();
+      realBuy.click(); // one path to the order form, whichever button was pressed
+    });
+    views.product.appendChild(bar);
+    if ("IntersectionObserver" in window) {
+      stickyWatch = new IntersectionObserver(([entry]) => {
+        bar.hidden = entry.isIntersecting;
+      });
+      stickyWatch.observe(realBuy);
+    }
+    /* without the observer the bar would cover the button it stands in for,
+       so it simply stays away */
+  }
 
   /* The address bar shows the in-shop address, the one with the `#`, and that
      is the one that gets pasted under a reel — where the crawlers cannot read
@@ -1234,6 +1274,7 @@ function renderProduct(slug) {
     // absent when the product is sold out — the button is replaced, not hidden
     if (!buyTotal) return;
     buyTotal.textContent = `${qty} ширхэг · ${money(orderTotal())}`;
+    if (stickyPrice) stickyPrice.textContent = money(orderTotal());
   };
 
   const refreshPrice = () => {

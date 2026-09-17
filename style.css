@@ -757,6 +757,58 @@ button.buy:disabled { opacity: 0.72; cursor: progress; }
   font-weight: 800; font-size: 1.05rem; letter-spacing: 0.06em;
 }
 
+/* ordering by phone, offered under the button rather than instead of it */
+.callbuy {
+  display: block;
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(69, 36, 26, 0.28);
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 700; font-size: 0.86rem; letter-spacing: 0.02em;
+  color: var(--fg);
+}
+.assure {
+  margin-top: 0.7rem;
+  text-align: center;
+  font-size: 0.74rem; line-height: 1.5;
+  color: var(--fg-dim);
+}
+
+/* Price and the order button, held at the foot of a phone screen while the
+   real button is out of sight. The padding reads the home-indicator inset so
+   the bar clears it on a notched phone — the viewport is viewport-fit=cover.
+   No backdrop-filter: nothing here is scaled, but a blurred layer repainting
+   over a scrolling page is heat this shop has been burnt by before. */
+.stickybuy {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 58;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.6rem 1.1rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  border-top: 1px solid rgba(69, 36, 26, 0.14);
+  box-shadow: 0 -10px 28px rgba(69, 36, 26, 0.08);
+}
+.stickybuy__price {
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 1.15rem;
+  color: var(--fg);
+}
+.stickybuy__go {
+  flex: 0 0 auto;
+  padding: 0.7rem 1.6rem;
+  border-radius: 999px;
+  background: var(--fg); color: var(--on-fg);
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 0.95rem; letter-spacing: 0.06em;
+}
+.stickybuy__go:active { transform: scale(0.985); }
+/* the bar must not sit on the last lines of the footer */
+body:has(.stickybuy:not([hidden])) .foot { padding-bottom: 5.5rem; }
+
 .note { margin-top: 1rem; text-align: center; font-size: 0.74rem; line-height: 1.6; color: var(--fg-dim); }
 
 /* -------- reviews -------- */
@@ -1234,6 +1286,9 @@ textarea.input { resize: vertical; min-height: 74px; }
   .pdp { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
   .pdp__left { position: sticky; top: 6.5rem; }
   .buy { max-width: 420px; }
+  .callbuy, .assure { max-width: 420px; }
+  /* beside a sticky gallery the real button is rarely far away */
+  .stickybuy { display: none; }
   .trust { grid-template-columns: repeat(4, 1fr); }
   .order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
 }
