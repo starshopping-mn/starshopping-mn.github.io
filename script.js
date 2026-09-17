@@ -40,6 +40,10 @@ const creativeId = () => {
 const DATA_SOURCE =
   "https://script.google.com/macros/s/AKfycbzZK-I4L3Cow5KAlLbW0pud0766XduXHzuTys9FIEwXWDTQL36VPywm7bNsk3E6NMqORQ/exec";
 const DATA_FALLBACK = "data/catalog.json";
+/* Orders no longer go to the sheet. They are handed to the owner's intake,
+   which prices them, checks stock and catches duplicates on its side; the shop
+   sends who and what, shows the answer, and works nothing out itself. */
+const ORDER_INTAKE = "https://starshopping.app.n8n.cloud/webhook/order-intake";
 
 let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [], stock: {} };
 
@@ -1267,6 +1271,9 @@ function renderProduct(slug) {
     e.preventDefault();
     setDraft({
       slug: p.slug,
+      /* what the order intake knows the product by; until the catalogue comes
+         from the same database this is absent and the slug stands in for it */
+      productId: p.product_id || "",
       name: p.name,
       /* Whatever is on screen — the colour they picked, the angle they
          stopped on. It used to be the sheet's first photo no matter what,
@@ -1344,10 +1351,23 @@ function renderOrder() {
       ];
 
   const page = document.getElementById("orderPage");
+  /* How many may be asked for: a pack is a fixed count, and a stocked product
+     stops at what is on the shelf. */
+  const qtyCeiling = (() => {
+    const left = availableOf(d.slug);
+    return left === null ? 99 : Math.max(1, left);
+  })();
   page.innerHTML = `
     <a class="back" href="#/p/${esc(encodeURIComponent(d.slug))}">← Бараа руу буцах</a>
     <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">Захиалга</h1>
 
+    <!-- A real form, not a heap of inputs: Enter sends it, the phone keyboard
+         offers "next" down the fields, and the browser is willing to fill what
+         it recognises. It wraps both columns so the button can sit under the
+         totals while the fields come first. Validation is left to us — the
+         novalidate flag — because the browser's own warnings arrive in the
+         wrong language and say less than ours do. -->
+    <form id="orderForm" novalidate>
     <div class="order-grid" style="margin-top:1.6rem">
       <div>
         <div class="sum">
@@ -1355,12 +1375,44 @@ function renderOrder() {
           <div>
             <div class="sum__name">${esc(d.name)}</div>
             <div class="sum__meta">
-              ${d.color ? esc(d.color) + " · " : ""}${d.size ? esc(d.size) + " · " : ""}${d.qty} ширхэг
+              ${d.color ? esc(d.color) + " · " : ""}${d.size ? esc(d.size) + " · " : ""}<span id="sumQty">${d.qty}</span> ширхэг
               ${d.pack ? `<span class="sum__pack">${esc(d.pack)}</span>` : ""}
             </div>
           </div>
         </div>
 
+        <!-- Who and where come first. They used to sit under two pickers and a
+             totals table, a screen and a half down on a phone, and there were
+             eight required boxes — entrance and door number among them, which a
+             ger district or a soum does not have. The operator rings every
+             order anyway, so the address is one line in their own words. -->
+        <div class="field">
+          <label class="field__label" for="fName">НЭР</label>
+          <input class="input" id="fName" name="name" type="text" placeholder="Таны нэр" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fPhone">УТАС</label>
+          <input class="input" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fAddr">ХҮРГҮҮЛЭХ ХАЯГ</label>
+          <textarea class="input" id="fAddr" name="address" rows="2" placeholder="Дүүрэг, хороо, байр, тоот — эсвэл аймаг, сум" autocomplete="street-address" required></textarea>
+        </div>
+        ${
+          d.pack
+            ? ""
+            : `<div class="field">
+                 <span class="field__label">ТОО ШИРХЭГ</span>
+                 <div class="qty">
+                   <button class="qty__btn" type="button" data-step="-1" aria-label="Хасах">−</button>
+                   <span class="qty__val" id="oQty">${d.qty}</span>
+                   <button class="qty__btn" type="button" data-step="1" aria-label="Нэмэх">+</button>
+                 </div>
+               </div>`
+        }
+      </div>
+
+      <div>
         <div class="field">
           <span class="field__label">ХҮРГЭЛТИЙН СОНГОЛТ</span>
           <div class="pick" id="shipPick">
@@ -1412,50 +1464,9 @@ function renderOrder() {
         </div>
 
         <div class="totals">
-          <div class="totals__row"><span>Бараа (${d.qty}ш)</span><span id="tGoods"></span></div>
+          <div class="totals__row"><span>Бараа (<span id="tQty">${d.qty}</span>ш)</span><span id="tGoods"></span></div>
           <div class="totals__row"><span>Хүргэлт</span><span id="tShip"></span></div>
           <div class="totals__row totals__row--big"><span>Нийт</span><span id="tAll"></span></div>
-        </div>
-      </div>
-
-      <div>
-        <!-- A real form, not a heap of inputs: Enter sends it, the phone
-             keyboard offers "next" down the fields, and the browser is willing
-             to fill an address it can see belongs together. Validation is left
-             to us — the novalidate flag — because the browser's own warnings arrive in
-             the wrong language and say less than ours do. -->
-        <form id="orderForm" novalidate>
-        <div class="field">
-          <label class="field__label" for="fName">НЭР</label>
-          <input class="input" id="fName" name="name" type="text" placeholder="Таны нэр" autocomplete="name" required>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label class="field__label" for="fPhone">УТАС</label>
-            <input class="input" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
-          </div>
-          <div class="field">
-            <!-- Marked optional because it is. It used to be demanded, and had
-                 to differ from the first, while being labelled "additional" and
-                 carrying no required mark — the form asked for the opposite of
-                 what it enforced, and the order stopped there. -->
-            <label class="field__label" for="fPhone2">НЭМЭЛТ УТАС <span class="field__opt">(заавал биш)</span></label>
-            <input class="input" id="fPhone2" name="tel2" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="off">
-          </div>
-        </div>
-
-        <span class="field__label">ХҮРГҮҮЛЭХ ХАЯГ</span>
-        <div class="grid2">
-          <div class="field"><label class="sr-only" for="aCity">Хот / Аймаг</label><input class="input" id="aCity" name="city" type="text" placeholder="Хот / Аймаг" autocomplete="address-level1" required></div>
-          <div class="field"><label class="sr-only" for="aDist">Дүүрэг / Сум</label><input class="input" id="aDist" name="district" type="text" placeholder="Дүүрэг / Сум" autocomplete="address-level2" required></div>
-          <div class="field"><label class="sr-only" for="aKhoroo">Хороо / Баг</label><input class="input" id="aKhoroo" name="khoroo" type="text" placeholder="Хороо / Баг" autocomplete="address-level3" required></div>
-          <div class="field"><label class="sr-only" for="aBuilding">Байр / Гудамж</label><input class="input" id="aBuilding" name="building" type="text" placeholder="Байр / Гудамж" autocomplete="address-line1" required></div>
-          <div class="field"><label class="sr-only" for="aEntrance">Орц</label><input class="input" id="aEntrance" name="entrance" type="text" placeholder="Орц" autocomplete="address-line2" required></div>
-          <div class="field"><label class="sr-only" for="aDoor">Тоот</label><input class="input" id="aDoor" name="door" type="text" placeholder="Тоот" autocomplete="address-line3" required></div>
-        </div>
-        <div class="field">
-          <label class="sr-only" for="aExtra">Нэмэлт заавар</label>
-          <input class="input" id="aExtra" name="note" type="text" placeholder="Нэмэлт заавар (заавал биш)" autocomplete="off">
         </div>
 
         <p class="err" id="formErr"></p>
@@ -1464,30 +1475,47 @@ function renderOrder() {
           <span class="buy__total" id="submitTotal"></span>
           <span class="buy__label">ЗАХИАЛГА БАТАЛГААЖУУЛАХ</span>
         </button>
-        <p class="note">Илгээснээр таны захиалгын код үүсэж, бид тантай утсаар холбогдоно.</p>
-        </form>
+        <p class="note">Илгээснээр таны захиалга бүртгэгдэж, бид тантай утсаар холбогдоно.</p>
       </div>
-    </div>`;
+    </div>
+    </form>`;
 
   /* ---- live totals ---- */
   let shipPrice = Number(ship[0].price) || 0;
   let shipName = ship[0].name;
   let payment = "Хүргэлтээр төлөх";
 
+  /* What the screen shows before sending is the shop's own arithmetic and is
+     only ever a preview: the backend prices the order itself and its figure
+     is the one the confirmation page prints. */
+  let qty = Math.max(1, Number(d.qty) || 1);
   // a bundle carries its own fixed total, so trust it over unit × qty
-  const goods = Number(d.goods) || d.unit * d.qty;
+  const goodsNow = () => (d.pack ? Number(d.goods) || d.unit * qty : d.unit * qty);
   const tGoods = page.querySelector("#tGoods");
   const tShip = page.querySelector("#tShip");
   const tAll = page.querySelector("#tAll");
   const submitTotal = page.querySelector("#submitTotal");
 
   const refresh = () => {
+    const goods = goodsNow();
     tGoods.textContent = money(goods);
     tShip.textContent = money(shipPrice);
     tAll.textContent = money(goods + shipPrice);
     submitTotal.textContent = `Нийт ${money(goods + shipPrice)}`;
   };
   refresh();
+
+  const oQty = page.querySelector("#oQty");
+  page.querySelectorAll(".qty__btn").forEach((b) =>
+    b.addEventListener("click", () => {
+      qty = Math.min(qtyCeiling, Math.max(1, qty + Number(b.dataset.step)));
+      oQty.textContent = String(qty);
+      page.querySelector("#sumQty").textContent = String(qty);
+      page.querySelector("#tQty").textContent = String(qty);
+      setDraft(Object.assign({}, d, { qty, goods: d.unit * qty })); // survives a refresh
+      refresh();
+    })
+  );
 
   const payItems = Array.from(page.querySelectorAll("#payPick .pick__item"));
   const payLock = page.querySelector("#payLock");
@@ -1543,14 +1571,14 @@ function renderOrder() {
 
   /* A number field that lets letters in only to reject them at the end wastes
      the visitor's time twice. Nothing but digits ever lands in these. */
-  ["fPhone", "fPhone2"].forEach((id) => {
-    const el = page.querySelector("#" + id);
+  {
+    const el = page.querySelector("#fPhone");
     el.addEventListener("input", () => {
       const digits = el.value.replace(/[^0-9]/g, "").slice(0, 8);
       if (el.value !== digits) el.value = digits;
       el.classList.remove("is-invalid");
     });
-  });
+  }
   page.querySelectorAll(".input").forEach((el) =>
     el.addEventListener("input", () => el.classList.remove("is-invalid"))
   );
@@ -1603,46 +1631,37 @@ function renderOrder() {
     const val = (id) => page.querySelector("#" + id).value.trim();
     const name = val("fName");
     const phone = val("fPhone");
-    const phone2 = val("fPhone2");
-
-    // the field id travels with each piece so a complaint can point at it
-    const parts = [
-      ["Хот/Аймаг", val("aCity"), "aCity"],
-      ["Дүүрэг/Сум", val("aDist"), "aDist"],
-      ["Хороо/Баг", val("aKhoroo"), "aKhoroo"],
-      ["Байр/Гудамж", val("aBuilding"), "aBuilding"],
-      ["Орц", val("aEntrance"), "aEntrance"],
-      ["Тоот", val("aDoor"), "aDoor"],
-    ];
+    const where = val("fAddr").replace(/\s*\n+\s*/g, ", ");
 
     if (!name) return fail("fName", "Нэрээ бичнэ үү.");
     if (!/^\d{8}$/.test(phone)) return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
-    /* Only checked when they chose to give one — it is a second contact, not
-       a second hurdle. */
-    if (phone2 && !/^\d{8}$/.test(phone2))
-      return fail("fPhone2", "Нэмэлт утасны дугаар 8 оронтой тоо байх ёстой.");
-    if (phone2 && phone === phone2)
-      return fail("fPhone2", "Нэмэлт утас нь өөр дугаар байх ёстой. Эсвэл хоосон орхино уу.");
-
-    const missing = parts.find(([, v]) => !v);
-    if (missing) return fail(missing[2], `Хаягийн "${missing[0]}" талбарыг бөглөнө үү.`);
+    if (!where) return fail("fAddr", "Хүргүүлэх хаягаа бичнэ үү.");
     clearFail();
 
-    // The sheet keeps one row per order, so the address pieces are folded into
-    // a single readable line for the delivery driver.
-    const extra = val("aExtra");
-    const addr = parts.map(([k, v]) => `${k}: ${v}`).join(", ") + (extra ? ` (${extra})` : "");
+    /* The backend takes an address and nothing else about how the order is to
+       be carried out, so what the visitor picked on the way here — colour,
+       size, pack, delivery, payment — rides at the end of that line, where the
+       operator who rings them will read it. Dropping it would mean asking
+       again for something they already answered. */
+    const picked = [
+      d.color && `Өнгө: ${d.color}`,
+      d.size && `Хэмжээ: ${d.size}`,
+      d.pack && `Багц: ${d.pack}`,
+      shipName,
+      payment,
+    ].filter(Boolean);
+    const address = picked.length ? `${where} [${picked.join(" · ")}]` : where;
 
     sending = true;
     btn.disabled = true;
     btn.querySelector(".buy__label").textContent = "ИЛГЭЭЖ БАЙНА…";
 
-    /* Nothing bounded this request. On a signal that dies mid-send the button
-       read "ИЛГЭЭЖ БАЙНА…" for as long as the visitor was willing to look at
-       it, and no second attempt was possible because `sending` never came
-       back down — the one screen where a freeze costs an actual sale. The
-       sheet answers in about three seconds when it is well, so thirty is a
-       dead line rather than a slow one. */
+    /* Nothing bounded this request once. On a signal that dies mid-send the
+       button read "ИЛГЭЭЖ БАЙНА…" for as long as the visitor was willing to
+       look at it, and no second attempt was possible because `sending` never
+       came back down — the one screen where a freeze costs an actual sale.
+       The backend answers in about two seconds when it is well, so thirty is
+       a dead line rather than a slow one. */
     const bail = typeof AbortController === "function" ? new AbortController() : null;
     const deadline = setTimeout(() => bail && bail.abort(), 30000);
     const release = (label) => {
@@ -1653,47 +1672,97 @@ function renderOrder() {
     };
 
     try {
-      // text/plain keeps the browser from firing a CORS preflight that Apps
-      // Script cannot answer; doPost reads the raw body either way.
-      const res = await fetch(DATA_SOURCE, {
+      /* No price goes out. The backend prices, checks stock and spots
+         duplicates on its own; the shop only says who wants what. */
+      const res = await fetch(ORDER_INTAKE, {
         method: "POST",
         signal: bail ? bail.signal : undefined,
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name, phone, phone2, address: addr,
-          slug: d.slug,
-          product: d.name + (d.pack ? ` (${d.pack})` : ""),
-          color: d.color, size: d.size,
-          qty: d.qty,
-          deliveryName: shipName,
-          payment,
+          product_id: d.productId || d.slug,
+          name,
+          phone,
+          address,
+          quantity: qty,
+          channel: "web",
+          creative_id: creativeId(),
         }),
       });
+      /* A refusal arrives as JSON too, under a 4xx, so the status is not what
+         decides — the body is. Only a reply that is not JSON at all is treated
+         as the line having failed. */
       const out = await res.json();
-      if (!out.ok) throw new Error(out.error || "Тодорхойгүй алдаа");
+      if (!out || out.ok !== true) {
+        const e = new Error("refused");
+        e.reply = out || {};
+        throw e;
+      }
       clearTimeout(deadline);
 
+      /* A repeat of the same phone and product inside a day comes back marked
+         is_duplicate. That is the operator's to sort out; to the visitor it is
+         an order received, and is shown as one. */
+      const total = Number(out.total_mnt) || 0;
       if (window.fbq)
-        fbq("track", "Purchase", { value: goods + shipPrice, currency: "MNT", content_name: d.name });
+        fbq("track", "Purchase", { value: total + shipPrice, currency: "MNT", content_name: d.name });
 
       sessionStorage.setItem(
         "ss_done",
-        JSON.stringify({ code: out.code, total: goods + shipPrice, payment, name, phone, phone2, leadTime: d.leadTime || "" })
+        JSON.stringify({
+          code: String(out.order_id || ""),
+          product: out.product || d.name,
+          qty: Number(out.quantity) || qty,
+          goods: total,
+          ship: shipPrice,
+          shipName,
+          total: total + shipPrice,
+          payment, name, phone,
+          leadTime: d.leadTime || "",
+        })
       );
       location.hash = "#/done";
     } catch (ex) {
       console.error(ex);
-      /* A request we gave up on may still have reached the sheet, so the
+      const said = ex && ex.reply ? orderRefusal(ex.reply) : null;
+      if (said && said.field) {
+        release("ЗАХИАЛГА БАТАЛГААЖУУЛАХ");
+        return fail(said.field, said.text);
+      }
+      /* A request we gave up on may still have reached the backend, so the
          wording stops short of telling them to fire a second one blind — a
          duplicate order is worse for them than a phone call. */
-      err.textContent =
-        ex && ex.name === "AbortError"
+      err.textContent = said
+        ? said.text
+        : ex && ex.name === "AbortError"
           ? "Сүлжээ хариу өгсөнгүй. 8810-4640 руу залгавал бид захиалгыг тань шууд бүртгэнэ."
           : "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 8810-4640 руу залгана уу.";
       homeErr();
+      if (said) bring(err);
       release("ЗАХИАЛГА БАТАЛГААЖУУЛАХ");
     }
   });
+}
+
+/* What to tell someone whose order the backend turned down. Its own `message`
+   wins whenever there is one — it is written in Mongolian and knows the product
+   by name. The codes are the fallback. The reply has been seen carrying a
+   single `error` and also a list under `errors`, so both are read. */
+function orderRefusal(reply) {
+  const codes = [].concat(reply.error || [], reply.errors || []).map(String);
+  const code = codes[0] || "";
+  const phoneTrouble = /^phone_/.test(code);
+  const text =
+    String(reply.message || "").trim() ||
+    {
+      out_of_stock: "Энэ бараа түр дууссан байна.",
+      product_not_found: "Энэ бараа одоогоор байхгүй байна.",
+      product_inactive: "Энэ бараа одоогоор байхгүй байна.",
+      phone_required: "Утасны дугаараа оруулна уу.",
+      phone_invalid: "Утасны дугаар 8 оронтой тоо байх ёстой.",
+      price_not_set: "Түр алдаа гарлаа, дараа оролдоно уу.",
+    }[code] ||
+    "Захиалгыг бүртгэж чадсангүй. 8810-4640 руу залгана уу.";
+  return { text, field: phoneTrouble ? "fPhone" : "" };
 }
 
 /* ========================================================================
@@ -1713,6 +1782,16 @@ function renderDone() {
 
   const acct = String(s.account || "");
   const iban = "MN" + acct;
+  /* The intake names an order with a long identifier. Nobody can read that
+     down a phone or type it into a transfer, so the first eight characters
+     stand for it on screen; the whole of it stays on the copy of record. */
+  const code = String(info.code || "").replace(/-/g, "").slice(0, 8).toUpperCase();
+  const amountRows = `
+      <div class="totals" style="margin-top:1rem">
+        <div class="totals__row"><span>${esc(info.product || "Бараа")} (${Number(info.qty) || 1}ш)</span><span>${money(info.goods || 0)}</span></div>
+        <div class="totals__row"><span>${esc(info.shipName || "Хүргэлт")}</span><span>${money(info.ship || 0)}</span></div>
+        <div class="totals__row totals__row--big"><span>Нийт</span><span>${money(info.total || 0)}</span></div>
+      </div>`;
 
   document.getElementById("donePage").innerHTML = `
     <div class="done">
@@ -1723,20 +1802,21 @@ function renderDone() {
         ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}
       </p>
 
-      <div class="code">
+      <div class="code" data-order-id="${esc(info.code)}">
         <div class="code__label">ТАНЫ ЗАХИАЛГЫН КОД</div>
-        <div class="code__value" id="codeVal">${esc(info.code)}</div>
-        <button class="copy" data-copy="${esc(info.code)}">Кодыг хуулах</button>
+        <div class="code__value" id="codeVal">${esc(code)}</div>
+        <button class="copy" data-copy="${esc(code)}">Кодыг хуулах</button>
         <div class="code__phone">
           <span>Бүртгэсэн утас</span>
-          <b>${esc(info.phone)}${info.phone2 ? " · " + esc(info.phone2) : ""}</b>
+          <b>${esc(info.phone)}</b>
         </div>
       </div>
+      ${amountRows}
 
       ${
         transfer
           ? `<div class="warn">
-              <b>Гүйлгээний утга дээр яг <u>${esc(info.code)}</u> гэж бичнэ үү.</b><br>
+              <b>Гүйлгээний утга дээр <u>${esc(code)}</u> код болон утасны дугаараа бичнэ үү.</b><br>
               Утга буруу бичигдвэл шилжүүлгийг захиалгатай тааруулахад хүндрэлтэй.
               Дээрх товчоор хуулбал алдахгүй.
             </div>
