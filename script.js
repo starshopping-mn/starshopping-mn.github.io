@@ -2242,7 +2242,39 @@ let booted = false;
    only means the offline copy has not heard of it yet. */
 let liveLoaded = false;
 
+/* Everything the product page is drawn from, as one comparable string. The
+   live catalogue lands seconds after the offline copy has already drawn the
+   page, and redrawing it threw the gallery back to the first photo under the
+   eyes of someone part-way through the set — for data that, nearly always, had
+   not changed at all. A page with no product behind it yet has no signature,
+   so it never matches and is always drawn. */
+function productSignature(slug) {
+  const p = productBy(slug);
+  if (!p) return "";
+  const cat = categoryBy(p.category);
+  return JSON.stringify([
+    p,
+    availableOf(p.slug),
+    bundlesFor(p.slug),
+    reviewsFor(p.slug),
+    cat ? cat.name : "",
+    DB.shop.delivery || [],
+  ]);
+}
+const hashTarget = () => {
+  const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
+  let want = slug;
+  try {
+    want = decodeURIComponent(slug || "");
+  } catch (ex) {
+    /* malformed escape — compare the raw text instead */
+  }
+  return [kind, want];
+};
+
 function paint(data, { first }) {
+  const [kindWas, slugWas] = hashTarget();
+  const sigWas = !first && kindWas === "p" && slugWas ? productSignature(slugWas) : "";
   setDB(data);
   renderCategories();
   showCat(0);
@@ -2259,13 +2291,7 @@ function paint(data, { first }) {
        The product page is only redrawn while the visitor has not touched it
        yet: past that point a redraw would throw away the colour, size or
        quantity they had already picked. The scroll is left where it is. */
-    const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
-    let want = slug;
-    try {
-      want = decodeURIComponent(slug || "");
-    } catch (ex) {
-      /* malformed escape — compare the raw text instead */
-    }
+    const [kind, want] = hashTarget();
     /* Restarting the rotation is not a detail. The redraw replaces the very
        elements the running timers were moving, so without this the photos on
        every product reached by a link simply stopped — measured at twenty
@@ -2274,8 +2300,11 @@ function paint(data, { first }) {
       renderCategory(want);
       startFrames(views.category);
     } else if (want && kind === "p" && !views.product.hidden && !pdpTouched) {
-      renderProduct(want);
-      startFrames(views.product);
+      // same product, same data: leave the page, and the photo they are on, alone
+      if (!sigWas || want !== slugWas || sigWas !== productSignature(want)) {
+        renderProduct(want);
+        startFrames(views.product);
+      }
     }
   }
   // fonts and images landing late can shift a pin's measurements
