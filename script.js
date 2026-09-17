@@ -633,7 +633,14 @@ function buildHomeMotion() {
       scrollTrigger: {
         trigger: "#hero",
         start: "top top",
-        end: "+=190%",
+        /* How much scrolling the zoom is spread over, and nothing else: the
+           scale and the veil are tied to progress, so the veil still closes at
+           the same scale it always did. At 190% the veil was shut from 0.6 on
+           and the rest — measured at 650px on a phone, three quarters of a
+           screen — scrolled past as bare cream before the categories showed.
+           130% brings that to about 440px. Below 120% the way in gets too
+           short to read as entering the lens. */
+        end: "+=130%",
         scrub: 0.5,
         pin: true,
         anticipatePin: 1,
