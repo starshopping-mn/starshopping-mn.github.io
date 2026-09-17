@@ -40,6 +40,21 @@ const creativeId = () => {
 const DATA_SOURCE =
   "https://script.google.com/macros/s/AKfycbzZK-I4L3Cow5KAlLbW0pud0766XduXHzuTys9FIEwXWDTQL36VPywm7bNsk3E6NMqORQ/exec";
 const DATA_FALLBACK = "data/catalog.json";
+/* Districts, khoroos, aimags and sums for the address picker on the order
+   page. Fetched once a product page is open — someone there may order — so
+   it is normally waiting by the time the form is drawn, and never competes
+   with the hero photograph on the front door. */
+const ADDRESS_SOURCE = "data/mn-address.json";
+let addressData = null;
+let addressLoad = null;
+const loadAddressData = () => {
+  if (!addressLoad)
+    addressLoad = fetch(ADDRESS_SOURCE)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (addressData = j && j.ub && j.aimags ? j : null))
+      .catch(() => null);
+  return addressLoad;
+};
 /* Orders no longer go to the sheet. They are handed to the owner's intake,
    which prices them, checks stock and catches duplicates on its side; the shop
    sends who and what, shows the answer, and works nothing out itself. */
@@ -920,6 +935,7 @@ function renderPending() {
 
 let stickyWatch = null; // the observer behind the product page's bottom bar
 function renderProduct(slug) {
+  loadAddressData();
   const p = productBy(slug);
   /* Before the sheet's own catalogue lands the shop only knows its offline
      copy, so a product missing from it may simply not have arrived yet —
@@ -1385,10 +1401,23 @@ const getDraft = () => {
   }
 };
 
-function renderOrder() {
+async function renderOrder() {
   const d = getDraft();
   if (!d) return goHome();
   setHead("Захиалга", "/");
+  /* The picker needs its lists. They are usually here already; if not, the
+     form waits a moment for them and otherwise falls back to a written
+     address — this page must never hang on a request. */
+  if (!addressData) {
+    await Promise.race([loadAddressData(), new Promise((r) => setTimeout(r, 2500))]);
+    if (!/^#\/order(\/|$)/.test(location.hash)) return; // they left meanwhile
+  }
+  const A = addressData;
+  /* The address they gave last time, on this phone. Someone ordering again
+     next month finds it filled in and only checks it — the part of the form
+     that costs the most taps is the part that changes the least. */
+  let savedAddr = {};
+  try { savedAddr = JSON.parse(localStorage.getItem("ss_addr") || "{}") || {}; } catch (e) { /* private window */ }
 
   const ship = (DB.shop.delivery || []).length
     ? DB.shop.delivery
@@ -1442,9 +1471,42 @@ function renderOrder() {
           <label class="field__label" for="fPhone">УТАС</label>
           <input class="input" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
         </div>
-        <div class="field">
-          <label class="field__label" for="fAddr">ХҮРГҮҮЛЭХ ХАЯГ</label>
-          <textarea class="input" id="fAddr" name="address" rows="2" placeholder="Дүүрэг, хороо, байр, тоот — эсвэл аймаг, сум" autocomplete="street-address" required></textarea>
+        <!-- Chosen, not typed. A typed address went from the customer to the
+             operator to the courier, and a misspelt district or a khoroo
+             remembered wrong came back as a phone call to sort out. District
+             and khoroo, or aimag and sum, are picked from lists; only the part
+             a list cannot hold — building, entrance, door — is written. -->
+        <div class="field" id="addrField">
+          <span class="field__label">ХҮРГҮҮЛЭХ ХАЯГ</span>
+          ${
+            A
+              ? `<div class="seg" id="addrKind" role="radiogroup" aria-label="Хаягийн төрөл">
+                   <button type="button" class="seg__btn" data-kind="ub" role="radio">Улаанбаатар</button>
+                   <button type="button" class="seg__btn" data-kind="mn" role="radio">Орон нутаг</button>
+                 </div>
+                 <div class="grid2" id="addrUb">
+                   <div class="field"><label class="sr-only" for="aDist">Дүүрэг</label>
+                     <select class="input" id="aDist" autocomplete="address-level2">
+                       <option value="">Дүүрэг</option>
+                       ${A.ub.districts.map((x) => `<option value="${esc(x.name)}" data-n="${Number(x.khoroos) || 0}">${esc(x.name)}</option>`).join("")}
+                     </select></div>
+                   <div class="field"><label class="sr-only" for="aKhoroo">Хороо</label>
+                     <select class="input" id="aKhoroo" disabled><option value="">Хороо</option></select></div>
+                 </div>
+                 <div class="grid2" id="addrMn" hidden>
+                   <div class="field"><label class="sr-only" for="aAimag">Аймаг</label>
+                     <select class="input" id="aAimag" autocomplete="address-level1">
+                       <option value="">Аймаг</option>
+                       ${A.aimags.map((x) => `<option value="${esc(x.name)}">${esc(x.name)}</option>`).join("")}
+                     </select></div>
+                   <div class="field"><label class="sr-only" for="aSum">Сум</label>
+                     <input class="input" id="aSum" list="sumList" placeholder="Сум" autocomplete="off" disabled>
+                     <datalist id="sumList"></datalist></div>
+                 </div>
+                 <div class="field" style="margin-bottom:0"><label class="sr-only" for="aLine">Байр, орц, тоот</label>
+                   <input class="input" id="aLine" placeholder="Байр, орц, тоот · гэр хороолол бол гудамж, хашаа" autocomplete="street-address"></div>`
+              : `<textarea class="input" id="fAddr" name="address" rows="2" placeholder="Дүүрэг, хороо, байр, тоот — эсвэл аймаг, сум" autocomplete="street-address" required></textarea>`
+          }
         </div>
         ${
           d.pack
@@ -1560,7 +1622,7 @@ function renderOrder() {
       oQty.textContent = String(qty);
       page.querySelector("#sumQty").textContent = String(qty);
       page.querySelector("#tQty").textContent = String(qty);
-      setDraft(Object.assign({}, d, { qty, goods: d.unit * qty })); // survives a refresh
+      setDraft(Object.assign({}, getDraft() || d, { qty, goods: d.unit * qty })); // survives a refresh
       refresh();
     })
   );
@@ -1584,14 +1646,18 @@ function renderOrder() {
     if (prepaid) selectPayment(transferItem);
   };
 
-  page.querySelector("#shipPick").addEventListener("click", (e) => {
-    const item = e.target.closest(".pick__item");
-    if (!item) return;
-    page.querySelectorAll("#shipPick .pick__item").forEach((n) => n.classList.toggle("is-active", n === item));
+  const shipItems = Array.from(page.querySelectorAll("#shipPick .pick__item"));
+  const pickShip = (item) => {
+    shipItems.forEach((n) => n.classList.toggle("is-active", n === item));
     shipPrice = Number(item.dataset.price) || 0;
     shipName = item.dataset.name;
     applyPrepaid(item.dataset.prepaid === "1");
     refresh();
+  };
+  page.querySelector("#shipPick").addEventListener("click", (e) => {
+    const item = e.target.closest(".pick__item");
+    if (!item || item.classList.contains("is-locked")) return;
+    pickShip(item);
   });
 
   page.querySelector("#payPick").addEventListener("click", (e) => {
@@ -1601,6 +1667,77 @@ function renderOrder() {
   });
 
   applyPrepaid(Boolean(ship[0] && ship[0].prepaid));
+
+  /* ---- address picker ---- */
+  /* A countryside parcel goes by intercity vehicle and a city one by courier,
+     so the address kind decides the delivery options: the ones that cannot
+     apply are locked rather than left for the customer to pick wrongly. */
+  const isLocalShip = (n) => n.dataset.prepaid === "1" || /орон нутаг/i.test(n.dataset.name || "");
+  const syncShip = (kind) => {
+    shipItems.forEach((n) => n.classList.toggle("is-locked", kind === "mn" ? !isLocalShip(n) : isLocalShip(n)));
+    const active = shipItems.find((n) => n.classList.contains("is-active"));
+    if (active && active.classList.contains("is-locked")) {
+      const next = shipItems.find((n) => !n.classList.contains("is-locked"));
+      if (next) pickShip(next);
+    }
+  };
+  let addrKind = "ub";
+  if (A && page.querySelector("#addrKind")) {
+    const kindBtns = Array.from(page.querySelectorAll("#addrKind .seg__btn"));
+    const ubBox = page.querySelector("#addrUb");
+    const mnBox = page.querySelector("#addrMn");
+    const aDist = page.querySelector("#aDist");
+    const aKhoroo = page.querySelector("#aKhoroo");
+    const aAimag = page.querySelector("#aAimag");
+    const aSum = page.querySelector("#aSum");
+    const sumList = page.querySelector("#sumList");
+    const aLine = page.querySelector("#aLine");
+
+    const fillKhoroo = (keep) => {
+      const opt = aDist.selectedOptions[0];
+      const n = opt ? Number(opt.dataset.n) || 0 : 0;
+      let html = '<option value="">Хороо</option>';
+      for (let i = 1; i <= n; i++) html += `<option value="${i}">${i}-р хороо</option>`;
+      aKhoroo.innerHTML = html;
+      aKhoroo.disabled = !n;
+      if (keep && Number(keep) <= n) aKhoroo.value = String(keep);
+    };
+    const fillSum = (keep) => {
+      const a = A.aimags.find((x) => x.name === aAimag.value);
+      sumList.innerHTML = a ? a.sums.map((x) => `<option value="${esc(x)}">`).join("") : "";
+      aSum.disabled = !a;
+      aSum.value = a && keep ? keep : "";
+    };
+    const setKind = (k) => {
+      addrKind = k === "mn" ? "mn" : "ub";
+      kindBtns.forEach((b) => {
+        const on = b.dataset.kind === addrKind;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-checked", on ? "true" : "false");
+      });
+      ubBox.hidden = addrKind !== "ub";
+      mnBox.hidden = addrKind !== "mn";
+      aLine.placeholder = addrKind === "ub"
+        ? "Байр, орц, тоот · гэр хороолол бол гудамж, хашаа"
+        : "Баг, гудамж, байр — жолоочид хэрэгтэй тодруулга";
+      syncShip(addrKind);
+    };
+    /* kept on the device: survives a refresh now and is waiting next time */
+    const saveAddr = () => {
+      const addr = { kind: addrKind, dist: aDist.value, khoroo: aKhoroo.value, aimag: aAimag.value, sum: aSum.value, line: aLine.value.slice(0, 200) };
+      try { localStorage.setItem("ss_addr", JSON.stringify(addr)); } catch (e) { /* storage refused — nothing lost but convenience */ }
+    };
+
+    kindBtns.forEach((b) => b.addEventListener("click", () => { setKind(b.dataset.kind); saveAddr(); }));
+    aDist.addEventListener("change", () => { fillKhoroo(); saveAddr(); });
+    aAimag.addEventListener("change", () => { fillSum(); saveAddr(); });
+    [aKhoroo, aSum, aLine].forEach((el) => el.addEventListener("change", saveAddr));
+
+    if (savedAddr.dist) { aDist.value = savedAddr.dist; fillKhoroo(savedAddr.khoroo); }
+    if (savedAddr.aimag) { aAimag.value = savedAddr.aimag; fillSum(savedAddr.sum); }
+    if (savedAddr.line) aLine.value = savedAddr.line;
+    setKind(savedAddr.kind || "ub");
+  }
 
   /* ---- submit ---- */
   const form = page.querySelector("#orderForm");
@@ -1679,11 +1816,34 @@ function renderOrder() {
     const val = (id) => page.querySelector("#" + id).value.trim();
     const name = val("fName");
     const phone = val("fPhone");
-    const where = val("fAddr").replace(/\s*\n+\s*/g, ", ");
 
     if (!name) return fail("fName", "Нэрээ бичнэ үү.");
     if (!/^\d{8}$/.test(phone)) return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
-    if (!where) return fail("fAddr", "Хүргүүлэх хаягаа бичнэ үү.");
+
+    /* One line, in the order a courier reads it: city, district, khoroo, then
+       the building — or aimag, sum, then the rest. */
+    let where;
+    if (page.querySelector("#addrKind")) {
+      const line = val("aLine").replace(/\s+/g, " ");
+      if (addrKind === "ub") {
+        const dist = val("aDist");
+        const kh = val("aKhoroo");
+        if (!dist) return fail("aDist", "Дүүргээ сонгоно уу.");
+        if (!kh) return fail("aKhoroo", "Хороогоо сонгоно уу.");
+        if (!line) return fail("aLine", "Байр, орц, тоотоо бичнэ үү.");
+        where = `Улаанбаатар, ${dist} дүүрэг, ${kh}-р хороо, ${line}`;
+      } else {
+        const aim = val("aAimag");
+        const sum = val("aSum");
+        if (!aim) return fail("aAimag", "Аймгаа сонгоно уу.");
+        if (!sum) return fail("aSum", "Сумаа сонгоно уу.");
+        if (!line) return fail("aLine", "Хаягийн тодруулгаа бичнэ үү.");
+        where = `${aim} аймаг, ${sum} сум, ${line}`;
+      }
+    } else {
+      where = val("fAddr").replace(/\s*\n+\s*/g, ", ");
+      if (!where) return fail("fAddr", "Хүргүүлэх хаягаа бичнэ үү.");
+    }
     clearFail();
 
     /* The backend takes an address and nothing else about how the order is to
