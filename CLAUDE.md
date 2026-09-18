@@ -640,23 +640,17 @@ Deploy-ийн дараа `starshopping-mn.github.io` дээр дахин шал�
 - Холбоосын урьдчилсан харагдац (OG) бүрэн ажиллаж байна — §11-ийг үз
 
 **Эзэн хийх — шинэ backend (2026-09-17/18):**
-- ⚠️ **`web_products()` anon key-д хоосон `[]` буцаадаг** (2026-09-18-нд хэмжсэн:
-  service role-оор 2 бараа бүрэн ирнэ, anon-оор `[]`, HTTP 200). Функц SECURITY
-  INVOKER, `products`-ын RLS anon-д юу ч өгдөггүй. Засвар — Supabase SQL Editor:
-  ```sql
-  alter function public.web_products() security definer;
-  alter function public.web_products() set search_path = public;
-  grant execute on function public.web_products() to anon, authenticated;
-  alter function public.web_product(p_slug text) security definer;
-  alter function public.web_product(p_slug text) set search_path = public;
-  grant execute on function public.web_product(p_slug text) to anon, authenticated;
-  ```
-  Тэр хүртэл сайт Sheet-ээс явна (зориуд — алдаа биш), захиалга slug-аар очно.
-- 2 бараа маягт 13-аар Supabase-д **орсон** (2026-09-18, slug/тайлбар/зураг/категори
-  бүгд хүснэгтэд байна). Дээрх SQL-ийн дараа сайт дараагийн ачаалалтаас Supabase-аас
-  уншина — `curl`-ээр (§17) батал.
-- Сайт Supabase-аас уншиж эхэлмэгц n8n «02 · Захиалга бүртгэх»-ийн `SLUG_TO_ID`
-  гүүрийг устга (§17) — сайт UUID илгээдэг болно.
+- ✅ **Хийгдсэн (2026-09-18):** 2 бараа маягт 13-аар Supabase-д орсон; `web_products`
+  anon key-д ажилладаг болсон (эзэн SQL-ээр функцийг `security definer` болгосон —
+  өмнө нь anon-д `[]` буцаадаг байсан, учир нь `products`-ын RLS anon-д юу ч
+  өгдөггүй); амьд сайт Supabase-аас уншиж, захиалгад UUID илгээж байгаа нь
+  хэмжигдсэн; n8n «02»-ын `SLUG_TO_ID` гүүр устгагдсан. Шинэ функц нэмэгдвэл мөн
+  `security definer` + `grant execute … to anon` хэрэгтэйг сана — функц нэрээр
+  олдохгүй бол параметртэй, `pg_proc`-оос `oid::regprocedure`-ээр ол.
+- Өртөг (`cost_mnt`) 2 бараанд түр = зарах үнэ (ашиг 0). Бодит өртөг мэдэгдмэгц
+  маягт 13-аар product_id-г буулгаж бүх талбарыг дахин бөглөж зас.
+- `Huwtsas-hadgalah-sags` Supabase-д `stock_qty = 0` → сайт дээр «Дууссан», intake
+  татгалзана. Гадаадаас захиалдаг бол маягт 13-аар нөөцийг **хоосон** болго.
 - ⚠️ **n8n «99 · Шалгалт» (`/webhook/diag`)** нь нэвтрэлтгүй, service role-оор
   `?tbl=<хүснэгт>` дурын хүснэгтийг (orders, customers…) хэнд ч уншуулна. Хаяг нь
   энэ repo-д ч бичигдсэн. Идэвхгүй болгох эсвэл header auth тавих.
