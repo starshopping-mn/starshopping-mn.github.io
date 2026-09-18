@@ -31,12 +31,27 @@ const creativeId = () => {
 
 /* ========================================================================
    DATA
-   Live catalogue comes from the Apps Script web app bound to the shop's
-   sheet, so products, prices, discounts and photos are edited there rather
-   than in code. The bundled JSON stays as a fallback: if Google is slow,
-   over quota, or the deployment is mid-update, the shop still renders
-   instead of showing an empty page.
+   The products — name, price, photos, stock — come from the owner's Supabase,
+   the very database the order intake prices from, so what a customer is shown
+   and what they are charged can no longer drift apart. A product is registered
+   once, in the n8n form "13 · Бараа бүртгэх", and is on the shelf here on the
+   next load; nothing is copied into the sheet any more.
+
+   `web_products` is a read-only function opened to the anon key. That key is
+   public by design — it sits in every visitor's browser — and can read nothing
+   but this. The service_role key never comes near this file, and orders,
+   customers, costs and ad spend are not readable from here at all.
+
+   The sheet (Apps Script feed) keeps what it still owns: bank details, delivery
+   options, categories, bundles, reviews. Until Supabase carries colours, sizes
+   and lead times, those ride along from the sheet row of the same slug
+   (`fromSupabase`). The bundled JSON stays as the offline copy of both: if
+   either backend is slow or mid-update, the shop still renders.
    ===================================================================== */
+const SUPABASE_URL = "https://tdnjnqftxschbliumwwm.supabase.co";
+const SUPABASE_ANON =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkbmpucWZ0eHNjaGJsaXVtd3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNzExNTgsImV4cCI6MjEwNDk0NzE1OH0.lND_YBbjyCNT-yIa27OZ3V-1_fn76i9JUYrOfrXbC1w";
+const CATALOG_SOURCE = `${SUPABASE_URL}/rest/v1/rpc/web_products`;
 const DATA_SOURCE =
   "https://script.google.com/macros/s/AKfycbzZK-I4L3Cow5KAlLbW0pud0766XduXHzuTys9FIEwXWDTQL36VPywm7bNsk3E6NMqORQ/exec";
 const DATA_FALLBACK = "data/catalog.json";
@@ -216,6 +231,12 @@ const esc = (s) =>
    size and the discount still applies on top of whichever one is picked. */
 function priceOf(p, base) {
   const list = Number(base !== undefined && base !== null && base !== "" ? base : p.price);
+  /* A Supabase product carries the sale price itself and, when it is on offer,
+     the price it was — no percentage to round, the two figures are the truth. */
+  const cmp = Number(p.compareAt);
+  if (p.compareAt && cmp > list) {
+    return { on: true, pct: Math.round((1 - list / cmp) * 100), was: cmp, now: list };
+  }
   const d = Number(p.discount);
   const on = p.discount !== null && p.discount !== "" && !Number.isNaN(d) && d > 0;
   return {
@@ -2553,9 +2574,86 @@ function paint(data, { first }) {
   requestAnimationFrame(() => ScrollTrigger.refresh());
 }
 
+/* ---- Supabase rows → the shape every render function already reads ----
+   The page code did not change for the move, so a product from the database
+   must look exactly like one that came from the sheet. `base` is the
+   sheet-side catalogue (feed, offline copy or the stored one) whose shop,
+   categories, bundles and reviews are kept as they are. `tools/catalog.py`
+   applies the same rules for the preview cards and the health check. */
+const urlList = (v) =>
+  Array.isArray(v)
+    ? v.map((x) => String(x).trim()).filter(Boolean)
+    : String(v || "")
+        .split(/[\s,]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+function fromSupabase(rows, base) {
+  const src = base || {};
+  const old = new Map((src.products || []).map((p) => [String(p.slug || "").trim(), p]));
+  const stock = { ...(src.stock || {}) };
+  const products = [];
+  for (const r of rows || []) {
+    const slug = String(r.slug || "").trim();
+    const price = Number(r.price_mnt);
+    // no address or no price: the shop could neither show nor sell it
+    if (!slug || !(price > 0)) continue;
+    const was = old.get(slug) || {};
+    const cmp = Number(r.compare_at_mnt);
+    const images = urlList(r.images != null && r.images !== "" ? r.images : r.image_urls);
+    products.push({
+      ...was, // colours, sizes and lead time still live in the sheet row of the same slug
+      slug,
+      product_id: r.product_id || r.id || "",
+      category: String(r.category || was.category || "").trim(),
+      name: r.name || was.name || slug,
+      desc: r.description != null && r.description !== "" ? r.description : was.desc || "",
+      price,
+      discount: null,
+      compareAt: cmp > price ? cmp : null,
+      images: images.length ? images : listOf(was.images),
+      featured: !!r.featured,
+      active: r.status ? r.status === "active" : r.active !== false,
+    });
+    /* Stock is the intake's to enforce; here it only decides the badge and the
+       button. A count wins, a plain in_stock:false closes the product, and no
+       word at all leaves it orderable — the sheet's old figure for the same
+       slug is dropped rather than left to contradict the database. */
+    if (r.stock_qty !== undefined && r.stock_qty !== null && r.stock_qty !== "") {
+      stock[slug] = Number(r.stock_qty);
+    } else if (r.in_stock === false) {
+      stock[slug] = 0;
+    } else {
+      delete stock[slug];
+    }
+  }
+  return { ...src, products, stock };
+}
+
 /* 1 — something on screen straight away */
 const cached = readCache();
 if (cached) paint(cached, { first: true });
+
+/* Three sources, all asked at once, none waiting on another — the deep link
+   from a reel is measured on 3G and must not get slower for this move:
+     · Supabase        — the products, and their stock
+     · the sheet feed  — shop details, categories, bundles, reviews
+     · catalog.json    — the offline copy of both, on our own domain
+   `supaRows` holds the products once they have landed; `extras` the best
+   sheet-side answer so far. Whatever lands is merged with whatever is here. */
+let supaRows = null;
+let extras = null;
+const merged = (base) => (supaRows ? fromSupabase(supaRows, base) : base);
+
+/* A phone on a weak signal can hold a request open for a minute, and until it
+   settles the shop cannot tell a slug that is missing from one that is merely
+   late — so every backend is given a deadline. */
+const feedDeadline = () => {
+  if (typeof AbortController !== "function") return undefined;
+  const c = new AbortController();
+  setTimeout(() => c.abort(), 15000);
+  return c.signal;
+};
 
 /* 1b — the offline copy, always. It used to be skipped whenever the browser
    held a stored one, which is exactly the visitor this shop lives on: someone
@@ -2568,22 +2666,59 @@ if (cached) paint(cached, { first: true });
 fetch(DATA_FALLBACK, { cache: "no-cache" })
   .then((r) => r.json())
   .then((data) => {
+    if (!extras) extras = data;
+    if (supaRows) {
+      // the products are already here; this only fills in the shelf around them
+      const out = fromSupabase(supaRows, data);
+      if (!booted) {
+        writeCache(out);
+        liveLoaded = true;
+        return paint(out, { first: true });
+      }
+      if (routeUnresolved()) paint(out, { first: false });
+      return;
+    }
     if (liveLoaded) return; // the sheet itself already answered
     if (!booted) return paint(data, { first: true });
     if (routeUnresolved()) paint(data, { first: false });
   })
   .catch(() => {});
 
-/* 2 — the real catalogue. A phone on a weak signal can hold a request open for
-   a minute, and until it settles the shop cannot tell a slug that is missing
-   from one that is merely late — so it is given a deadline. */
-const feedDeadline = () => {
-  if (typeof AbortController !== "function") return undefined;
-  const c = new AbortController();
-  setTimeout(() => c.abort(), 15000);
-  return c.signal;
-};
+/* 2 — the products, from the database the intake prices from. An empty answer
+   is not an error: nothing has been registered yet, and the sheet carries the
+   shelf exactly as it did before. */
+fetch(CATALOG_SOURCE, {
+  method: "POST",
+  headers: {
+    apikey: SUPABASE_ANON,
+    Authorization: `Bearer ${SUPABASE_ANON}`,
+    "Content-Type": "application/json",
+  },
+  body: "{}",
+  signal: feedDeadline(),
+})
+  .then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then((rows) => {
+    const list = Array.isArray(rows) ? rows : [];
+    if (!list.length) return;
+    supaRows = list;
+    // no shelf to put them on yet: the offline copy or the feed merges them on arrival
+    const base = extras || (DB.categories.length ? DB : null);
+    if (!base) return;
+    const data = fromSupabase(list, base);
+    writeCache(data);
+    liveLoaded = true;
+    paint(data, { first: !booted });
+  })
+  .catch((err) => {
+    console.warn("Supabase каталог ирсэнгүй, Sheet-ийн feed-ээр үргэлжилж байна:", err);
+  });
 
+/* 3 — the sheet: shop details, categories, bundles, reviews — and, until a
+   product is registered in Supabase, the products too. */
 fetch(DATA_SOURCE, { signal: feedDeadline() })
   .then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -2591,9 +2726,11 @@ fetch(DATA_SOURCE, { signal: feedDeadline() })
   })
   .then((data) => {
     if (!data || !(data.products || []).length) return;
-    writeCache(data);
+    extras = data;
+    const out = merged(data);
+    writeCache(out);
     liveLoaded = true;
-    paint(data, { first: !booted });
+    paint(out, { first: !booted });
   })
   .catch((err) => {
     console.warn("Sheet-ийн feed ирсэнгүй, одоо байгаа хувилбараар үргэлжилж байна:", err);
@@ -2604,7 +2741,7 @@ fetch(DATA_SOURCE, { signal: feedDeadline() })
     if (!booted) {
       fetch(DATA_FALLBACK)
         .then((r) => r.json())
-        .then((data) => paint(data, { first: true }))
+        .then((data) => paint(merged(data), { first: true }))
         .catch(() => {
           catsStage.innerHTML =
             '<p style="opacity:.6;font-size:.85rem">Каталог ачаалж чадсангүй.</p>';

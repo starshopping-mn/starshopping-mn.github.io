@@ -2,7 +2,7 @@
 
 Traffic reaches this shop through links sent straight to people — under a reel,
 or by the reply automation answering a comment. If a link stops resolving, or a
-picture stops loading, or a price on a preview card drifts away from the sheet,
+picture stops loading, or a price on a preview card drifts away from the catalogue,
 nobody complains: they simply do not buy, and the advert spend goes on regardless.
 
 So this checks the things that actually cost money when they break, on a timer,
@@ -21,6 +21,9 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import catalog as catalogue  # noqa: E402  (the shop's own reading of the catalogue)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = "https://starshopping-mn.github.io"
@@ -64,13 +67,6 @@ def fetch(url, head=False, as_crawler=False):
             if attempt < TRIES - 1:
                 time.sleep(3 * (attempt + 1))
     return None, str(last)
-
-
-def data_source():
-    with io.open(os.path.join(ROOT, "script.js"), encoding="utf-8") as fh:
-        js = fh.read()
-    m = re.search(r'DATA_SOURCE\s*=\s*\n?\s*"([^"]+)"', js)
-    return m.group(1) if m else None
 
 
 def meta(html, prop):
@@ -139,27 +135,36 @@ def main():
         else:
             ok("home page preview tags")
 
-    log("\n== the catalogue feed ==")
-    src = data_source()
-    if not src:
-        fail("feed address", "DATA_SOURCE not found in script.js")
-        return finish()
-
-    code, body = fetch(src)
-    if code != 200 or not body:
-        fail("sheet feed", "returned %s — the shop is running on its offline copy" % code)
-        return finish()
-    try:
-        feed = json.loads(body.decode("utf-8"))
-    except Exception as err:
-        fail("sheet feed", "did not return usable data (%s)" % err)
+    log("\n== the catalogue ==")
+    # read exactly as the shop reads it: products from Supabase, shop details
+    # from the sheet — and, like every other check here, not believed on the
+    # first refused connection
+    feed, source, reasons = None, "", []
+    for attempt in range(TRIES):
+        feed, source, reasons = catalogue.load_catalog()
+        if feed is not None:
+            break
+        time.sleep(3 * (attempt + 1))
+    for reason in reasons:
+        log("  ~ " + reason)
+    if feed is None:
+        fail("catalogue", "neither Supabase nor the sheet answered — the shop is running on its offline copy")
         return finish()
 
     products = [p for p in (feed.get("products") or []) if p.get("active") is not False]
     if not products:
-        fail("sheet feed", "answered with no products at all")
+        fail("catalogue", "answered with no products at all")
         return finish()
-    ok("sheet feed", "%d product(s) on sale" % len(products))
+    where = "Supabase" if source == "supabase" else "the sheet"
+    ok("catalogue", "%d product(s) on sale, products from %s" % (len(products), where))
+    # the intake prices every order from Supabase; a shop quietly selling off the
+    # sheet while the database is unreachable is exactly the drift this run exists to catch
+    if any(r.startswith("supabase did not answer") for r in reasons):
+        fail("supabase", "did not answer — the shop fell back to the sheet, the intake cannot")
+    elif source != "supabase":
+        notes.append("products still come from the sheet — Supabase lists none (register them in form 13)")
+    if any(r.startswith("the sheet feed did not answer") for r in reasons):
+        fail("sheet feed", "did not answer — delivery prices and categories are from the offline copy")
 
     log("\n== the offline copy the shop opens with ==")
     try:
@@ -169,10 +174,10 @@ def main():
         off_slugs = sorted(p.get("slug") for p in (offline.get("products") or []))
         if live_slugs != off_slugs:
             # not a failure: the rebuild runs on a timer and catches up shortly
-            notes.append("offline copy is behind the sheet — it refreshes within ~20 minutes")
-            log("  note  offline copy is behind the sheet (rebuild pending)")
+            notes.append("offline copy is behind the catalogue — it refreshes within ~20 minutes")
+            log("  note  offline copy is behind the catalogue (rebuild pending)")
         else:
-            ok("offline copy matches the sheet")
+            ok("offline copy matches the catalogue")
     except Exception as err:
         fail("offline copy", "could not be read (%s)" % err)
 
@@ -204,9 +209,9 @@ def main():
         shown = meta(html, "product:price:amount")
         want = str(price_of(p))
         if shown != want:
-            fail(slug + " preview price", "card says %s, the sheet says %s" % (shown, want))
+            fail(slug + " preview price", "card says %s, the catalogue says %s" % (shown, want))
         else:
-            ok("preview price matches the sheet", want + "₮")
+            ok("preview price matches the catalogue", want + "₮")
 
         img = meta(html, "og:image")
         if img:

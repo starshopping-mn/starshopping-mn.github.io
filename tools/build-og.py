@@ -7,8 +7,9 @@ picture, no name and no price — the thing a customer decides on before they ta
 
 This writes a real page per product at `p/<slug>/`, carrying the Open Graph tags
 in the markup where a crawler can read them, and bounces a human straight into
-the shop. The catalogue comes from the same sheet the shop itself reads, so a
-product added there grows a card without anyone touching the code.
+the shop. The catalogue is read exactly as the shop reads it (`catalog.py`):
+products from Supabase, shop details from the sheet — so a product registered
+in the owner's form grows a card without anyone touching the code.
 
 Nothing here may ever take the shop down: every failure path leaves whatever is
 already published exactly as it stands.
@@ -23,6 +24,9 @@ import shutil
 import sys
 import urllib.parse
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import catalog as catalogue  # noqa: E402  (the shop's own reading of the catalogue)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGES_DIR = os.path.join(ROOT, "p")
@@ -53,24 +57,6 @@ SAFE_SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 def log(msg):
     print(msg, flush=True)
-
-
-def data_source():
-    """Read the feed address out of script.js.
-
-    Keeping it in one place means a redeployed Apps Script never leaves the
-    cards pointing at a dead address while the shop itself is fine.
-    """
-    with io.open(os.path.join(ROOT, "script.js"), encoding="utf-8") as fh:
-        js = fh.read()
-    m = re.search(r'DATA_SOURCE\s*=\s*\n?\s*"([^"]+)"', js)
-    return m.group(1) if m else None
-
-
-def fetch_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "starshopping-og-builder"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        return json.loads(resp.read().decode("utf-8"))
 
 
 def direct_image_url(raw):
@@ -378,21 +364,22 @@ def render(product, image_name):
 
 
 OFFLINE_NOTE = (
-    "Автоматаар үүсдэг — гараар засах шаардлагагүй. tools/build-og.py нь Sheet-ийн "
-    "feed-ээс 20 минут тутам хуулна. Сайт эхлэхдээ үүнээс зурж, дараа нь Sheet-ийн "
-    "жинхэнэ өгөгдлөөр солино. Хуучирсан байвал зарын холбоосоор ирсэн хүн хоосон "
-    "категори эсвэл олдохгүй бараа хардаг."
+    "Автоматаар үүсдэг — гараар засах шаардлагагүй. tools/build-og.py нь 20 минут тутам "
+    "барааг Supabase-аас (web_products), дэлгүүрийн мэдээлэл, категори, багц, сэтгэгдлийг "
+    "Sheet-ийн feed-ээс хуулна. Сайт эхлэхдээ үүнээс зурж, дараа нь жинхэнэ өгөгдлөөр "
+    "солино. Хуучирсан байвал зарын холбоосоор ирсэн хүн хоосон категори эсвэл олдохгүй "
+    "бараа хардаг."
 )
 
 
-def write_offline_copy(feed):
-    """Keep the bundled catalogue in step with the sheet.
+def write_offline_copy(feed, source):
+    """Keep the bundled catalogue in step with the live one.
 
-    The shop paints from this file before the slow feed answers. When it held a
-    different catalogue than the sheet, a category reached from an ad listed
-    nothing and a product reached from a reel could not be found at all — the
-    visitor met an empty shelf on the way in. Copying the live answer here means
-    the first thing painted is already the truth.
+    The shop paints from this file before the slow backends answer. When it
+    held a different catalogue than they did, a category reached from an ad
+    listed nothing and a product reached from a reel could not be found at
+    all — the visitor met an empty shelf on the way in. Copying the live answer
+    here means the first thing painted is already the truth.
     """
     body = {"_note": OFFLINE_NOTE}
     for key in ("shop", "categories", "products", "bundles", "reviews", "stock"):
@@ -409,7 +396,7 @@ def write_offline_copy(feed):
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with io.open(target, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
-        log("  offline catalogue refreshed from the sheet")
+        log("  offline catalogue refreshed (products from %s)" % source)
 
 
 def load_manifest():
@@ -421,25 +408,23 @@ def load_manifest():
 
 
 def main():
-    src = data_source()
-    if not src:
-        log("! DATA_SOURCE not found in script.js — leaving the published cards alone")
+    feed, source, notes = catalogue.load_catalog()
+    for note in notes:
+        log("  ~ " + note)
+    if feed is None:
+        log("! no catalogue answered — leaving the published cards alone")
         return 0
-
-    try:
-        feed = fetch_json(src)
-    except Exception as err:
-        log("! the sheet did not answer (%s) — leaving the published cards alone" % err)
-        return 0
+    source = "Supabase" if source == "supabase" else "the sheet"
+    log("catalogue read: products from %s" % source)
 
     products = [p for p in (feed.get("products") or []) if p.get("active") is not False]
     if not products:
         # an empty answer is far more likely to be a bad deploy than a shop with
         # nothing in it, and acting on it would delete every card at once
-        log("! the feed carried no products — leaving the published cards alone")
+        log("! the catalogue carried no products — leaving the published cards alone")
         return 0
 
-    write_offline_copy(feed)
+    write_offline_copy(feed, source)
 
     # kept apart from the card build: a photo that will not mirror must not
     # stop a single card from being written
@@ -498,7 +483,7 @@ def main():
 
         fresh[slug] = {"stamp": stamp, "image": image_name}
 
-    # retire anything the sheet no longer lists, now that we know the feed was
+    # retire anything the catalogue no longer lists, now that we know it was
     # genuinely answered and genuinely non-empty
     for gone in sorted(set(manifest) - set(fresh)):
         shutil.rmtree(os.path.join(PAGES_DIR, gone), ignore_errors=True)

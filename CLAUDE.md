@@ -9,7 +9,9 @@
 
 Монгол dropshipping дэлгүүр. Reels/TikTok-ийн зараас ирсэн хүн бараа сонгож,
 захиалга өгөхөд эзний **n8n intake → Supabase** руу бүртгэгддэг (2026-09-17-оос;
-өмнө нь Google Sheet). Каталог одоохондоо Sheet-ээс уншигдсаар байгаа.
+өмнө нь Google Sheet). **Бараа** (нэр, үнэ, зураг, нөөц) 2026-09-18-аас мөн
+Supabase-аас уншигдана — **шинэ бараа = n8n маягт 13 бөглөх** (§17). Sheet
+дэлгүүрийн мэдээлэл, категори, багц, сэтгэгдлийг л өгнө.
 
 | | |
 |---|---|
@@ -31,9 +33,13 @@
 Хөтөч (GitHub Pages, статик)
   index.html · style.css · script.js · vendor/gsap · assets/
         │
-        ├─ GET  → каталог (бараа, үнэ, нөөц, багц, сэтгэгдэл)
+        ├─ POST → бараа (нэр, үнэ, хямдралын өмнөх үнэ, зураг, нөөц, product_id)
+        │         Supabase RPC `web_products` — anon key, зөвхөн унших
+        │         ← n8n маягт «13 · Бараа бүртгэх» → `upsert_product`
+        │
+        ├─ GET  → дэлгүүрийн мэдээлэл, хүргэлт, категори, багц, сэтгэгдэл
+        │         (+ ижил slug-тай мөрөөс өнгө, хэмжээ, хугацаа — түр, §17)
         │         Google Apps Script Web App (apps-script/Code.gs) → Google Sheet
-        │         Products · Categories · Нөөц · Bundles · Reviews · Заавар
         │
         └─ POST → захиалга
                   https://starshopping.app.n8n.cloud/webhook/order-intake
@@ -41,19 +47,33 @@
                     СЕРВЕР шийднэ. Сайт юу ч тооцохгүй, үнэ илгээхгүй.
 ```
 
+**Каталогийн ачаалалт** (`script.js` төгсгөл, `fromSupabase()`): гурван эх
+сурвалжийг **зэрэг** асууна, нэг нь нөгөөгөө хүлээхгүй — reel-ийн deep link
+3G дээр удаашрах ёсгүй. Supabase-ийн мөрүүд ирмэгц Sheet-ийн (эсвэл
+`catalog.json`-ы) `shop, categories, bundles, reviews` дээр **бараагаа сольж**
+тавина. Supabase **хоосон** буцаавал алдаа биш — Sheet-ийн бараа өмнөх шигээ
+явна. `tools/catalog.py` яг ижил дүрмээр уншдаг тул карт, эрүүл мэндийн
+шалгалт, хуудас гурав нэг үнэ харуулна.
+
 **Захиалгын гэрээ** (эзний `WEBSITE-INTEGRATION.md`-ээс): body нь
 `{ product_id, name, phone (8 орон), address (нэг мөр), quantity,
 channel: "web", creative_id }`. Хариу `ok:true` → `order_id, product,
 total_mnt, is_duplicate…`; `ok:false` → `error` / `errors[]` + `message`.
 `script.js` → `ORDER_INTAKE`, `orderRefusal()`.
 
-**Каталог → Supabase шилжилт ХИЙГДЭЭГҮЙ.** Бэлэн болоход:
-`POST https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/web_products`,
-header `apikey` + `Authorization: Bearer` = **anon key** (публик; `service_role`-ыг
-ХЭЗЭЭ Ч фронтэнд дээр тавихгүй). `price_mnt, compare_at_mnt, images, in_stock,
-slug, product_id`-г одоогийн барааны хэлбэрт буулгаж, `data/catalog.json`-г
-офлайн нөөцөөр үлдээнэ. Тэр болтол `product_id` болж **slug** явж байгаа —
-intake slug-аар бараа таньдаг эсэхийг эзэн баталгаажуулах ёстой.
+**Каталог → Supabase (2026-09-18).** `SUPABASE_URL`, `SUPABASE_ANON`,
+`CATALOG_SOURCE` — `script.js` толгойд. Anon key **публик** (зочин бүрийн
+хөтчид байдаг), зөвхөн `web_products`-ыг уншина; `service_role`-ыг ХЭЗЭЭ Ч
+фронтэнд, `tools/`, GitHub дээр тавихгүй; `orders/customers/ad_spend/
+cost_settings`-ийг сайт хэзээ ч уншихгүй. Мөрийн талбарууд:
+`product_id, slug, name, description, images|image_urls, price_mnt,
+compare_at_mnt, stock_qty|in_stock, category, featured, status`. Хөрвүүлэлт:
+`price ← price_mnt`, `compareAt ← compare_at_mnt` (их бол зурсан хуучин үнэ,
+`priceOf()` хувь бодохгүй), `desc ← description`, `stock[slug] ← stock_qty`
+(байхгүй бол `in_stock:false` → 0, чимээгүй бол хязгааргүй — Sheet-ийн хуучин
+тоо **арилна**). Slug-гүй, үнэгүй мөр алгасна. Захиалга **`product_id` =
+Supabase UUID** явуулна (`p.product_id`); n8n intake UUID биш ирвэл
+`product_not_found` буцаана.
 
 **Attribution.** Зарын холбоос `…/p/<slug>?ref=<creative_id>`. Карт хуудас
 `location.search`-ийг дэлгүүр рүү дамжуулна, `script.js` эхний ачаалалт дээр
@@ -435,9 +455,10 @@ Pages-ийн хязгаараас хол доор.
 
 | Юу өөрчлөгдсөн | Хийх зүйл |
 |---|---|
-| `index.html`, `style.css`, `script.js`, `assets/` | `git push origin main` → GitHub Actions автоматаар (~40 сек) |
+| `index.html`, `style.css`, `script.js`, `assets/`, `tools/` | `git push origin main` → GitHub Actions автоматаар (~40 сек) |
+| **Шинэ бараа, үнэ, зураг, нөөц** | n8n маягт **13 · Бараа бүртгэх** бөглөнө (§17) — дараагийн ачаалалтад тусна, холбоосын карт ~20 минутад |
 | `apps-script/Code.gs` | Эзэн гараар: код хуулах → `setup` Run → `Deploy` → **Manage deployments** → ✏️ → **New version** → Deploy |
-| Sheet дээрх өгөгдөл (бараа, үнэ, нөөц, хүргэлтийн хугацаа) | **Юу ч хийхгүй** — дараагийн ачаалалтад тусна |
+| Sheet дээрх өгөгдөл (хүргэлт, категори, багц, сэтгэгдэл) | **Юу ч хийхгүй** — дараагийн ачаалалтад тусна |
 | Захиалгын логик (үнэ, нөөц, давхардал, мэдэгдэл) | Эзний n8n / Supabase тал — энэ repo-д биш |
 
 **Apps Script deploy-г зөвхөн эзэн хийж чадна** (түүний Google эрх шаардлагатай).
@@ -449,6 +470,14 @@ Deploy хийсэн эсэхийг шалгах: feed-ээс шинэ талба
 ---
 
 ## 5. Sheet-ийн бүтэц
+
+⚠️ **2026-09-18-аас бараа Sheet-д биш, Supabase-д** (§17). Supabase-д ядаж нэг
+бараа байгаа үед Sheet-ийн `Products` хуудасны бараа сайт дээр **гарахгүй** —
+зөвхөн ижил slug-тай мөрөөс `colors, colorImages, sizes, sizePrices,
+sizeImages, leadTime, leadNote` зээлж авна (Supabase-д эдгээр багана байхгүй
+хүртэл). `Нөөц`-ийн тоо ч Supabase-ийн барааны хувьд **хүчингүй** — intake
+`stock_qty`-гаар шалгадаг. Sheet-ийн үлдсэн үүрэг: **дэлгүүрийн мэдээлэл
+(банк, утас), хүргэлтийн сонголтууд, Categories, Bundles, Reviews, Заавар.**
 
 Дэлгэрэнгүйг Sheet дэх **`Заавар`** хуудаснаас, эсвэл `Code.gs` доторх
 `PRODUCT_NOTES` тогтмолоос үз. Товчхон:
@@ -610,11 +639,15 @@ Deploy-ийн дараа `starshopping-mn.github.io` дээр дахин шал�
 - `Huwtsas-hadgalah-sags` slug цэвэр, хоосон зайгүй
 - Холбоосын урьдчилсан харагдац (OG) бүрэн ажиллаж байна — §11-ийг үз
 
-**Эзэн хийх — шинэ backend (2026-09-17):**
-- Supabase `web_products`-д бараа оруулж, **anon key**-г өг → каталогийг
-  Supabase руу шилжүүлнэ (§2). Тэр болтол `product_id` = slug.
-- Intake slug-аар бараа таньж байгааг **нэг тест захиалгаар** батал
-  (`…/webhook/board` дээр харагдана; дараа нь тэр захиалгыг устга).
+**Эзэн хийх — шинэ backend (2026-09-17/18):**
+- Каталог Supabase руу шилжсэн (§2, §17), код бэлэн. Одоо **2 барааг маягт
+  13-аар Supabase-д бүртгэ** (product_id-г буулгаж) — тэр хүртэл `web_products`
+  хоосон, сайт Sheet-ээс явна, захиалга slug-аар очно (n8n 02-ын түр map).
+- Маягт 13-ын шинэ талбарууд (slug, description, image_urls, compare_at_mnt,
+  featured) `upsert_product`-д **хадгалагдаж байгааг** эхний бүртгэлийн дараа
+  `curl`-ээр (§17) батал. Хадгалагдахгүй бол SQL функцэд багана нэмэх хэрэгтэй.
+- 2 бараа Supabase-д орж сайт дээр гармагц n8n «02 · Захиалга бүртгэх»-ийн
+  `SLUG_TO_ID` гүүрийг устга (§17) — сайт UUID илгээдэг болсон.
 - Intake-д хүргэлтийн төрөл/төлбөр, өнгө/хэмжээний талбар байхгүй — одоо
   хаягийн мөрийн `[…]` дотор явж байгаа. Хэрэгтэй бол база талд нэм.
 - Захиалга Sheet-д орохоо больсон тул `Нөөц`-ийн «Захиалагдсан» тоо, Apps
@@ -867,3 +900,45 @@ Claude токен авахгүй, кодод бичихгүй — эзэн өө�
 - **Санах:** сонголт `localStorage.ss_addr`-д хадгалагдана — дараагийн захиалгад бэлэн.
 - Хэмжилт: `HANDOVER/measure/addr.js` (хуучин репо) — сонголт, орон нутаг, fallback,
   reload гурвуулаа тэнцсэн; нүүрний zoom ба бараа-линкийн хэмжилтэд өөрчлөлт алга.
+
+## 17. Бараа нэмэх = зөвхөн маягт 13 (2026-09-18)
+
+**Шинэ бараа, үнэ, зураг, нөөц — бүгд n8n маягт «13 · Бараа бүртгэх»
+(`starshopping.app.n8n.cloud/form/product`).** Sheet-д бичихгүй, slug холбох
+гүүр байхгүй, кодонд юу ч нэмэхгүй. Маягт `upsert_product` руу бичнэ, сайт
+`web_products`-оос уншина, карт `tools/build-og.py`-аар 20 минутад үүснэ.
+
+### Талбарууд ба дүрэм
+| Талбар | Дүрэм |
+|---|---|
+| `product_id` | **Засах** бол буулга (маягтын хариунд байдаг), шинэ бол хоосон |
+| `slug` | Латин үсэг, тоо, зураас: `Huwtsas-hadgalah-sags`. Сайтын хаяг `#/p/<slug>` ба картын хавтас. **Зар явуулсны дараа СОЛИХГҮЙ.** Хоосон бол сайт дээр **гарахгүй** |
+| `category` | Sheet-ийн Categories-ийн slug: `ger-ahui`, `huuhdiin-heregsel`. Таарахгүй бол бараа тавиур дээр гарахгүй, шууд холбоосоор л нээгдэнэ |
+| `description` | Эхний мөр гарчиг (≤30 тэмдэгт), дараа нь мөр тутамд нэг давуу тал; `Юу — тайлбар` бол «Юу» тодоор (`descBlock`) |
+| `image_urls` | Мөр тус бүр нэг Drive **файлын** холбоос (`/file/d/…/view`), «Anyone with the link». Эхнийх = гол зураг. Хавтасны холбоос, файлын нэр ажиллахгүй (§3) |
+| `price_mnt` | Зарах үнэ. Intake яг үүгээр тооцно |
+| `compare_at_mnt` | Хямдралын өмнөх үнэ. `price_mnt`-ээс **их** бол зурсан хуучин үнэ + хувь харагдана; бага/хоосон бол юу ч гарахгүй |
+| `stock_qty` | Хоосон = хязгааргүй. **0 = ДУУССАН**, товч хаагдана (§3-ын нөөцийн дүрэм). Sheet-ийн `Нөөц` энэ бараанд хамаагүй |
+| `status` | `active` л сайт дээр гарна |
+| `cost_mnt`, `why_this`, `max_per_order`, `low_stock_at`, `page_id`, `source_url`, `featured` | Эзний бот, тайлангийн талбарууд; сайт `featured`-ыг одоогоор ашигладаггүй |
+
+### Шалгах
+```bash
+curl -s -X POST https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/web_products \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H "Content-Type: application/json" -d '{}'
+```
+(`$ANON` = `script.js` дэх `SUPABASE_ANON`.) Бараа slug, images, price_mnt-тэй
+ирж байвал сайт дараагийн ачаалалтад харуулна. `python3 tools/health-check.py`
+аль эх сурвалжаас уншсанаа хэлнэ («products from Supabase»).
+
+### Түр хамаарал — мэдэж бай
+- **Өнгө, хэмжээ, хүргэлтийн хугацаа** Supabase-д багана байхгүй тул Sheet-ийн
+  Products дахь **ижил slug-тай мөрөөс** зээлнэ (`fromSupabase`, `...was`).
+  Тэр мөрийг устгавал өнгөний сонголт, «5-7 хоногт» алга болно. Supabase-д
+  багана нэмэгдвэл adapter-т нэг мөр нэмээд энэ хамаарлыг тасал.
+- **n8n «02 · Захиалга бүртгэх»-ийн `SLUG_TO_ID`** — сайт Sheet-ээс явж байх
+  үеийн гүүр. Сайт Supabase-аас уншиж эхэлмэгц (`web_products` бараатай) сайт
+  UUID илгээнэ, map хэрэггүй; устгаад UUID биш ирвэл `product_not_found`
+  буцаадаг хэвээр үлдээ.
+- `web_products` хоосон бол сайт **Sheet-ээс** явна — алдаа биш, шилжилтийн
+  байдал. Эрүүл мэндийн шалгалт үүнийг тэмдэглэнэ (fail биш).
