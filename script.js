@@ -1503,8 +1503,17 @@ async function renderOrder() {
                      <input class="input" id="aSum" list="sumList" placeholder="Сум" autocomplete="off" disabled>
                      <datalist id="sumList"></datalist></div>
                  </div>
-                 <div class="field" style="margin-bottom:0"><label class="sr-only" for="aLine">Байр, орц, тоот</label>
-                   <input class="input" id="aLine" placeholder="Байр, орц, тоот · гэр хороолол бол гудамж, хашаа" autocomplete="street-address"></div>`
+                 <!-- Three written lines, the way a courier reads a city address:
+                      the building or street, then the way in — entrance,
+                      floor, door, or the gate number in a ger district — then
+                      anything that saves a phone call: a gate code, a landmark,
+                      when someone is home. -->
+                 <div class="field"><label class="field__label field__label--sub" for="aLine1">ХОРООЛОЛ, БАЙР / ГУДАМЖ</label>
+                   <input class="input" id="aLine1" autocomplete="address-line1"></div>
+                 <div class="field"><label class="field__label field__label--sub" for="aLine2">ОРЦ, ДАВХАР, ТООТ / ХАШААНЫ ДУГААР</label>
+                   <input class="input" id="aLine2" autocomplete="address-line2"></div>
+                 <div class="field" style="margin-bottom:0"><label class="field__label field__label--sub" for="aNote">ТАЙЛБАР <span class="field__opt">(заавал биш)</span></label>
+                   <input class="input" id="aNote" placeholder="Хаалганы код, ойролцоох газар, хэзээ гэртээ байх" autocomplete="off"></div>`
               : `<textarea class="input" id="fAddr" name="address" rows="2" placeholder="Дүүрэг, хороо, байр, тоот — эсвэл аймаг, сум" autocomplete="street-address" required></textarea>`
           }
         </div>
@@ -1691,7 +1700,9 @@ async function renderOrder() {
     const aAimag = page.querySelector("#aAimag");
     const aSum = page.querySelector("#aSum");
     const sumList = page.querySelector("#sumList");
-    const aLine = page.querySelector("#aLine");
+    const aLine1 = page.querySelector("#aLine1");
+    const aLine2 = page.querySelector("#aLine2");
+    const aNote = page.querySelector("#aNote");
 
     const fillKhoroo = (keep) => {
       const opt = aDist.selectedOptions[0];
@@ -1717,25 +1728,37 @@ async function renderOrder() {
       });
       ubBox.hidden = addrKind !== "ub";
       mnBox.hidden = addrKind !== "mn";
-      aLine.placeholder = addrKind === "ub"
-        ? "Байр, орц, тоот · гэр хороолол бол гудамж, хашаа"
-        : "Баг, гудамж, байр — жолоочид хэрэгтэй тодруулга";
+      /* the examples change with the place: a khoroolol and a block in the
+         city, a bag and a street in the countryside */
+      if (addrKind === "ub") {
+        aLine1.placeholder = "Жишээ: 3-р хороолол, 45 байр · эсвэл Дэнжийн 1000, 12-р гудамж";
+        aLine2.placeholder = "Жишээ: 2 орц, 5 давхар, 501 тоот · хашаа бол 12-34";
+      } else {
+        aLine1.placeholder = "Жишээ: 7-р баг, Нарны гудамж · эсвэл 4-р байр";
+        aLine2.placeholder = "Жишээ: хашааны дугаар 12-34 · эсвэл 2 орц, 15 тоот";
+      }
       syncShip(addrKind);
     };
     /* kept on the device: survives a refresh now and is waiting next time */
     const saveAddr = () => {
-      const addr = { kind: addrKind, dist: aDist.value, khoroo: aKhoroo.value, aimag: aAimag.value, sum: aSum.value, line: aLine.value.slice(0, 200) };
+      const addr = {
+        kind: addrKind, dist: aDist.value, khoroo: aKhoroo.value, aimag: aAimag.value, sum: aSum.value,
+        line1: aLine1.value.slice(0, 120), line2: aLine2.value.slice(0, 120), note: aNote.value.slice(0, 200),
+      };
       try { localStorage.setItem("ss_addr", JSON.stringify(addr)); } catch (e) { /* storage refused — nothing lost but convenience */ }
     };
 
     kindBtns.forEach((b) => b.addEventListener("click", () => { setKind(b.dataset.kind); saveAddr(); }));
     aDist.addEventListener("change", () => { fillKhoroo(); saveAddr(); });
     aAimag.addEventListener("change", () => { fillSum(); saveAddr(); });
-    [aKhoroo, aSum, aLine].forEach((el) => el.addEventListener("change", saveAddr));
+    [aKhoroo, aSum, aLine1, aLine2, aNote].forEach((el) => el.addEventListener("change", saveAddr));
 
     if (savedAddr.dist) { aDist.value = savedAddr.dist; fillKhoroo(savedAddr.khoroo); }
     if (savedAddr.aimag) { aAimag.value = savedAddr.aimag; fillSum(savedAddr.sum); }
-    if (savedAddr.line) aLine.value = savedAddr.line;
+    if (savedAddr.line1) aLine1.value = savedAddr.line1;
+    else if (savedAddr.line) aLine1.value = savedAddr.line; // the one-line format this replaced
+    if (savedAddr.line2) aLine2.value = savedAddr.line2;
+    if (savedAddr.note) aNote.value = savedAddr.note;
     setKind(savedAddr.kind || "ub");
   }
 
@@ -1824,22 +1847,29 @@ async function renderOrder() {
        the building — or aimag, sum, then the rest. */
     let where;
     if (page.querySelector("#addrKind")) {
-      const line = val("aLine").replace(/\s+/g, " ");
+      const tidy = (id) => val(id).replace(/\s+/g, " ");
+      const line1 = tidy("aLine1");
+      const line2 = tidy("aLine2");
+      const note = tidy("aNote");
+      let head;
       if (addrKind === "ub") {
         const dist = val("aDist");
         const kh = val("aKhoroo");
         if (!dist) return fail("aDist", "Дүүргээ сонгоно уу.");
         if (!kh) return fail("aKhoroo", "Хороогоо сонгоно уу.");
-        if (!line) return fail("aLine", "Байр, орц, тоотоо бичнэ үү.");
-        where = `Улаанбаатар, ${dist} дүүрэг, ${kh}-р хороо, ${line}`;
+        head = `Улаанбаатар, ${dist} дүүрэг, ${kh}-р хороо`;
       } else {
         const aim = val("aAimag");
         const sum = val("aSum");
         if (!aim) return fail("aAimag", "Аймгаа сонгоно уу.");
         if (!sum) return fail("aSum", "Сумаа сонгоно уу.");
-        if (!line) return fail("aLine", "Хаягийн тодруулгаа бичнэ үү.");
-        where = `${aim} аймаг, ${sum} сум, ${line}`;
+        head = `${aim} аймаг, ${sum} сум`;
       }
+      /* both written lines are needed: a courier with a building but no door,
+         or a street but no gate number, rings the operator */
+      if (!line1) return fail("aLine1", "Хороолол, байр эсвэл гудамжаа бичнэ үү.");
+      if (!line2) return fail("aLine2", "Орц, давхар, тоот эсвэл хашааны дугаараа бичнэ үү.");
+      where = `${head}, ${line1}, ${line2}` + (note ? ` · Тайлбар: ${note}` : "");
     } else {
       where = val("fAddr").replace(/\s*\n+\s*/g, ", ");
       if (!where) return fail("fAddr", "Хүргүүлэх хаягаа бичнэ үү.");

@@ -952,6 +952,8 @@ body:has(.stickybuy:not([hidden])) .foot { padding-bottom: 5.5rem; }
 .input::placeholder { color: rgba(69, 36, 26, 0.55); }
 textarea.input { resize: vertical; min-height: 74px; }
 
+/* the written lines inside the address block carry their own small labels */
+.field__label--sub { font-size: 0.62rem; letter-spacing: 0.12em; margin-bottom: 0.35rem; }
 /* city or countryside, one tap */
 .seg { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
 .seg__btn {
