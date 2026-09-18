@@ -67,7 +67,10 @@
       "stock": 0,
       "leadTime": "3-9 хоногт",
       "leadNote": "Одоогоор бараа хил дээр агуулахад байгаа.  Ирээд 24 цагийн дотор хүргэлтээр очно",
-      "active": true
+      "active": true,
+      "product_id": "71bc990f-82c9-49e0-a875-0005cf66ef44",
+      "compareAt": null,
+      "featured": false
     },
     {
       "slug": "Huuhdiin-hashiwch",
@@ -95,7 +98,10 @@
       "stock": 0,
       "leadTime": "5-7 хоногт",
       "leadNote": "Одоогоор бараа хил дээр агуулахад байгаа.  Ирээд 24 цагийн дотор хүргэлтээр очно",
-      "active": true
+      "active": true,
+      "product_id": "3acb498a-bebd-4784-bed3-8f9bf9c7fe30",
+      "compareAt": null,
+      "featured": false
     }
   ],
   "bundles": [],
@@ -107,7 +113,6 @@
     "mini-travel-bottle": 0,
     "flip-clock-retro": 0,
     "victrola-suitcase": 0,
-    "Huwtsas-hadgalah-sags": 0,
-    "Huuhdiin-hashiwch": 27
+    "Huwtsas-hadgalah-sags": 0
   }
 }
