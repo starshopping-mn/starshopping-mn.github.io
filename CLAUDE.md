@@ -640,14 +640,26 @@ Deploy-ийн дараа `starshopping-mn.github.io` дээр дахин шал�
 - Холбоосын урьдчилсан харагдац (OG) бүрэн ажиллаж байна — §11-ийг үз
 
 **Эзэн хийх — шинэ backend (2026-09-17/18):**
-- Каталог Supabase руу шилжсэн (§2, §17), код бэлэн. Одоо **2 барааг маягт
-  13-аар Supabase-д бүртгэ** (product_id-г буулгаж) — тэр хүртэл `web_products`
-  хоосон, сайт Sheet-ээс явна, захиалга slug-аар очно (n8n 02-ын түр map).
-- Маягт 13-ын шинэ талбарууд (slug, description, image_urls, compare_at_mnt,
-  featured) `upsert_product`-д **хадгалагдаж байгааг** эхний бүртгэлийн дараа
-  `curl`-ээр (§17) батал. Хадгалагдахгүй бол SQL функцэд багана нэмэх хэрэгтэй.
-- 2 бараа Supabase-д орж сайт дээр гармагц n8n «02 · Захиалга бүртгэх»-ийн
-  `SLUG_TO_ID` гүүрийг устга (§17) — сайт UUID илгээдэг болсон.
+- ⚠️ **`web_products()` anon key-д хоосон `[]` буцаадаг** (2026-09-18-нд хэмжсэн:
+  service role-оор 2 бараа бүрэн ирнэ, anon-оор `[]`, HTTP 200). Функц SECURITY
+  INVOKER, `products`-ын RLS anon-д юу ч өгдөггүй. Засвар — Supabase SQL Editor:
+  ```sql
+  alter function public.web_products() security definer;
+  alter function public.web_products() set search_path = public;
+  grant execute on function public.web_products() to anon, authenticated;
+  alter function public.web_product(p_slug text) security definer;
+  alter function public.web_product(p_slug text) set search_path = public;
+  grant execute on function public.web_product(p_slug text) to anon, authenticated;
+  ```
+  Тэр хүртэл сайт Sheet-ээс явна (зориуд — алдаа биш), захиалга slug-аар очно.
+- 2 бараа маягт 13-аар Supabase-д **орсон** (2026-09-18, slug/тайлбар/зураг/категори
+  бүгд хүснэгтэд байна). Дээрх SQL-ийн дараа сайт дараагийн ачаалалтаас Supabase-аас
+  уншина — `curl`-ээр (§17) батал.
+- Сайт Supabase-аас уншиж эхэлмэгц n8n «02 · Захиалга бүртгэх»-ийн `SLUG_TO_ID`
+  гүүрийг устга (§17) — сайт UUID илгээдэг болно.
+- ⚠️ **n8n «99 · Шалгалт» (`/webhook/diag`)** нь нэвтрэлтгүй, service role-оор
+  `?tbl=<хүснэгт>` дурын хүснэгтийг (orders, customers…) хэнд ч уншуулна. Хаяг нь
+  энэ repo-д ч бичигдсэн. Идэвхгүй болгох эсвэл header auth тавих.
 - Intake-д хүргэлтийн төрөл/төлбөр, өнгө/хэмжээний талбар байхгүй — одоо
   хаягийн мөрийн `[…]` дотор явж байгаа. Хэрэгтэй бол база талд нэм.
 - Захиалга Sheet-д орохоо больсон тул `Нөөц`-ийн «Захиалагдсан» тоо, Apps
@@ -907,6 +919,15 @@ Claude токен авахгүй, кодод бичихгүй — эзэн өө�
 (`starshopping.app.n8n.cloud/form/product`).** Sheet-д бичихгүй, slug холбох
 гүүр байхгүй, кодонд юу ч нэмэхгүй. Маягт `upsert_product` руу бичнэ, сайт
 `web_products`-оос уншина, карт `tools/build-og.py`-аар 20 минутад үүснэ.
+
+**Маягт 13-ын бүтэц (2026-09-18):** Form → «Маягтыг бэлтгэх» (Code: image_urls-ыг
+мөрөөр задалж массив, featured → boolean, slug-ийн зайг зураас) → `upsert_product`
+→ **«Supabase вэб талбар»** (PATCH `/rest/v1/products?product_id=eq.…`, body:
+slug, description, image_urls, compare_at_mnt, featured) → «Хариу харуулах».
+PATCH node байгаа шалтгаан: `upsert_product()` функц энэ 5 талбарыг **үл тоодог**
+(хэмжсэн — `ok:true` буцаасан ч хүснэгтэд null үлдсэн), category-г л авдаг.
+Функцийг засвал энэ node-ийг хасаж болно. Хариунд «Сайтын талбарууд: ✅/❌» мөр
+PATCH-ийн HTTP кодыг хэлнэ — ❌ бол бараа бот дээр байгаа ч сайт дээр гарахгүй.
 
 ### Талбарууд ба дүрэм
 | Талбар | Дүрэм |
