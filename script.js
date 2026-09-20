@@ -1356,8 +1356,10 @@ function renderProduct(slug) {
     e.preventDefault();
     setDraft({
       slug: p.slug,
-      /* what the order intake knows the product by; until the catalogue comes
-         from the same database this is absent and the slug stands in for it */
+      /* what the order intake knows the product by: the Supabase UUID. Every
+         source the shop paints from carries it now — the database itself and
+         the offline copy built from it. The slug is never sent in its place:
+         the intake dropped its slug bridge on 2026-09-18 and would refuse it. */
       productId: p.product_id || "",
       name: p.name,
       /* Whatever is on screen — the colour they picked, the angle they
@@ -1938,7 +1940,7 @@ async function renderOrder() {
         signal: bail ? bail.signal : undefined,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: d.productId || d.slug,
+          product_id: d.productId,
           name,
           phone,
           address,
@@ -2019,6 +2021,8 @@ function orderRefusal(reply) {
     {
       out_of_stock: "Энэ бараа түр дууссан байна.",
       product_not_found: "Энэ бараа одоогоор байхгүй байна.",
+      // a product painted from a copy that predates the move has no UUID to send
+      product_id_missing: "Хуудсаа дахин ачаалаад захиалгаа илгээнэ үү.",
       product_inactive: "Энэ бараа одоогоор байхгүй байна.",
       phone_required: "Утасны дугаараа оруулна уу.",
       phone_invalid: "Утасны дугаар 8 оронтой тоо байх ёстой.",
