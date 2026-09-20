@@ -118,7 +118,7 @@ const deliverySummary = () => {
    offers an undifferentiated list. The card pages under /p/ hold the markup a
    crawler reads — this is what a person sees. */
 const SITE_NAME = "Starshopping";
-const SITE_ORIGIN = "https://starshopping-mn.github.io";
+const SITE_ORIGIN = "https://starshopping.mn";
 /* Only a latin slug gets a card page built for it (see tools/build-og.py), so
    only those have a real address to point at; the rest name the shop. */
 const CARD_SLUG = /^[A-Za-z0-9-]+$/;

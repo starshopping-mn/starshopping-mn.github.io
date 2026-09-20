@@ -15,7 +15,7 @@ Supabase-аас уншигдана — **шинэ бараа = n8n маягт 13
 
 | | |
 |---|---|
-| **Амьд сайт** | https://starshopping-mn.github.io |
+| **Амьд сайт** | https://starshopping.mn (2026-09-20-оос; хуучин `starshopping-mn.github.io` 301-ээр энд шилждэг — §18) |
 | **Repo (үндсэн)** | `starshopping-mn/starshopping-mn.github.io` — remote нэр `origin` |
 | **Хуучин repo** | `ariunboldagency-commits/Starshopping` — remote нэр `oldsite`, зөвхөн redirect |
 | **Локал зам** | `C:\Users\ariun\Documents\Starshopping-web` (Windows). Mac дээр тогтмол хуулбар байхгүй — `git clone` хийж ажилла; `gh`, `node` суугаагүй |
@@ -567,7 +567,7 @@ console.log('pin gap', Math.round(cats.start - hero.end));  // 0 байх ёст
 Шалгах хэмжээнүүд: **1280×800** (desktop), **390×844** (утас),
 **390×600** (Instagram-ийн дотоод браузер — энд л ихэнх алдаа гардаг).
 
-Deploy-ийн дараа `starshopping-mn.github.io` дээр дахин шалга.
+Deploy-ийн дараа `starshopping.mn` дээр дахин шалга.
 
 ---
 
@@ -957,3 +957,33 @@ curl -s -X POST https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/web_product
   буцаадаг хэвээр үлдээ.
 - `web_products` хоосон бол сайт **Sheet-ээс** явна — алдаа биш, шилжилтийн
   байдал. Эрүүл мэндийн шалгалт үүнийг тэмдэглэнэ (fail биш).
+
+## 18. Домэйн — starshopping.mn (2026-09-20)
+
+Эзэн `starshopping.mn`-ийг авч GitHub Pages-д холбосон. Бүртгэгч: dns.mn
+(нэрийн сервер `ns1–ns4.dns.mn`, TTL хамгийн багадаа **7200**).
+
+| Бичлэг | Нэр | Утга |
+|---|---|---|
+| A ×4 | `@` | `185.199.108.153`, `.109.153`, `.110.153`, `.111.153` |
+| CNAME | `www` | `starshopping-mn.github.io` |
+
+- **`CNAME` файл repo-д БАЙХГҮЙ, хэрэггүй.** Pages нь GitHub Actions-аар deploy
+  хийдэг тул домэйн repo-ийн **Settings → Pages → Custom domain**-д хадгалагдана.
+  Файл нэмбэл юу ч өөрчлөгдөхгүй, зөвхөн төөрөгдүүлнэ.
+- Хуучин `starshopping-mn.github.io/...` хаяг бүр **зам, `?ref=`-ээ хадгалаад**
+  301-ээр шинэ домэйн рүү очно (хэмжсэн). Явж буй зарын холбоос, хуучин
+  холбоосын картууд ажилласаар. `#`-ийн ардхыг хөтөч өөрөө авч үлдэнэ.
+- Сайтын хаяг **дөрвөн газар**: `script.js` → `SITE_ORIGIN`, `tools/build-og.py`
+  ба `tools/health-check.py` → `SITE`, `index.html` → canonical / og:url /
+  og:image. Картууд (`p/`) `SITE`-ээс дахин үүснэ. Домэйн солигдвол энэ дөрөв.
+- n8n маягт 13-ын хариун дахь «Сайт дээрх хаяг» мөн энэ домэйныг заана.
+- `localStorage` origin-оор тусгаарлагддаг тул зочдын хадгалсан каталог, хаягийн
+  сонголт (`ss_addr`), зарын мөр (`ss_ref`) шинэ домэйн дээр **шинээр эхэлнэ**.
+  Нэг удаагийн зүйл; захиалга, өгөгдөлд нөлөөгүй.
+- Supabase-ийн anon key, n8n webhook нь origin шалгадаггүй тул юу ч өөрчлөх
+  шаардлагагүй байсан (шинэ домэйнээс хэмжиж баталсан).
+- **§14-ийн `fb:app_id` анхааруулга одоо засагдах боломжтой:** Meta Business
+  Settings → Brand Safety → Domains-д `starshopping.mn` нэмж **DNS TXT**-ээр
+  баталгаажуулна (dns.mn → TXT Бичилтүүд, хост `@`), дараа нь Meta app-ийн App
+  Domains-д нэмнэ. Домэйн сунгах хугацаа: жил бүр — дуусвал сайт, бүх зар унана.

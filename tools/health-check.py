@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalog as catalogue  # noqa: E402  (the shop's own reading of the catalogue)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SITE = "https://starshopping-mn.github.io"
+SITE = "https://starshopping.mn"
 TIMEOUT = 45
 TRIES = 3
 UA = "Mozilla/5.0 (compatible; starshopping-health-check)"

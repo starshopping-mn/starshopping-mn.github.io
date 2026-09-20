@@ -39,7 +39,7 @@ PHOTO_MANIFEST = os.path.join(PHOTO_DIR, "manifest.json")
 PHOTO_WIDTHS = (400, 1200)
 PHOTO_QUALITY = 82
 
-SITE = "https://starshopping-mn.github.io"
+SITE = "https://starshopping.mn"
 SITE_NAME = "Starshopping"
 # public identifier, not a secret: ties shares of these links back to the shop's
 # Meta app so they appear in its insights
