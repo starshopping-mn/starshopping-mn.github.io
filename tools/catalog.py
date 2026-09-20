@@ -71,6 +71,13 @@ def _num(v):
         return None
 
 
+def _loosen(s):
+    """Mirror of `loosen()` in script.js: the sheet row is found even if the
+    slug's capitals drifted between the sheet and the database."""
+    t = re.sub(r"[\s_]+", "-", str(s or "").strip().lower())
+    return re.sub(r"-+", "-", t).strip("-")
+
+
 def from_supabase(rows, base):
     """Supabase rows → the catalogue shape every tool and the page already read.
 
@@ -84,7 +91,7 @@ def from_supabase(rows, base):
     src = dict(base or {})
     old = {}
     for p in src.get("products") or []:
-        old[str(p.get("slug") or "").strip()] = p
+        old[_loosen(p.get("slug"))] = p
     stock = dict(src.get("stock") or {})
     products = []
     for r in rows or []:
@@ -93,7 +100,7 @@ def from_supabase(rows, base):
         # no address or no price: the shop could neither show nor sell it
         if not slug or not price or price <= 0:
             continue
-        was = old.get(slug) or {}
+        was = old.get(_loosen(slug)) or {}
         p = dict(was)
         images = url_list(r.get("images") if r.get("images") not in (None, "") else r.get("image_urls"))
         cmp = _num(r.get("compare_at_mnt"))
@@ -111,6 +118,7 @@ def from_supabase(rows, base):
                 "compareAt": int(cmp) if cmp and cmp > price else None,
                 "images": images or list(was.get("images") or []),
                 "featured": bool(r.get("featured")),
+                "maxPerOrder": int(_num(r.get("max_per_order"))) if (_num(r.get("max_per_order")) or 0) > 0 else None,
                 "active": (status == "active") if status else r.get("active") is not False,
             }
         )

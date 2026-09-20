@@ -81,6 +81,18 @@ let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [], sto
    no stock row stays orderable on purpose: losing sales because inventory was
    never filled in is worse than the sheet simply not knowing. The backend
    re-checks every order anyway, so nothing here can oversell. */
+/* The most of one product a single order may carry: what is left on the shelf,
+   and what the intake accepts per order (`max_per_order`, from the database).
+   The intake enforces both; stopping the stepper here only spares the visitor
+   a refusal after they have typed their address. */
+function orderCeiling(slug, fallback) {
+  const left = availableOf(slug);
+  const p = productBy(slug);
+  const cap = p && Number(p.maxPerOrder) > 0 ? Number(p.maxPerOrder) : Infinity;
+  const most = Math.min(left === null ? Infinity : Math.max(1, left), cap);
+  return Number.isFinite(most) ? most : fallback;
+}
+
 function availableOf(slug) {
   const v = DB.stock ? DB.stock[slug] : undefined;
   if (v === undefined || v === null || v === "") return null;
@@ -1357,7 +1369,7 @@ function renderProduct(slug) {
 
   right.querySelectorAll(".qty__btn").forEach((b) =>
     b.addEventListener("click", () => {
-      const ceiling = stockLeft === null ? Infinity : stockLeft;
+      const ceiling = orderCeiling(p.slug, Infinity);
       qty = Math.min(ceiling, Math.max(1, qty + Number(b.dataset.step)));
       if (qtyVal) qtyVal.textContent = String(qty);
       refreshTotalLine();
@@ -1465,10 +1477,7 @@ async function renderOrder() {
   const page = document.getElementById("orderPage");
   /* How many may be asked for: a pack is a fixed count, and a stocked product
      stops at what is on the shelf. */
-  const qtyCeiling = (() => {
-    const left = availableOf(d.slug);
-    return left === null ? 99 : Math.max(1, left);
-  })();
+  const qtyCeiling = orderCeiling(d.slug, 99);
   page.innerHTML = `
     <a class="back" href="#/p/${esc(encodeURIComponent(d.slug))}">← Бараа руу буцах</a>
     <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">Захиалга</h1>
@@ -2629,7 +2638,9 @@ const urlList = (v) =>
 
 function fromSupabase(rows, base) {
   const src = base || {};
-  const old = new Map((src.products || []).map((p) => [String(p.slug || "").trim(), p]));
+  /* matched loosely: the sheet row lends colours, sizes and lead time, and a
+     slug whose capitals differ between the two must not silently lose them */
+  const old = new Map((src.products || []).map((p) => [loosen(p.slug), p]));
   const stock = { ...(src.stock || {}) };
   const products = [];
   for (const r of rows || []) {
@@ -2637,7 +2648,7 @@ function fromSupabase(rows, base) {
     const price = Number(r.price_mnt);
     // no address or no price: the shop could neither show nor sell it
     if (!slug || !(price > 0)) continue;
-    const was = old.get(slug) || {};
+    const was = old.get(loosen(slug)) || {};
     const cmp = Number(r.compare_at_mnt);
     const images = urlList(r.images != null && r.images !== "" ? r.images : r.image_urls);
     products.push({
@@ -2652,6 +2663,7 @@ function fromSupabase(rows, base) {
       compareAt: cmp > price ? cmp : null,
       images: images.length ? images : listOf(was.images),
       featured: !!r.featured,
+      maxPerOrder: Number(r.max_per_order) > 0 ? Number(r.max_per_order) : null,
       active: r.status ? r.status === "active" : r.active !== false,
     });
     /* Stock is the intake's to enforce; here it only decides the badge and the
