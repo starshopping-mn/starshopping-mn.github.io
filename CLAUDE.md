@@ -817,7 +817,11 @@ alpha бодож бэхийг нь салгана (`LO=60, HI=235`) — хату
 
 ---
 
-## 14. `fb:app_id` анхааруулга — ЭНИЙГ БҮҮ УХ
+## 14. `fb:app_id` анхааруулга — ШИЙДЭГДСЭН (2026-09-20)
+
+✅ Өөрийн домэйн (`starshopping.mn`, §18) авч Meta-д баталгаажуулснаар арилсан: Sharing
+Debugger шинэ картын хаяг дээр анхааруулгагүй, `fb:app_id` танигдаж байна. Доорх нь
+`github.io` дээр яагаад засагддаггүй байсны түүх — домэйн алдагдвал буцаж ирнэ.
 
 Facebook Sharing Debugger барааны карт дээр
 `The following required properties are missing: fb:app_id` гэж **байнга**
@@ -983,7 +987,12 @@ curl -s -X POST https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/web_product
   Нэг удаагийн зүйл; захиалга, өгөгдөлд нөлөөгүй.
 - Supabase-ийн anon key, n8n webhook нь origin шалгадаггүй тул юу ч өөрчлөх
   шаардлагагүй байсан (шинэ домэйнээс хэмжиж баталсан).
-- **§14-ийн `fb:app_id` анхааруулга одоо засагдах боломжтой:** Meta Business
-  Settings → Brand Safety → Domains-д `starshopping.mn` нэмж **DNS TXT**-ээр
-  баталгаажуулна (dns.mn → TXT Бичилтүүд, хост `@`), дараа нь Meta app-ийн App
-  Domains-д нэмнэ. Домэйн сунгах хугацаа: жил бүр — дуусвал сайт, бүх зар унана.
+- **Meta (2026-09-20-нд хийгдсэн):** домэйн **Starshopping** business portfolio-д
+  (id `1023798047144762`) нэмэгдэж **Verified** болсон. Арга нь **meta-tag** —
+  `index.html`-ийн `<head>` дэх `facebook-domain-verification` мөр. **Тэр мөрийг
+  бүү хас**, статик `<head>`-д үлдээ (Meta JavaScript ажиллуулдаггүй). Домэйн нэг л
+  portfolio-д харьяалагдана. Meta app `3475902549234725`-ийн App Domains =
+  `starshopping.mn`, Privacy Policy URL = `/privacy.html`, Data deletion URL =
+  `/privacy.html#data-deletion` — гурвуулаа шинэ домэйн дээр.
+- Enforce HTTPS асаалттай: `http://` → `https://` 301, зам ба `?ref=` хадгалагдана.
+- Домэйн сунгах хугацаа: **жил бүр** — дуусвал сайт, бүх зар, Meta-гийн баталгаажуулалт унана.
