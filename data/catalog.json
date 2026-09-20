@@ -70,7 +70,8 @@
       "active": true,
       "product_id": "71bc990f-82c9-49e0-a875-0005cf66ef44",
       "compareAt": null,
-      "featured": false
+      "featured": false,
+      "maxPerOrder": null
     },
     {
       "slug": "Huuhdiin-hashiwch",
@@ -101,7 +102,8 @@
       "active": true,
       "product_id": "3acb498a-bebd-4784-bed3-8f9bf9c7fe30",
       "compareAt": null,
-      "featured": false
+      "featured": false,
+      "maxPerOrder": null
     }
   ],
   "bundles": [],
