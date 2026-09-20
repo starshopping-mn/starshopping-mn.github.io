@@ -122,6 +122,9 @@ def from_supabase(rows, base):
             stock[slug] = 0
         else:
             stock.pop(slug, None)
+    # the sheet still carried counts for products retired long ago
+    listed = set(x["slug"] for x in products)
+    stock = dict((k, v) for k, v in stock.items() if k in listed)
     src["products"] = products
     src["stock"] = stock
     return src

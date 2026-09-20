@@ -994,6 +994,12 @@ function renderProduct(slug) {
   // named for stock specifically: `left` is already the gallery column below
   const stockLeft = availableOf(p.slug);
   const soldOut = stockLeft === 0;
+  /* Once the real catalogue has spoken, a product it gave no id for cannot be
+     ordered here — the intake would refuse it. Before that, a missing id only
+     means the database has not answered yet, and nothing is closed. */
+  const noId = cannotOrder(p);
+  // remembered on the page so a later paint can tell the button has to change
+  views.product.dataset.noid = noId ? "1" : "";
   // a pack you cannot actually fulfil should not be on offer
   const bundles = bundlesFor(p.slug).filter((b) => stockLeft === null || b.qty <= stockLeft);
   const cat = categoryBy(p.category);
@@ -1160,6 +1166,12 @@ function renderProduct(slug) {
              <span class="buy__label">ДУУССАН</span>
            </div>
            <p class="note">Энэ бараа түр дууссан байна. Дахин нөөцлөгдөх үед<br>захиалах боломжтой болно.</p>`
+        : noId
+        ? `<div class="buy buy--out" aria-disabled="true">
+             <span class="buy__label">УТСААР ЗАХИАЛНА</span>
+           </div>
+           <a class="callbuy" href="tel:88104640">Залгаж захиалах · 8810-4640</a>
+           <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>8810-4640 руу залгавал шууд бүртгэнэ.</p>`
         : `<a class="buy" href="#" id="buyBtn">
              <span class="buy__total" id="buyTotal"></span>
              <span class="buy__label">ЗАХИАЛАХ</span>
@@ -1899,6 +1911,20 @@ async function renderOrder() {
     }
     clearFail();
 
+    /* The intake knows a product only by its database id. On 2026-09-17 two
+       real orders went out carrying the slug instead; the database refused
+       them and the visitors believed they had ordered. So nothing leaves
+       without an id: the draft's own, or — when the draft was made against a
+       copy that had none yet — the one the catalogue has since brought. Failing
+       both, say so, with the number that does take the order. */
+    const productId = d.productId || (productBy(d.slug) || {}).product_id || "";
+    if (!productId) {
+      return fail(
+        "orderNoProductId",
+        "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 8810-4640 руу залгана уу."
+      );
+    }
+
     /* The backend takes an address and nothing else about how the order is to
        be carried out, so what the visitor picked on the way here — colour,
        size, pack, delivery, payment — rides at the end of that line, where the
@@ -1940,7 +1966,7 @@ async function renderOrder() {
         signal: bail ? bail.signal : undefined,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_id: d.productId,
+          product_id: productId,
           name,
           phone,
           address,
@@ -2508,6 +2534,10 @@ let booted = false;
 /* True once the sheet's own catalogue has landed. Until then "no such product"
    only means the offline copy has not heard of it yet. */
 let liveLoaded = false;
+/* True once Supabase has answered or given up. The sheet can land first, and
+   its products carry no database id; until the database has had its say, a
+   missing id means "not here yet", never "cannot be ordered". */
+let supaSettled = false;
 
 /* Everything the product page is drawn from, as one comparable string. The
    live catalogue lands seconds after the offline copy has already drawn the
@@ -2515,6 +2545,9 @@ let liveLoaded = false;
    eyes of someone part-way through the set — for data that, nearly always, had
    not changed at all. A page with no product behind it yet has no signature,
    so it never matches and is always drawn. */
+/* A product the settled catalogue gave no database id cannot be ordered here. */
+const cannotOrder = (p) => liveLoaded && supaSettled && !!p && !p.product_id;
+
 function productSignature(slug) {
   const p = productBy(slug);
   if (!p) return "";
@@ -2568,7 +2601,9 @@ function paint(data, { first }) {
       startFrames(views.category);
     } else if (want && kind === "p" && !views.product.hidden && !pdpTouched) {
       // same product, same data: leave the page, and the photo they are on, alone
-      if (!sigWas || want !== slugWas || sigWas !== productSignature(want)) {
+      // …unless the order button itself has to open or close
+      const buttonStale = (views.product.dataset.noid === "1") !== cannotOrder(productBy(want));
+      if (!sigWas || want !== slugWas || sigWas !== productSignature(want) || buttonStale) {
         renderProduct(want);
         startFrames(views.product);
       }
@@ -2631,6 +2666,9 @@ function fromSupabase(rows, base) {
       delete stock[slug];
     }
   }
+  // the sheet still carried counts for products retired long ago
+  const listed = new Set(products.map((x) => x.slug));
+  for (const slug of Object.keys(stock)) if (!listed.has(slug)) delete stock[slug];
   return { ...src, products, stock };
 }
 
@@ -2706,8 +2744,13 @@ fetch(CATALOG_SOURCE, {
     return r.json();
   })
   .then((rows) => {
+    supaSettled = true;
     const list = Array.isArray(rows) ? rows : [];
-    if (!list.length) return;
+    if (!list.length) {
+      // nothing registered: what the sheet lists can be shown but not ordered here
+      if (booted) paint(extras || DB, { first: false });
+      return;
+    }
     supaRows = list;
     // no shelf to put them on yet: the offline copy or the feed merges them on arrival
     const base = extras || (DB.categories.length ? DB : null);
@@ -2719,6 +2762,9 @@ fetch(CATALOG_SOURCE, {
   })
   .catch((err) => {
     console.warn("Supabase каталог ирсэнгүй, Sheet-ийн feed-ээр үргэлжилж байна:", err);
+    supaSettled = true;
+    // the intake lives in the same database: show the shelf, take orders by phone
+    if (booted) paint(extras || DB, { first: false });
   });
 
 /* 3 — the sheet: shop details, categories, bundles, reviews — and, until a
