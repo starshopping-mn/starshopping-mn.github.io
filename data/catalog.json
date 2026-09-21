@@ -78,7 +78,7 @@
       "compareAt": null,
       "featured": true,
       "deliveryPaidBy": "customer",
-      "maxPerOrder": null
+      "maxPerOrder": 5
     },
     {
       "slug": "Huwtsas-hadgalah-sags",
@@ -106,13 +106,14 @@
       "product_id": "71bc990f-82c9-49e0-a875-0005cf66ef44",
       "compareAt": null,
       "featured": false,
-      "deliveryPaidBy": "customer",
-      "maxPerOrder": null
+      "deliveryPaidBy": "included",
+      "maxPerOrder": 5
     }
   ],
   "bundles": [],
   "reviews": [],
   "stock": {
-    "Huwtsas-hadgalah-sags": 0
+    "Huwtsas-hadgalah-sags": 0,
+    "Huuhdiin-hashiwch": 24
   }
 }
