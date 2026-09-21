@@ -124,6 +124,18 @@ const deliverySummary = () => {
   return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
 };
 
+/* Who pays the courier, per product (`delivery_paid_by` from the database).
+   "customer" — the only case today, and the default when the database says
+   nothing: the fee comes on top of the price, and the visitor is told so beside
+   the price, on the form and on the confirmation — before they order, not at
+   the door. "included": the price already covers the cheapest delivery, and a
+   dearer option costs only the difference. */
+const deliveryIncluded = (p) => !!p && p.deliveryPaidBy === "included";
+const deliveryLine = (p) =>
+  deliveryIncluded(p)
+    ? "Хүргэлт үнэд багтсан"
+    : `+ Хүргэлтийн төлбөр ${deliverySummary()} · хүргэлтээр төлнө`;
+
 /* Every page of the shop reported itself as plain "Starshopping". Six tabs
    open and none of them says which product; a link pasted into a chat that
    the crawler cards do not cover carries the same blank name; the back button
@@ -1146,6 +1158,7 @@ function renderProduct(slug) {
     <h1 class="pdp__name">${esc(p.name)}</h1>
     ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
+    <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
     ${stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
@@ -1196,7 +1209,7 @@ function renderProduct(slug) {
     }
 
     <div class="trust">
-      <div><b>Хүргэлт</b>${deliverySummary()}</div>
+      <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэд багтсан" : deliverySummary() + " · тусдаа төлнө"}</div>
       <div><b>Хугацаа</b>${esc(leadTime)}</div>
       <div><b>Төлбөр</b>Хүргэлтээр эсвэл шилжүүлгээр</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
@@ -1226,7 +1239,12 @@ function renderProduct(slug) {
     bar.className = "stickybuy";
     bar.hidden = true;
     bar.innerHTML = `
-      <span class="stickybuy__price"></span>
+      <span class="stickybuy__sum">
+        <span class="stickybuy__price"></span>
+        <span class="stickybuy__ship">${esc(
+          deliveryIncluded(p) ? "хүргэлт багтсан" : "+ хүргэлт " + deliverySummary()
+        )}</span>
+      </span>
       <a class="stickybuy__go" href="#">ЗАХИАЛАХ</a>`;
     stickyPrice = bar.querySelector(".stickybuy__price");
     bar.querySelector(".stickybuy__go").addEventListener("click", (e) => {
@@ -1400,7 +1418,14 @@ function renderProduct(slug) {
       leadNote,
     });
     if (window.fbq)
-      fbq("track", "InitiateCheckout", { content_name: p.name, value: orderTotal(), currency: "MNT" });
+      fbq("track", "InitiateCheckout", {
+        content_ids: [p.slug],
+        content_type: "product",
+        content_name: p.name,
+        num_items: qty,
+        value: orderTotal(),
+        currency: "MNT",
+      });
     location.hash = "#/order";
   });
 
@@ -1466,13 +1491,20 @@ async function renderOrder() {
   let savedAddr = {};
   try { savedAddr = JSON.parse(localStorage.getItem("ss_addr") || "{}") || {}; } catch (e) { /* private window */ }
 
-  const ship = (DB.shop.delivery || []).length
+  const shipRaw = (DB.shop.delivery || []).length
     ? DB.shop.delivery
     : [
         { name: "Энгийн хүргэлт", price: 6000, note: "Улаанбаатар хот" },
         { name: "Шуурхай хүргэлт", price: 12000, note: "Улаанбаатар хот" },
         { name: "Орон нутаг", price: 6000, note: "Унаагаар илгээнэ · урьдчилж төлнө", prepaid: true },
       ];
+  const shipIncluded = deliveryIncluded(productBy(d.slug));
+  const shipBase = shipIncluded ? Math.min(...shipRaw.map((x) => Number(x.price) || 0)) : 0;
+  const ship = shipRaw.map((x) => ({
+    ...x,
+    price: Math.max(0, (Number(x.price) || 0) - shipBase),
+    priceMax: x.priceMax ? Math.max(0, Number(x.priceMax) - shipBase) : x.priceMax,
+  }));
 
   const page = document.getElementById("orderPage");
   /* How many may be asked for: a pack is a fixed count, and a stocked product
@@ -1628,9 +1660,10 @@ async function renderOrder() {
 
         <div class="totals">
           <div class="totals__row"><span>Бараа (<span id="tQty">${d.qty}</span>ш)</span><span id="tGoods"></span></div>
-          <div class="totals__row"><span>Хүргэлт</span><span id="tShip"></span></div>
+          <div class="totals__row"><span>Хүргэлт <small>(${shipIncluded ? "үнэд багтсан" : "тусдаа төлнө"})</small></span><span id="tShip"></span></div>
           <div class="totals__row totals__row--big"><span>Нийт</span><span id="tAll"></span></div>
         </div>
+        ${shipIncluded ? "" : `<p class="note">Хүргэлтийн төлбөр барааны үнэ дээр нэмэгдэнэ. Нийт дүнг хүргэлтээр төлнө.</p>`}
 
         <p class="err" id="formErr"></p>
 
@@ -1999,8 +2032,28 @@ async function renderOrder() {
          is_duplicate. That is the operator's to sort out; to the visitor it is
          an order received, and is shown as one. */
       const total = Number(out.total_mnt) || 0;
-      if (window.fbq)
-        fbq("track", "Purchase", { value: total + shipPrice, currency: "MNT", content_name: d.name });
+      /* Purchase is said once per real order and for what the order brings in.
+         A duplicate is shown to the visitor as received but is not a second
+         sale, so it is not reported as one. The value is the intake's own
+         total for the goods: the delivery fee goes to the courier, and adding
+         it made every advert look better than it was. `content_ids` matches
+         ViewContent so Meta can tie the two to one product; the order id as
+         `eventID` lets a server-side event for the same order be recognised
+         as the same one later. */
+      if (window.fbq && !out.is_duplicate)
+        fbq(
+          "track",
+          "Purchase",
+          {
+            content_ids: [d.slug],
+            content_type: "product",
+            content_name: d.name,
+            num_items: Number(out.quantity) || qty,
+            value: total,
+            currency: "MNT",
+          },
+          { eventID: String(out.order_id || "") }
+        );
 
       sessionStorage.setItem(
         "ss_done",
@@ -2011,6 +2064,7 @@ async function renderOrder() {
           goods: total,
           ship: shipPrice,
           shipName,
+          shipIncluded,
           total: total + shipPrice,
           payment, name, phone,
           leadTime: d.leadTime || "",
@@ -2091,7 +2145,7 @@ function renderDone() {
   const amountRows = `
       <div class="totals" style="margin-top:1rem">
         <div class="totals__row"><span>${esc(info.product || "Бараа")} (${Number(info.qty) || 1}ш)</span><span>${money(info.goods || 0)}</span></div>
-        <div class="totals__row"><span>${esc(info.shipName || "Хүргэлт")}</span><span>${money(info.ship || 0)}</span></div>
+        <div class="totals__row"><span>${esc(info.shipName || "Хүргэлт")} <small>(${info.shipIncluded ? "үнэд багтсан" : "тусдаа төлнө"})</small></span><span>${money(info.ship || 0)}</span></div>
         <div class="totals__row totals__row--big"><span>Нийт</span><span>${money(info.total || 0)}</span></div>
       </div>`;
 
@@ -2664,6 +2718,7 @@ function fromSupabase(rows, base) {
       images: images.length ? images : listOf(was.images),
       featured: !!r.featured,
       maxPerOrder: Number(r.max_per_order) > 0 ? Number(r.max_per_order) : null,
+      deliveryPaidBy: r.delivery_paid_by === "included" ? "included" : "customer",
       active: r.status ? r.status === "active" : r.active !== false,
     });
     /* Stock is the intake's to enforce; here it only decides the badge and the

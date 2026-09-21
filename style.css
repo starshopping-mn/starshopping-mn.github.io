@@ -1341,3 +1341,19 @@ select.input {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Who pays the courier, said beside the price rather than at the door. Quiet
+   enough not to compete with the price, plain enough not to be missed. */
+.shipline {
+  /* tucked under the price the way .stockline is: the price block keeps its
+     own bottom margin for products that show neither */
+  margin: -1.05rem 0 1.2rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  color: var(--fg-dim);
+}
+.shipline--in { color: var(--fg); font-weight: 600; }
+.totals__row small { font-size: 0.78em; font-weight: 400; opacity: 0.72; }
+/* on a phone this bar is the button people press, so the delivery fee is said here too */
+.stickybuy__sum { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.stickybuy__ship { font-size: 0.7rem; color: var(--fg-dim); white-space: nowrap; }

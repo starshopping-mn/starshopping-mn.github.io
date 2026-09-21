@@ -118,6 +118,7 @@ def from_supabase(rows, base):
                 "compareAt": int(cmp) if cmp and cmp > price else None,
                 "images": images or list(was.get("images") or []),
                 "featured": bool(r.get("featured")),
+                "deliveryPaidBy": "included" if r.get("delivery_paid_by") == "included" else "customer",
                 "maxPerOrder": int(_num(r.get("max_per_order"))) if (_num(r.get("max_per_order")) or 0) > 0 else None,
                 "active": (status == "active") if status else r.get("active") is not False,
             }
