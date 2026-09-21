@@ -74,6 +74,8 @@
       "compareAt": null,
       "featured": true,
       "deliveryPaidBy": "customer",
+      "fulfillment": "preorder",
+      "shipsInDays": 14,
       "maxPerOrder": 5
     },
     {
@@ -103,6 +105,8 @@
       "compareAt": null,
       "featured": false,
       "deliveryPaidBy": "included",
+      "fulfillment": "live",
+      "shipsInDays": null,
       "maxPerOrder": 5
     }
   ],
