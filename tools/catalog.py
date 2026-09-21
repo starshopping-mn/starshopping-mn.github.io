@@ -119,13 +119,17 @@ def from_supabase(rows, base):
                 "images": images or list(was.get("images") or []),
                 "featured": bool(r.get("featured")),
                 "deliveryPaidBy": "included" if r.get("delivery_paid_by") == "included" else "customer",
+                "fulfillment": r.get("fulfillment_mode") if r.get("fulfillment_mode") in ("preorder", "test") else "live",
+                "shipsInDays": int(_num(r.get("ships_in_days"))) if (_num(r.get("ships_in_days")) or 0) > 0 else None,
                 "maxPerOrder": int(_num(r.get("max_per_order"))) if (_num(r.get("max_per_order")) or 0) > 0 else None,
                 "active": (status == "active") if status else r.get("active") is not False,
             }
         )
         products.append(p)
         qty = _num(r.get("stock_qty")) if r.get("stock_qty") not in (None, "") else None
-        if qty is not None:
+        if r.get("fulfillment_mode") in ("preorder", "test"):
+            stock.pop(slug, None)  # nothing on a shelf to count
+        elif qty is not None:
             stock[slug] = int(qty)
         elif r.get("in_stock") is False:
             stock[slug] = 0
@@ -193,3 +197,17 @@ def load_catalog():
     if feed and (feed.get("products") or []):
         return feed, "sheet", notes
     return None, "", notes
+
+
+def fetch_districts(consts=None):
+    """The courier's district and khoroo lists, as `web_districts` hands them out."""
+    consts = consts or read_constants()
+    if not (consts.get("supabase") and consts.get("anon")):
+        return None
+    hdrs = {
+        "apikey": consts["anon"],
+        "Authorization": "Bearer " + consts["anon"],
+        "Content-Type": "application/json",
+    }
+    rows = fetch_json(consts["supabase"].rstrip("/") + "/rest/v1/rpc/web_districts", hdrs, b"{}")
+    return rows if isinstance(rows, list) and rows else None

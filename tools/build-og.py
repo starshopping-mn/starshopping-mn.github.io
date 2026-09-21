@@ -325,7 +325,13 @@ def render(product, image_name):
     slug = product["slug"]
     title = one_line(product.get("name") or slug, 90)
     price = price_of(product)
-    bits = [b for b in (money(price), one_line(product.get("desc"), 150)) if b]
+    # a product sold ahead of arrival says so under the reel too: the wait is
+    # part of the offer, and someone who learns it only on the form feels tricked
+    ahead = ""
+    if product.get("fulfillment") in ("preorder", "test"):
+        days = product.get("shipsInDays")
+        ahead = "Урьдчилсан захиалга" + (" · ~%d хоногт" % days if days else "")
+    bits = [b for b in (money(price), ahead, one_line(product.get("desc"), 150)) if b]
     desc = one_line(" · ".join(bits), 200)
     url = "%s/p/%s/" % (SITE, slug)
     target = "%s/#/p/%s" % (SITE, urllib.parse.quote(slug, safe=""))

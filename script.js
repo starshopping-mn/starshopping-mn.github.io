@@ -55,19 +55,58 @@ const CATALOG_SOURCE = `${SUPABASE_URL}/rest/v1/rpc/web_products`;
 const DATA_SOURCE =
   "https://script.google.com/macros/s/AKfycbzZK-I4L3Cow5KAlLbW0pud0766XduXHzuTys9FIEwXWDTQL36VPywm7bNsk3E6NMqORQ/exec";
 const DATA_FALLBACK = "data/catalog.json";
-/* Districts, khoroos, aimags and sums for the address picker on the order
-   page. Fetched once a product page is open — someone there may order — so
-   it is normally waiting by the time the form is drawn, and never competes
-   with the hero photograph on the front door. */
-const ADDRESS_SOURCE = "data/mn-address.json";
+/* Districts and khoroos for the address picker, spelled exactly as the courier
+   (Гялс хүргэлт) spells them. Their system files a parcel by these very
+   strings — "Хан уул 4-р хороо", not "Хан-Уул, 4" — so they are never typed or
+   assembled here: they are picked from the list the database hands out
+   (`web_districts`) and sent on untouched as `district_full`. A value the list
+   does not hold does not lose the order; the intake marks it for review.
+
+   The database is asked first and given two seconds; a copy on our own domain
+   (`data/districts.json`) covers a slow answer, so the form does not fall back
+   to a typed address merely because a request was late. Fetched once a product
+   page is open — someone there may order — and never on the front door. */
+const DISTRICT_SOURCE = `${SUPABASE_URL}/rest/v1/rpc/web_districts`;
+const DISTRICT_FALLBACK = "data/districts.json";
+const COUNTRYSIDE = "Орон нутаг"; // the courier's own name for everything outside the city
 let addressData = null;
 let addressLoad = null;
+const shapeDistricts = (groups) => {
+  if (!Array.isArray(groups)) return null;
+  const clean = groups
+    .map((g) => ({
+      district: String((g && g.district) || "").trim(),
+      khoroos: ((g && g.khoroos) || []).filter((k) => k && k.full && k.khoroo),
+    }))
+    .filter((g) => g.district && g.khoroos.length);
+  const ub = clean.filter((g) => g.district !== COUNTRYSIDE);
+  const mn = (clean.find((g) => g.district === COUNTRYSIDE) || {}).khoroos || [];
+  return ub.length ? { ub, mn } : null;
+};
 const loadAddressData = () => {
-  if (!addressLoad)
-    addressLoad = fetch(ADDRESS_SOURCE)
+  if (!addressLoad) {
+    const live = fetch(DISTRICT_SOURCE, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${SUPABASE_ANON}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => (addressData = j && j.ub && j.aimags ? j : null))
+      .then(shapeDistricts)
       .catch(() => null);
+    const copy = fetch(DISTRICT_FALLBACK)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(shapeDistricts)
+      .catch(() => null);
+    const patience = new Promise((r) => setTimeout(() => r(null), 2000));
+    addressLoad = Promise.race([live, patience])
+      .then((d) => d || copy)
+      .then((d) => d || live)
+      .then((d) => (addressData = d));
+  }
   return addressLoad;
 };
 /* Orders no longer go to the sheet. They are handed to the owner's intake,
@@ -115,8 +154,22 @@ const DEFAULT_LEAD_NOTE = "Захиалга баталгаажсаны дара�
 /* Two parts because a wait needs both: the figure someone scans for, and the
    sentence explaining it. Kept apart so a long explanation cannot swallow the
    line the eye actually lands on. */
-const leadTimeOf = (p) => String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
-const leadNoteOf = (p) => String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
+/* A product that is not in the warehouse yet is sold as what it is: an order
+   placed ahead, delivered in about `ships_in_days`. The shop once showed
+   "26 left" for goods that had not been bought — a number nobody could keep.
+   For these the database's own figure replaces whatever the sheet said about
+   timing, and no count is shown at all. "test" is handled the same way. */
+const isPreorder = (p) => !!p && (p.fulfillment === "preorder" || p.fulfillment === "test");
+const preorderLabel = (p) =>
+  `Урьдчилсан захиалга${p && p.shipsInDays ? ` · ~${p.shipsInDays} хоногт хүргэнэ` : ""}`;
+const PREORDER_NOTE =
+  "Бараа Хятадаас ирмэгц бид залгаж баталгаажуулаад хүргэнэ. Төлбөрийг хүлээн авахдаа төлнө.";
+const leadTimeOf = (p) =>
+  isPreorder(p) && p.shipsInDays
+    ? `~${p.shipsInDays} хоногт`
+    : String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
+const leadNoteOf = (p) =>
+  isPreorder(p) ? PREORDER_NOTE : String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
 
 /* Delivery prices were written out in the markup of the product badge and
    again in the delivery policy, so a change in the sheet left two pages
@@ -170,6 +223,8 @@ const isSoldOut = (slug) => availableOf(slug) === 0;
 /* Sold out is stated plainly; a low count is only worth showing when it is
    genuinely low, otherwise it reads as a sales tactic rather than a fact. */
 function stockBadge(slug) {
+  const item = productBy(slug);
+  if (isPreorder(item)) return `<span class="tag tag--soft">Урьдчилсан захиалга</span>`;
   const left = availableOf(slug);
   if (left === null) return "";
   if (left === 0) return `<span class="tag tag--out">Дууссан</span>`;
@@ -1168,7 +1223,8 @@ function renderProduct(slug) {
     ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
     <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
-    ${stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
+    ${isPreorder(p) ? `<p class="preline">${esc(preorderLabel(p))}</p>` : ""}
+    ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
       <div class="opt__row" data-opt="color">
@@ -1250,6 +1306,9 @@ function renderProduct(slug) {
     bar.innerHTML = `
       <span class="stickybuy__sum">
         <span class="stickybuy__price"></span>
+        ${isPreorder(p) ? `<span class="stickybuy__ship stickybuy__ship--pre">${esc(
+          "Урьдчилсан" + (p.shipsInDays ? ` · ~${p.shipsInDays} хоногт` : "")
+        )}</span>` : ""}
         <span class="stickybuy__ship">${esc(
           deliveryIncluded(p) ? "хүргэлт багтсан" : "+ хүргэлт " + deliverySummary()
         )}</span>
@@ -1425,6 +1484,8 @@ function renderProduct(slug) {
       size,
       leadTime,
       leadNote,
+      preorder: isPreorder(p),
+      shipsInDays: p.shipsInDays || null,
     });
     if (window.fbq)
       fbq("track", "InitiateCheckout", {
@@ -1575,26 +1636,32 @@ async function renderOrder() {
             A
               ? `<div class="seg" id="addrKind" role="radiogroup" aria-label="Хаягийн төрөл">
                    <button type="button" class="seg__btn" data-kind="ub" role="radio">Улаанбаатар</button>
-                   <button type="button" class="seg__btn" data-kind="mn" role="radio">Орон нутаг</button>
+                   <button type="button" class="seg__btn" data-kind="mn" role="radio"${A.mn.length ? "" : " hidden"}>Орон нутаг</button>
                  </div>
                  <div class="grid2" id="addrUb">
                    <div class="field"><label class="sr-only" for="aDist">Дүүрэг</label>
                      <select class="input" id="aDist" autocomplete="address-level2">
                        <option value="">Дүүрэг</option>
-                       ${A.ub.districts.map((x) => `<option value="${esc(x.name)}" data-n="${Number(x.khoroos) || 0}">${esc(x.name)}</option>`).join("")}
+                       ${A.ub.map((x) => `<option value="${esc(x.district)}">${esc(x.district)}</option>`).join("")}
                      </select></div>
                    <div class="field"><label class="sr-only" for="aKhoroo">Хороо</label>
                      <select class="input" id="aKhoroo" disabled><option value="">Хороо</option></select></div>
                  </div>
-                 <div class="grid2" id="addrMn" hidden>
-                   <div class="field"><label class="sr-only" for="aAimag">Аймаг</label>
+                 ${(() => {
+                   /* The courier files the outlying districts with the countryside.
+                      Someone in Nalaikh looks for it under the city first, so say
+                      where it is rather than let them think they cannot order. */
+                   const far = A.mn.map((x) => x.khoroo).filter((n) => /^(Налайх|Багануур|Багахангай)$/.test(n));
+                   return far.length
+                     ? `<p class="field__hint" id="addrUbHint">${esc(far.join(", "))} — «Орон нутаг» дотор бий.</p>`
+                     : "";
+                 })()}
+                 <div id="addrMn" hidden>
+                   <div class="field"><label class="sr-only" for="aAimag">Аймаг, хот</label>
                      <select class="input" id="aAimag" autocomplete="address-level1">
-                       <option value="">Аймаг</option>
-                       ${A.aimags.map((x) => `<option value="${esc(x.name)}">${esc(x.name)}</option>`).join("")}
+                       <option value="">Аймаг, хот</option>
+                       ${A.mn.map((x) => `<option value="${esc(x.full)}">${esc(x.khoroo)}</option>`).join("")}
                      </select></div>
-                   <div class="field"><label class="sr-only" for="aSum">Сум</label>
-                     <input class="input" id="aSum" list="sumList" placeholder="Сум" autocomplete="off" disabled>
-                     <datalist id="sumList"></datalist></div>
                  </div>
                  <!-- Three written lines, the way a courier reads a city address:
                       the building or street, then the way in — entrance,
@@ -1688,7 +1755,11 @@ async function renderOrder() {
           <span class="buy__total" id="submitTotal"></span>
           <span class="buy__label">ЗАХИАЛГА БАТАЛГААЖУУЛАХ</span>
         </button>
-        <p class="note">Илгээснээр таны захиалга бүртгэгдэж, бид тантай утсаар холбогдоно.</p>
+        ${
+          d.preorder
+            ? `<p class="note note--pre"><b>${esc(preorderLabel(d))}.</b> ${esc(PREORDER_NOTE)}</p>`
+            : `<p class="note">Илгээснээр таны захиалга бүртгэгдэж, бид тантай утсаар холбогдоно.</p>`
+        }
       </div>
     </div>
     </form>`;
@@ -1792,27 +1863,25 @@ async function renderOrder() {
     const aDist = page.querySelector("#aDist");
     const aKhoroo = page.querySelector("#aKhoroo");
     const aAimag = page.querySelector("#aAimag");
-    const aSum = page.querySelector("#aSum");
-    const sumList = page.querySelector("#sumList");
     const aLine1 = page.querySelector("#aLine1");
     const aLine2 = page.querySelector("#aLine2");
     const aNote = page.querySelector("#aNote");
 
+    /* the option's value is the courier's full string; what is shown is the short one */
     const fillKhoroo = (keep) => {
-      const opt = aDist.selectedOptions[0];
-      const n = opt ? Number(opt.dataset.n) || 0 : 0;
-      let html = '<option value="">Хороо</option>';
-      for (let i = 1; i <= n; i++) html += `<option value="${i}">${i}-р хороо</option>`;
-      aKhoroo.innerHTML = html;
-      aKhoroo.disabled = !n;
-      if (keep && Number(keep) <= n) aKhoroo.value = String(keep);
+      const g = A.ub.find((x) => x.district === aDist.value);
+      const list = g ? g.khoroos : [];
+      aKhoroo.innerHTML =
+        '<option value="">Хороо</option>' +
+        list.map((k) => `<option value="${esc(k.full)}">${esc(k.khoroo)}</option>`).join("");
+      aKhoroo.disabled = !list.length;
+      if (keep && list.some((k) => k.full === keep)) aKhoroo.value = keep;
     };
-    const fillSum = (keep) => {
-      const a = A.aimags.find((x) => x.name === aAimag.value);
-      sumList.innerHTML = a ? a.sums.map((x) => `<option value="${esc(x)}">`).join("") : "";
-      aSum.disabled = !a;
-      aSum.value = a && keep ? keep : "";
-    };
+    /* An address remembered from before the courier changed names the district
+       our old way ("Хан-Уул", khoroo "4"). Read it across where it plainly
+       matches; otherwise the visitor simply picks again. */
+    const squash = (t) => String(t || "").toLowerCase().replace(/[\s-]+/g, "");
+    const oldDistrict = (name) => (A.ub.find((x) => squash(x.district) === squash(name)) || {}).district || "";
     const setKind = (k) => {
       addrKind = k === "mn" ? "mn" : "ub";
       kindBtns.forEach((b) => {
@@ -1821,6 +1890,8 @@ async function renderOrder() {
         b.setAttribute("aria-checked", on ? "true" : "false");
       });
       ubBox.hidden = addrKind !== "ub";
+      const ubHint = page.querySelector("#addrUbHint");
+      if (ubHint) ubHint.hidden = addrKind !== "ub";
       mnBox.hidden = addrKind !== "mn";
       /* the examples change with the place: a khoroolol and a block in the
          city, a bag and a street in the countryside */
@@ -1828,7 +1899,7 @@ async function renderOrder() {
         aLine1.placeholder = "Жишээ: 3-р хороолол, 45 байр · эсвэл Дэнжийн 1000, 12-р гудамж";
         aLine2.placeholder = "Жишээ: 2 орц, 5 давхар, 501 тоот · хашаа бол 12-34";
       } else {
-        aLine1.placeholder = "Жишээ: 7-р баг, Нарны гудамж · эсвэл 4-р байр";
+        aLine1.placeholder = "Жишээ: Баянхонгор сум, 7-р баг, Нарны гудамж";
         aLine2.placeholder = "Жишээ: хашааны дугаар 12-34 · эсвэл 2 орц, 15 тоот";
       }
       syncShip(addrKind);
@@ -1836,7 +1907,7 @@ async function renderOrder() {
     /* kept on the device: survives a refresh now and is waiting next time */
     const saveAddr = () => {
       const addr = {
-        kind: addrKind, dist: aDist.value, khoroo: aKhoroo.value, aimag: aAimag.value, sum: aSum.value,
+        kind: addrKind, dist: aDist.value, full: aKhoroo.value, mnFull: aAimag.value,
         line1: aLine1.value.slice(0, 120), line2: aLine2.value.slice(0, 120), note: aNote.value.slice(0, 200),
       };
       try { localStorage.setItem("ss_addr", JSON.stringify(addr)); } catch (e) { /* storage refused — nothing lost but convenience */ }
@@ -1844,16 +1915,22 @@ async function renderOrder() {
 
     kindBtns.forEach((b) => b.addEventListener("click", () => { setKind(b.dataset.kind); saveAddr(); }));
     aDist.addEventListener("change", () => { fillKhoroo(); saveAddr(); });
-    aAimag.addEventListener("change", () => { fillSum(); saveAddr(); });
-    [aKhoroo, aSum, aLine1, aLine2, aNote].forEach((el) => el.addEventListener("change", saveAddr));
+    [aAimag, aKhoroo, aLine1, aLine2, aNote].forEach((el) => el.addEventListener("change", saveAddr));
 
-    if (savedAddr.dist) { aDist.value = savedAddr.dist; fillKhoroo(savedAddr.khoroo); }
-    if (savedAddr.aimag) { aAimag.value = savedAddr.aimag; fillSum(savedAddr.sum); }
+    if (savedAddr.dist) {
+      const dist = oldDistrict(savedAddr.dist);
+      if (dist) {
+        aDist.value = dist;
+        // new format keeps the full string; the old one kept the khoroo's number
+        fillKhoroo(savedAddr.full || (savedAddr.khoroo ? `${dist} ${savedAddr.khoroo}-р хороо` : ""));
+      }
+    }
+    if (savedAddr.mnFull && A.mn.some((x) => x.full === savedAddr.mnFull)) aAimag.value = savedAddr.mnFull;
     if (savedAddr.line1) aLine1.value = savedAddr.line1;
     else if (savedAddr.line) aLine1.value = savedAddr.line; // the one-line format this replaced
     if (savedAddr.line2) aLine2.value = savedAddr.line2;
     if (savedAddr.note) aNote.value = savedAddr.note;
-    setKind(savedAddr.kind || "ub");
+    setKind(savedAddr.kind === "mn" && A.mn.length ? "mn" : "ub");
   }
 
   /* ---- submit ---- */
@@ -1937,33 +2014,29 @@ async function renderOrder() {
     if (!name) return fail("fName", "Нэрээ бичнэ үү.");
     if (!/^\d{8}$/.test(phone)) return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
 
-    /* One line, in the order a courier reads it: city, district, khoroo, then
-       the building — or aimag, sum, then the rest. */
+    /* The district and khoroo travel on their own, as `district_full`, in the
+       courier's exact words; the address line carries only what no list can
+       hold — building, entrance, door. */
     let where;
+    let districtFull = "";
     if (page.querySelector("#addrKind")) {
       const tidy = (id) => val(id).replace(/\s+/g, " ");
       const line1 = tidy("aLine1");
       const line2 = tidy("aLine2");
       const note = tidy("aNote");
-      let head;
       if (addrKind === "ub") {
-        const dist = val("aDist");
-        const kh = val("aKhoroo");
-        if (!dist) return fail("aDist", "Дүүргээ сонгоно уу.");
-        if (!kh) return fail("aKhoroo", "Хороогоо сонгоно уу.");
-        head = `Улаанбаатар, ${dist} дүүрэг, ${kh}-р хороо`;
+        if (!val("aDist")) return fail("aDist", "Дүүргээ сонгоно уу.");
+        districtFull = val("aKhoroo");
+        if (!districtFull) return fail("aKhoroo", "Хороогоо сонгоно уу.");
       } else {
-        const aim = val("aAimag");
-        const sum = val("aSum");
-        if (!aim) return fail("aAimag", "Аймгаа сонгоно уу.");
-        if (!sum) return fail("aSum", "Сумаа сонгоно уу.");
-        head = `${aim} аймаг, ${sum} сум`;
+        districtFull = val("aAimag");
+        if (!districtFull) return fail("aAimag", "Аймаг, хотоо сонгоно уу.");
       }
       /* both written lines are needed: a courier with a building but no door,
          or a street but no gate number, rings the operator */
       if (!line1) return fail("aLine1", "Хороолол, байр эсвэл гудамжаа бичнэ үү.");
       if (!line2) return fail("aLine2", "Орц, давхар, тоот эсвэл хашааны дугаараа бичнэ үү.");
-      where = `${head}, ${line1}, ${line2}` + (note ? ` · Тайлбар: ${note}` : "");
+      where = `${line1}, ${line2}` + (note ? ` · Тайлбар: ${note}` : "");
     } else {
       where = val("fAddr").replace(/\s*\n+\s*/g, ", ");
       if (!where) return fail("fAddr", "Хүргүүлэх хаягаа бичнэ үү.");
@@ -2029,6 +2102,9 @@ async function renderOrder() {
           name,
           phone,
           address,
+          // absent when the lists could not be loaded and the address was typed:
+          // the intake then keeps the order and marks it for review
+          district_full: districtFull || null,
           quantity: qty,
           channel: "web",
           creative_id: creativeId(),
@@ -2085,6 +2161,8 @@ async function renderOrder() {
           total: total + shipPrice,
           payment, name, phone,
           leadTime: d.leadTime || "",
+          preorder: !!d.preorder,
+          shipsInDays: d.shipsInDays || null,
         })
       );
       location.hash = "#/done";
@@ -2169,10 +2247,14 @@ function renderDone() {
   document.getElementById("donePage").innerHTML = `
     <div class="done">
       <div class="done__mark">✓</div>
-      <h1 class="done__title">Захиалга хүлээн авлаа</h1>
+      <h1 class="done__title">${info.preorder ? "Урьдчилсан захиалга хүлээн авлаа" : "Захиалга хүлээн авлаа"}</h1>
       <p class="done__lead">
-        ${esc(info.name)}, баярлалаа. Бид удахгүй тантай холбогдоно.
-        ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}
+        ${
+          info.preorder
+            ? `${esc(info.name)}, баярлалаа. ${info.shipsInDays ? `<b>~${Number(info.shipsInDays)} хоногт</b> хүргэнэ, ` : ""}ирэхээс өмнө бид залгана. Төлбөрийг хүлээн авахдаа төлнө.`
+            : `${esc(info.name)}, баярлалаа. Бид удахгүй тантай холбогдоно.
+        ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}`
+        }
       </p>
 
       <div class="code" data-order-id="${esc(info.code)}">
@@ -2749,13 +2831,17 @@ function fromSupabase(rows, base) {
       featured: !!r.featured,
       maxPerOrder: Number(r.max_per_order) > 0 ? Number(r.max_per_order) : null,
       deliveryPaidBy: r.delivery_paid_by === "included" ? "included" : "customer",
+      fulfillment: ["preorder", "test"].includes(r.fulfillment_mode) ? r.fulfillment_mode : "live",
+      shipsInDays: Number(r.ships_in_days) > 0 ? Number(r.ships_in_days) : null,
       active: r.status ? r.status === "active" : r.active !== false,
     });
     /* Stock is the intake's to enforce; here it only decides the badge and the
        button. A count wins, a plain in_stock:false closes the product, and no
        word at all leaves it orderable — the sheet's old figure for the same
        slug is dropped rather than left to contradict the database. */
-    if (r.stock_qty !== undefined && r.stock_qty !== null && r.stock_qty !== "") {
+    if (["preorder", "test"].includes(r.fulfillment_mode)) {
+      delete stock[slug]; // nothing on a shelf to count, so nothing to run out of
+    } else if (r.stock_qty !== undefined && r.stock_qty !== null && r.stock_qty !== "") {
       stock[slug] = Number(r.stock_qty);
     } else if (r.in_stock === false) {
       stock[slug] = 0;

@@ -181,6 +181,23 @@ def main():
     except Exception as err:
         fail("offline copy", "could not be read (%s)" % err)
 
+    log("\n== the courier's district lists ==")
+    # the order form picks district and khoroo from these; the copy on our own
+    # domain stands in when the database is slow, so it must not drift far
+    try:
+        live = catalogue.fetch_districts()
+        code, body = fetch(SITE + "/data/districts.json")
+        copy = json.loads(body.decode("utf-8")) if body else None
+        if not live:
+            fail("web_districts", "answered with nothing — the order form falls back to a typed address")
+        elif copy != live:
+            notes.append("data/districts.json differs from web_districts — regenerate it (CLAUDE.md §19)")
+            log("  note  the static district copy is behind the database")
+        else:
+            ok("district lists", "%d groups, copy matches the database" % len(live))
+    except Exception as err:
+        fail("district lists", "could not be read (%s)" % err)
+
     log("\n== every product link a customer might be sent ==")
     for p in sorted(products, key=lambda x: str(x.get("slug") or "")):
         slug = str(p.get("slug") or "").strip()

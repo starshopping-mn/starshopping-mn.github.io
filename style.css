@@ -1357,3 +1357,15 @@ select.input {
 /* on a phone this bar is the button people press, so the delivery fee is said here too */
 .stickybuy__sum { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .stickybuy__ship { font-size: 0.7rem; color: var(--fg-dim); white-space: nowrap; }
+
+/* Sold ahead of arrival, and said so where the price is read. */
+.preline {
+  margin: -1.05rem 0 0.55rem;
+  font-size: 0.8rem; font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #b0702a;
+}
+.preline + .shipline { margin-top: 0; }
+.note--pre b { color: var(--fg); }
+.stickybuy__ship--pre { color: #b0702a; font-weight: 700; }
+.field__hint { margin: -0.35rem 0 0.8rem; font-size: 0.72rem; color: var(--fg-dim); }
