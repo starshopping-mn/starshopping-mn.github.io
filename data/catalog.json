@@ -46,6 +46,41 @@
   ],
   "products": [
     {
+      "slug": "Huuhdiin-hashiwch",
+      "category": "huuhdiin-heregsel",
+      "name": "Хүүхдийн тоглоомын өрөө",
+      "desc": "Хүүхдийн тоглоомын өрөө\r\n1 минутанд угсарна — багаж, хадаас шаардлагагүй. Задлаад холбоход л болно.\r\n60см хайрцаг болж эвхэгдэнэ — зуслан явахад, зочин ирэхэд, эсвэл хэрэггүй улиралд шүүгээнд багтана.\r\nГулсахгүй — хүчтэй сорогчоор шалан дээр бэхлэгдэнэ. Хүүхэд түшиж босоход хөдлөхгүй.\r\nХуруу хавчуулахгүй — оёдолгүй Оксфорд даавуу. Зузаан ган хоолойн хүрээ дотор нь нуугдсан.\r\n30ш бөмбөг, сагстай — Хүүхэд тулж босход тусалсан резинэн зөөлхөн бариултай. Мөлхөж эхэлснээс 2 нас хүртэл",
+      "price": 119000,
+      "discount": null,
+      "images": [
+        "https://drive.google.com/file/d/12B4fx_T1FDAVG3hWuVdGq7NjPGI3dp9D/view?usp=drive_link",
+        "https://drive.google.com/file/d/1fIIKuNZV-uJuX52NXdhHEOhzaV0h8HQT/view?usp=drive_link",
+        "https://drive.google.com/file/d/1L7QKdTJFltskEvweQ8K668FhLM8fzDoV/view?usp=drive_link",
+        "https://drive.google.com/file/d/1vpM0ozxeTb5a6O96l-gJRlVkdK8Gieqs/view?usp=drive_link",
+        "https://drive.google.com/file/d/1NFiCyTRoi2P7E-G0jpUlfwoWGXXk2MVD/view?usp=drive_link",
+        "https://drive.google.com/file/d/19pgRw0BWuyzRHTnxwNbEN0aDER6yxAiY/view?usp=drive_link",
+        "https://drive.google.com/file/d/14QJQb4nENbECYz1b8Pxhx60dbQG3n-Eo/view?usp=drive_link"
+      ],
+      "sizes": [],
+      "sizePrices": [],
+      "colors": [
+        "Усан ногоон"
+      ],
+      "colorImages": [
+        "https://drive.google.com/file/d/12B4fx_T1FDAVG3hWuVdGq7NjPGI3dp9D/view?usp=sharing"
+      ],
+      "sizeImages": [],
+      "stock": 0,
+      "leadTime": "5-7 хоногт",
+      "leadNote": "Одоогоор бараа хил дээр агуулахад байгаа.  Ирээд 24 цагийн дотор хүргэлтээр очно",
+      "active": true,
+      "product_id": "3acb498a-bebd-4784-bed3-8f9bf9c7fe30",
+      "compareAt": null,
+      "featured": true,
+      "deliveryPaidBy": "customer",
+      "maxPerOrder": null
+    },
+    {
       "slug": "Huwtsas-hadgalah-sags",
       "category": "ger-ahui",
       "name": "Хувцас хадгалах сагсны шийд",
@@ -71,38 +106,7 @@
       "product_id": "71bc990f-82c9-49e0-a875-0005cf66ef44",
       "compareAt": null,
       "featured": false,
-      "maxPerOrder": null
-    },
-    {
-      "slug": "Huuhdiin-hashiwch",
-      "category": "huuhdiin-heregsel",
-      "name": "Хүүхдийн тоглоомын өрөө",
-      "desc": "Онцлог\n1 минутанд угсарна — багаж, хадаас шаардлагагүй. Задлаад холбоход л болно.\n60см хайрцаг болж эвхэгдэнэ — зуслан явахад, зочин ирэхэд, эсвэл хэрэггүй улиралд шүүгээнд багтана.\nГулсахгүй — хүчтэй сорогчоор шалан дээр бэхлэгдэнэ. Хүүхэд түшиж босоход хөдлөхгүй.\nХуруу хавчуулахгүй  — оёдолгүй Оксфорд даавуу. Зузаан ган хоолойн хүрээ дотор нь нуугдсан.\n30ш бөмбөг, сагстай — Хүүхэд тулж босход тусалсан резинэн зөөлхөн бариултай. Мөлхөж эхэлснээс 2 нас хүртэл",
-      "price": 119000,
-      "discount": null,
-      "images": [
-        "https://drive.google.com/file/d/19pgRw0BWuyzRHTnxwNbEN0aDER6yxAiY/view?usp=sharing",
-        "https://drive.google.com/file/d/1L7QKdTJFltskEvweQ8K668FhLM8fzDoV/view?usp=sharing",
-        "https://drive.google.com/file/d/1vpM0ozxeTb5a6O96l-gJRlVkdK8Gieqs/view?usp=sharing",
-        "https://drive.google.com/file/d/1fIIKuNZV-uJuX52NXdhHEOhzaV0h8HQT/view?usp=sharing",
-        "https://drive.google.com/file/d/1NFiCyTRoi2P7E-G0jpUlfwoWGXXk2MVD/view?usp=sharing"
-      ],
-      "sizes": [],
-      "sizePrices": [],
-      "colors": [
-        "Усан ногоон"
-      ],
-      "colorImages": [
-        "https://drive.google.com/file/d/12B4fx_T1FDAVG3hWuVdGq7NjPGI3dp9D/view?usp=sharing"
-      ],
-      "sizeImages": [],
-      "stock": 0,
-      "leadTime": "5-7 хоногт",
-      "leadNote": "Одоогоор бараа хил дээр агуулахад байгаа.  Ирээд 24 цагийн дотор хүргэлтээр очно",
-      "active": true,
-      "product_id": "3acb498a-bebd-4784-bed3-8f9bf9c7fe30",
-      "compareAt": null,
-      "featured": false,
+      "deliveryPaidBy": "customer",
       "maxPerOrder": null
     }
   ],
