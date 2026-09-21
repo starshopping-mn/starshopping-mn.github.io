@@ -979,6 +979,8 @@ function renderPending() {
 }
 
 let stickyWatch = null; // the observer behind the product page's bottom bar
+let viewReported = ""; // the product whose ViewContent has gone out for this visit
+
 function renderProduct(slug) {
   loadAddressData();
   const p = productBy(slug);
@@ -1448,7 +1450,14 @@ function renderProduct(slug) {
     pdp.appendChild(box);
   }
 
-  if (window.fbq)
+  /* Once per visit to the product, not once per drawing of it. The page is
+     drawn again when the catalogue lands a second later, and each drawing used
+     to report another view — measured in Meta's Test Events on 2026-09-21: two
+     ViewContent two seconds apart for one visitor. That inflates the top of
+     the funnel and makes every step below it look worse than it is. `route()`
+     clears the mark, so coming back to the product counts again. */
+  if (window.fbq && viewReported !== p.slug) {
+    viewReported = p.slug;
     fbq("track", "ViewContent", {
       content_ids: [p.slug],
       content_name: p.name,
@@ -1456,6 +1465,7 @@ function renderProduct(slug) {
       value: pr.now,
       currency: "MNT",
     });
+  }
 }
 
 /* ========================================================================
@@ -2450,6 +2460,8 @@ function show(name) {
   if (name !== "home") edgeEl.classList.remove("is-shown");
 }
 
+let routedOnce = false;
+
 function route() {
   const [kind, rawSlug] = location.hash.replace(/^#\/?/, "").split("/");
   /* Slugs are typed into the sheet by hand, so one arrives with spaces or
@@ -2471,6 +2483,7 @@ function route() {
     renderCategory(slug);
     startFrames(views.category);
   } else if (kind === "p" && slug) {
+    viewReported = ""; // a navigation is a new visit to the product; a repaint is not
     destroyHomeMotion();
     show("product");
     renderProduct(slug);
@@ -2496,7 +2509,11 @@ function route() {
 
   window.scrollTo(0, 0);
   ScrollTrigger.refresh();
-  if (window.fbq) fbq("track", "PageView");
+  /* index.html has already reported the page the visitor landed on; saying it
+     again for the first route counted every arrival twice. Later routes are
+     pages of their own and are reported here. */
+  if (window.fbq && routedOnce) fbq("track", "PageView");
+  routedOnce = true;
 }
 
 window.addEventListener("hashchange", route);

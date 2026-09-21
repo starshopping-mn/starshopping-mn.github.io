@@ -301,6 +301,15 @@ syntax for type uuid`-оор татгалзсан — зочин захиалс�
   Purchase гурвууланд **ижил** (Meta бараагаар холбоно).
 - Purchase-ийн 4 дэх аргумент `{ eventID: order_id }` — хожим сервер талын
   Conversions API ижил захиалгыг давхар тоолохгүйн бэлтгэл.
+- **ViewContent нэг очилтод НЭГ удаа** (`viewReported`), дахин зурах бүрд биш.
+  Каталог секундын дараа ирж хуудас дахин зурагддаг тул өмнө нь нэг зочин
+  **хоёр ViewContent** өгдөг байв (2026-09-21, Meta Test Events дээр 2 секундын
+  зайтай хоёр мөр). `route()` тэмдгийг арилгана — гараад буцаж ирвэл дахин тоолно.
+- **Эхний route PageView явуулахгүй** (`routedOnce`) — `index.html` аль хэдийн
+  явуулсан; өмнө нь ирэлт бүр хоёр тоологддог байв. Дараагийн route бүр явуулна.
+- 2026-09-21 гинжийн тест (`?ref=TEST-CHAIN`, эзний Chrome, Test Events):
+  PageView → ViewContent → InitiateCheckout → Purchase бүгд ирсэн; Purchase-ийн
+  Event ID = `order_id`, `value 119000`, `content_ids ["Huuhdiin-hashiwch"]`.
 - Шалгах арга: `window.fbq`-г массив руу бичдэг функцээр, `fetch`-ийг order-intake
   дээр зохиомол хариугаар сольж, ok / duplicate / refused гурвыг явуул. Бодит
   захиалга үүсгэхгүй. Гурвуулаа ингэж хэмжигдсэн.
