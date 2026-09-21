@@ -80,7 +80,7 @@ const ORDER_INTAKE = "https://starshopping.app.n8n.cloud/webhook/order-intake";
    was ordered, changing or cancelling it, is the shop's own order line. The
    header pop-up in index.html names the same two numbers — change both. */
 const COURIER = { name: "Гялс хүргэлт", tel: "94944855", text: "9494-4855" };
-const ORDER_LINE = { tel: "88104640", text: "8810-4640" };
+const ORDER_LINE = { tel: "95505717", text: "9550-5717" };
 
 let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [], stock: {} };
 
@@ -910,7 +910,7 @@ function renderMissing() {
         ${cat ? `<a class="missing__go" href="#/c/${esc(cat.slug)}">${esc(cat.name)} үзэх</a>` : ""}
         <a class="missing__alt" href="#/">Нүүр хуудас</a>
       </div>
-      <p class="missing__help">Тодруулах бол: <a href="tel:88104640">8810-4640</a></p>
+      <p class="missing__help">Тодруулах бол: <a href="tel:95505717">9550-5717</a></p>
     </div>`;
 }
 
@@ -1204,8 +1204,8 @@ function renderProduct(slug) {
         ? `<div class="buy buy--out" aria-disabled="true">
              <span class="buy__label">УТСААР ЗАХИАЛНА</span>
            </div>
-           <a class="callbuy" href="tel:88104640">Залгаж захиалах · 8810-4640</a>
-           <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>8810-4640 руу залгавал шууд бүртгэнэ.</p>`
+           <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
+           <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>9550-5717 руу залгавал шууд бүртгэнэ.</p>`
         : `<a class="buy" href="#" id="buyBtn">
              <span class="buy__total" id="buyTotal"></span>
              <span class="buy__label">ЗАХИАЛАХ</span>
@@ -1213,8 +1213,8 @@ function renderProduct(slug) {
            <!-- The people this shop sells to are used to ordering by talking to
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
-           <a class="callbuy" href="tel:88104640">Залгаж захиалах · 8810-4640</a>
-           <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 8810-4640</p>`
+           <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
+           <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 9550-5717</p>`
     }
 
     <div class="trust">
@@ -1980,7 +1980,7 @@ async function renderOrder() {
     if (!productId) {
       return fail(
         "orderNoProductId",
-        "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 8810-4640 руу залгана уу."
+        "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 9550-5717 руу залгана уу."
       );
     }
 
@@ -2101,8 +2101,8 @@ async function renderOrder() {
       err.textContent = said
         ? said.text
         : ex && ex.name === "AbortError"
-          ? "Сүлжээ хариу өгсөнгүй. 8810-4640 руу залгавал бид захиалгыг тань шууд бүртгэнэ."
-          : "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 8810-4640 руу залгана уу.";
+          ? "Сүлжээ хариу өгсөнгүй. 9550-5717 руу залгавал бид захиалгыг тань шууд бүртгэнэ."
+          : "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 9550-5717 руу залгана уу.";
       homeErr();
       if (said) bring(err);
       release("ЗАХИАЛГА БАТАЛГААЖУУЛАХ");
@@ -2134,7 +2134,7 @@ function orderRefusal(reply) {
       phone_invalid: "Утасны дугаар 8 оронтой тоо байх ёстой.",
       price_not_set: "Түр алдаа гарлаа, дараа оролдоно уу.",
     }[code] ||
-    "Захиалгыг бүртгэж чадсангүй. 8810-4640 руу залгана уу.";
+    "Захиалгыг бүртгэж чадсангүй. 9550-5717 руу залгана уу.";
   return { text, field: phoneTrouble ? "fPhone" : "" };
 }
 
@@ -2405,7 +2405,7 @@ const POLICIES = {
     title: "Холбоо барих",
     body: `
       <h2>Утас</h2>
-      <p>8810-4640 · 9411-4495</p>
+      <p><a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a></p>
       <h2>Имэйл</h2>
       <p>Ariunbold.agency@gmail.com</p>
       <h2>Ажиллах цаг</h2>

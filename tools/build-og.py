@@ -385,6 +385,11 @@ def write_offline_copy(feed, source):
     for key in ("shop", "categories", "products", "bundles", "reviews", "stock"):
         if key in feed:
             body[key] = feed[key]
+    # The shop draws its phone numbers from its own code, never from here, and
+    # the sheet's cell still named two numbers that stopped being the shop's in
+    # September 2026. A public file is no place for them to keep coming back.
+    if isinstance(body.get("shop"), dict) and "phones" in body["shop"]:
+        body["shop"] = dict((k, v) for k, v in body["shop"].items() if k != "phones")
 
     text = json.dumps(body, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
     target = os.path.join(ROOT, "data", "catalog.json")
