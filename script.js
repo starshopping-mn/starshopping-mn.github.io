@@ -75,6 +75,13 @@ const loadAddressData = () => {
    sends who and what, shows the answer, and works nothing out itself. */
 const ORDER_INTAKE = "https://starshopping.app.n8n.cloud/webhook/order-intake";
 
+/* Who to ring about what. The courier changed in September 2026: deliveries are
+   carried by Гялс хүргэлт, and "where is my parcel" is theirs to answer. What
+   was ordered, changing or cancelling it, is the shop's own order line. The
+   header pop-up in index.html names the same two numbers — change both. */
+const COURIER = { name: "Гялс хүргэлт", tel: "94944855", text: "9494-4855" };
+const ORDER_LINE = { tel: "88104640", text: "8810-4640" };
+
 let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [], stock: {} };
 
 /* Units left for a SKU, or null when no limit is configured. A product with
@@ -2231,9 +2238,14 @@ function renderDone() {
       }
 
       <div class="helpline">
-        <span class="helpline__k">Хүргэлтийн лавлах</span>
+        <span class="helpline__k">Хүргэлтийн лавлах · ${esc(COURIER.name)}</span>
         <span class="helpline__v">
-          <a href="tel:88104640">8810-4640</a> · <a href="tel:94114495">9411-4495</a>
+          <a href="tel:${COURIER.tel}">${COURIER.text}</a>
+        </span>
+        <span class="helpline__note">Хүргэлтийн явц, хугацааг эндээс лавлана.</span>
+        <span class="helpline__k" style="margin-top:.7rem">Захиалгын талаар</span>
+        <span class="helpline__v">
+          <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>
         </span>
         <span class="helpline__note">Захиалгын кодоо хэлэхэд бид шууд олно.</span>
       </div>
@@ -2321,7 +2333,8 @@ const POLICIES = {
       <p>Хаяг буруу, эсвэл заасан хугацаанд утсаа авахгүй тохиолдолд хүргэлт хойшлох
       боломжтой. Ийм тохиолдолд дахин хүргэлтийн төлбөр нэмж гарч болно.</p>
       <h2>Лавлах</h2>
-      <p>8810-4640 · 9411-4495</p>`,
+      <p>Хүргэлтийн явц, хугацаа — ${COURIER.name}: <a href="tel:${COURIER.tel}">${COURIER.text}</a><br>
+      Захиалгын талаар — <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a></p>`,
   },
   refund: {
     title: "Буцаалтын бодлого",
