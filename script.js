@@ -246,7 +246,7 @@ const deliverySummary = () => {
 const deliveryIncluded = (p) => !!p && p.deliveryPaidBy === "included";
 const deliveryLine = (p) =>
   deliveryIncluded(p)
-    ? "Хүргэлт үнэд багтсан"
+    ? "Хүргэлт үнэгүй · Монгол даяар"
     : `+ Хүргэлтийн төлбөр ${deliverySummary()} · хүргэлтээр төлнө`;
 
 /* Every page of the shop reported itself as plain "Starshopping". Six tabs
@@ -1329,7 +1329,7 @@ function renderProduct(slug) {
     }
 
     <div class="trust">
-      <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэд багтсан" : deliverySummary() + " · тусдаа төлнө"}</div>
+      <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэгүй · Монгол даяар" : deliverySummary() + " · тусдаа төлнө"}</div>
       <div><b>Хугацаа</b>${esc(leadTime)}</div>
       <div><b>Төлбөр</b>Хүргэлтээр эсвэл шилжүүлгээр</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
@@ -1365,7 +1365,7 @@ function renderProduct(slug) {
           "Урьдчилсан" + (p.shipsInDays ? ` · ~${p.shipsInDays} хоногт` : "")
         )}</span>` : ""}
         <span class="stickybuy__ship">${esc(
-          deliveryIncluded(p) ? "хүргэлт багтсан" : "+ хүргэлт " + deliverySummary()
+          deliveryIncluded(p) ? "хүргэлт үнэгүй" : "+ хүргэлт " + deliverySummary()
         )}</span>
       </span>
       <a class="stickybuy__go" href="#">ЗАХИАЛАХ</a>`;
@@ -1698,7 +1698,7 @@ async function renderOrder() {
       }
       <div class="totals">
         <div class="totals__row totals__row--big"><span>Бараа (<span id="tQty">${d.qty}</span>ш)</span><span id="tGoods"></span></div>
-        <div class="totals__row"><span>Хүргэлт</span><span>${shipIncluded ? "үнэд багтсан" : esc(deliverySummary()) + " · тусдаа"}</span></div>
+        <div class="totals__row"><span>Хүргэлт</span><span>${shipIncluded ? "үнэгүй" : esc(deliverySummary()) + " · тусдаа"}</span></div>
       </div>
 
       <p class="err" id="formErr"></p>
@@ -2389,7 +2389,7 @@ function renderDone() {
         <div class="totals__row"><span>${esc(info.product || "Бараа")} (${Number(info.qty) || 1}ш)</span><span>${money(info.goods || 0)}</span></div>
         ${
           info.noAddress
-            ? `<div class="totals__row"><span>Хүргэлт <small>(${info.shipIncluded ? "үнэд багтсан" : "хаягаас хамаарна"})</small></span><span>${info.shipIncluded ? money(0) : esc(deliverySummary())}</span></div>`
+            ? `<div class="totals__row"><span>Хүргэлт <small>(${info.shipIncluded ? "үнэгүй" : "хаягаас хамаарна"})</small></span><span>${info.shipIncluded ? money(0) : esc(deliverySummary())}</span></div>`
             : `<div class="totals__row"><span>${esc(info.shipName || "Хүргэлт")} <small>(${info.shipIncluded ? "үнэд багтсан" : "тусдаа төлнө"})</small></span><span>${money(info.ship || 0)}</span></div>`
         }
         ${info.noAddress ? "" : `<div class="totals__row totals__row--big"><span>Нийт</span><span>${money(info.total || 0)}</span></div>`}
@@ -2542,6 +2542,8 @@ const POLICIES = {
        page quoting the old figure to the very customer who came to check it. */
     body: () => `
       <h2>Хүргэлтийн төрөл, төлбөр</h2>
+      <p><b>Бүх бараанд хүргэлт үнэгүй</b> — Улаанбаатар ч, орон нутаг ч. Хүргэлтийн
+      зардал барааны үнэд багтсан тул хүргэлтийн ажилтанд нэмэлт төлбөр төлөхгүй.</p>
       <ul>
         ${
           deliveryOptions().length
@@ -2572,7 +2574,7 @@ const POLICIES = {
       дараа дугаар, цагийг нь утсаар мэдэгдэнэ.</p>
       <h2>Анхаарах</h2>
       <p>Хаяг буруу, эсвэл заасан хугацаанд утсаа авахгүй тохиолдолд хүргэлт хойшлох
-      боломжтой. Ийм тохиолдолд дахин хүргэлтийн төлбөр нэмж гарч болно.</p>
+      боломжтой. Ийм тохиолдолд дахин хүргэлтэд 6,000₮ нэмэгдэж болно.</p>
       <h2>Лавлах</h2>
       <p>Хүргэлтийн явц, хугацаа — ${COURIER.name}: <a href="tel:${COURIER.tel}">${COURIER.text}</a><br>
       Захиалгын талаар — <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a></p>`,
