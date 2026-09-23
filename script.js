@@ -121,6 +121,44 @@ const ORDER_INTAKE = "https://starshopping.app.n8n.cloud/webhook/order-intake";
 const COURIER = { name: "Гялс хүргэлт", tel: "94944855", text: "9494-4855" };
 const ORDER_LINE = { tel: "95505717", text: "9550-5717" };
 
+/* The second half of the two-step order (W8, 2026-09-23). The first step goes
+   to the intake with a phone and nothing else; the address, if the visitor
+   gives it, is attached to that order afterwards by the database's own
+   `set_order_address` — callable with the public key, and it only ever touches
+   an order that has not been handed to the courier yet. */
+const SET_ADDRESS = `${SUPABASE_URL}/rest/v1/rpc/set_order_address`;
+
+/* Ordering by chat. In Mongolia people order by talking far more than by
+   filling in forms: 159 opened the form in 62 hours and none sent it. The ref
+   rides along so the bot knows which advert brought them — the same value the
+   web order carries as creative_id. */
+const MESSENGER_PAGE = "1300692469783051";
+const messengerLink = () => {
+  const ref = creativeId();
+  return `https://m.me/${MESSENGER_PAGE}` + (ref ? `?ref=${encodeURIComponent(ref)}` : "");
+};
+const chatButton = () =>
+  `<a class="chatbuy" href="${esc(messengerLink())}" target="_blank" rel="noopener" data-chat>💬 Чатаар захиалах</a>`;
+/* One listener for every chat button, wherever it is drawn. `Contact` is the
+   standard event for it, so the ad report can count chat starts next to orders. */
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest("a[data-chat]");
+  if (a && window.fbq) fbq("track", "Contact", { content_name: "messenger" });
+});
+
+/* Meta's Pixel does not accept MNT: measured on 2026-09-23 against the live
+   fbevents.js, a Purchase with currency "MNT" logs "Parameter 'currency' is
+   invalid" and one with "USD" logs nothing. So every value is sent in dollars
+   at a fixed rate (Mongolbank ~3,599₮ on 2026-09-23), and the tugrik figure
+   rides beside it as value_mnt. Change the rate here only; all three events
+   read it. */
+const MNT_PER_USD = 3600;
+const pixelValue = (mnt) => ({
+  value: Math.round(((Number(mnt) || 0) / MNT_PER_USD) * 100) / 100,
+  currency: "USD",
+  value_mnt: Number(mnt) || 0,
+});
+
 let DB = { shop: {}, categories: [], products: [], bundles: [], reviews: [], stock: {} };
 
 /* Units left for a SKU, or null when no limit is configured. A product with
@@ -164,6 +202,11 @@ const preorderLabel = (p) =>
   `Урьдчилсан захиалга${p && p.shipsInDays ? ` · ~${p.shipsInDays} хоногт хүргэнэ` : ""}`;
 const PREORDER_NOTE =
   "Бараа Хятадаас ирмэгц бид залгаж баталгаажуулаад хүргэнэ. Төлбөрийг хүлээн авахдаа төлнө.";
+/* Said right under the wait, where the wait is read (W8.4): the wait is the
+   reason someone hesitates, and knowing they can still back out by phone, with
+   nothing paid, is what lets them leave a number anyway. */
+const PREORDER_CANCEL =
+  "Хүлээх хугацаа таалагдахгүй бол дуудлагаар цуцалж болно — урьдчилгаа байхгүй.";
 const leadTimeOf = (p) =>
   isPreorder(p) && p.shipsInDays
     ? `~${p.shipsInDays} хоногт`
@@ -1223,7 +1266,7 @@ function renderProduct(slug) {
     ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
     <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
-    ${isPreorder(p) ? `<p class="preline">${esc(preorderLabel(p))}</p>` : ""}
+    ${isPreorder(p) ? `<p class="preline">${esc(preorderLabel(p))}</p><p class="precancel">${esc(PREORDER_CANCEL)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
@@ -1261,6 +1304,7 @@ function renderProduct(slug) {
              <span class="buy__label">УТСААР ЗАХИАЛНА</span>
            </div>
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
+           ${chatButton()}
            <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>9550-5717 руу залгавал шууд бүртгэнэ.</p>`
         : `<a class="buy" href="#" id="buyBtn">
              <span class="buy__total" id="buyTotal"></span>
@@ -1270,6 +1314,7 @@ function renderProduct(slug) {
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
+           ${chatButton()}
            <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 9550-5717</p>`
     }
 
@@ -1493,8 +1538,7 @@ function renderProduct(slug) {
         content_type: "product",
         content_name: p.name,
         num_items: qty,
-        value: orderTotal(),
-        currency: "MNT",
+        ...pixelValue(orderTotal()),
       });
     location.hash = "#/order";
   });
@@ -1530,8 +1574,7 @@ function renderProduct(slug) {
       content_ids: [p.slug],
       content_name: p.name,
       content_type: "product",
-      value: pr.now,
-      currency: "MNT",
+      ...pixelValue(pr.now),
     });
   }
 }
@@ -1542,6 +1585,8 @@ function renderProduct(slug) {
    a refresh), so it is parked in sessionStorage rather than a bare variable.
    ===================================================================== */
 const DRAFT_KEY = "ss_draft";
+/* the order made in step one, so a refresh returns to the address step */
+const STEP2_KEY = "ss_step2";
 const setDraft = (d) => sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d));
 const getDraft = () => {
   try {
@@ -1588,43 +1633,88 @@ async function renderOrder() {
   /* How many may be asked for: a pack is a fixed count, and a stocked product
      stops at what is on the shelf. */
   const qtyCeiling = orderCeiling(d.slug, 99);
+  /* An order already taken in step one, for this product, in this tab: a
+     refresh lands back on the address step instead of offering to order again. */
+  let placed = null;
+  try {
+    const s = JSON.parse(sessionStorage.getItem(STEP2_KEY) || "null");
+    if (s && s.slug === d.slug && s.orderId) placed = s;
+  } catch (e) { /* no memory of it — step one again, and the intake catches a repeat */ }
+
+  /* TWO STEPS (W8, 2026-09-23). Measured over 62 hours: 159 people opened
+     this form, none sent it — six boxes at once, an address first of all, asked
+     of someone who had only half decided. Now step one asks for a phone number
+     and nothing else, and that alone is an order: the operator rings every
+     order anyway and can take the address by voice. Step two, the address,
+     comes after the order exists and can be skipped. */
   page.innerHTML = `
     <a class="back" href="#/p/${esc(encodeURIComponent(d.slug))}">← Бараа руу буцах</a>
-    <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">Захиалга</h1>
 
-    <!-- A real form, not a heap of inputs: Enter sends it, the phone keyboard
-         offers "next" down the fields, and the browser is willing to fill what
-         it recognises. It wraps both columns so the button can sit under the
-         totals while the fields come first. Validation is left to us — the
-         novalidate flag — because the browser's own warnings arrive in the
-         wrong language and say less than ours do. -->
-    <form id="orderForm" novalidate>
-    <div class="order-grid" style="margin-top:1.6rem">
-      <div>
-        <div class="sum">
-          <div class="sum__img"><img src="${photoSrc(d.image, 400).src}" data-fallback="${esc(photoSrc(d.image, 400).fallback)}" alt="${esc(d.name)}" decoding="async"></div>
-          <div>
-            <div class="sum__name">${esc(d.name)}</div>
-            <div class="sum__meta">
-              ${d.color ? esc(d.color) + " · " : ""}${d.size ? esc(d.size) + " · " : ""}<span id="sumQty">${d.qty}</span> ширхэг
-              ${d.pack ? `<span class="sum__pack">${esc(d.pack)}</span>` : ""}
-            </div>
+    <!-- Step one: a real form, so Enter sends it and the phone keyboard offers
+         "next". novalidate — the browser's own warnings come in the wrong
+         language and say less than ours. -->
+    <form id="orderForm" class="step1" novalidate${placed ? " hidden" : ""}>
+      <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">Захиалга</h1>
+      <div class="sum" style="margin-top:1.4rem">
+        <div class="sum__img"><img src="${photoSrc(d.image, 400).src}" data-fallback="${esc(photoSrc(d.image, 400).fallback)}" alt="${esc(d.name)}" decoding="async"></div>
+        <div>
+          <div class="sum__name">${esc(d.name)}</div>
+          <div class="sum__meta">
+            ${d.color ? esc(d.color) + " · " : ""}${d.size ? esc(d.size) + " · " : ""}<span id="sumQty">${d.qty}</span> ширхэг
+            ${d.pack ? `<span class="sum__pack">${esc(d.pack)}</span>` : ""}
           </div>
         </div>
+      </div>
 
-        <!-- Who and where come first. They used to sit under two pickers and a
-             totals table, a screen and a half down on a phone, and there were
-             eight required boxes — entrance and door number among them, which a
-             ger district or a soum does not have. The operator rings every
-             order anyway, so the address is one line in their own words. -->
-        <div class="field">
-          <label class="field__label" for="fName">НЭР</label>
-          <input class="input" id="fName" name="name" type="text" placeholder="Таны нэр" autocomplete="name" required>
-        </div>
-        <div class="field">
-          <label class="field__label" for="fPhone">УТАС</label>
-          <input class="input" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
-        </div>
+      <div class="field">
+        <label class="field__label" for="fPhone">УТАСНЫ ДУГААР</label>
+        <input class="input input--big" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
+      </div>
+      <div class="field">
+        <label class="field__label" for="fName">НЭР <span class="field__opt">(заавал биш)</span></label>
+        <input class="input" id="fName" name="name" type="text" placeholder="Таныг юу гэж дуудах вэ" autocomplete="name">
+      </div>
+      ${
+        d.pack
+          ? ""
+          : `<div class="field">
+               <span class="field__label">ТОО ШИРХЭГ</span>
+               <div class="qty">
+                 <button class="qty__btn" type="button" data-step="-1" aria-label="Хасах">−</button>
+                 <span class="qty__val" id="oQty">${d.qty}</span>
+                 <button class="qty__btn" type="button" data-step="1" aria-label="Нэмэх">+</button>
+               </div>
+             </div>`
+      }
+      <div class="totals">
+        <div class="totals__row totals__row--big"><span>Бараа (<span id="tQty">${d.qty}</span>ш)</span><span id="tGoods"></span></div>
+        <div class="totals__row"><span>Хүргэлт</span><span>${shipIncluded ? "үнэд багтсан" : esc(deliverySummary()) + " · тусдаа"}</span></div>
+      </div>
+
+      <p class="err" id="formErr"></p>
+
+      <button class="buy" type="submit" id="submitBtn">
+        <span class="buy__total">Бид залгаж баталгаажуулна</span>
+        <span class="buy__label">УТСАА ҮЛДЭЭХ</span>
+      </button>
+      <p class="note${d.preorder ? " note--pre" : ""}">
+        ${d.preorder ? `<b>${esc(preorderLabel(d))}.</b> ` : ""}Одоо юу ч төлөхгүй. Бид ${ORDER_LINE.text}-оос залгаж
+        хаяг, хүргэлтийг тань тохирно.${d.preorder ? " " + esc(PREORDER_CANCEL) : ""}
+      </p>
+      ${chatButton()}
+    </form>
+
+    <!-- Step two: the order exists by now. The address makes delivery faster,
+         and that is all it is asked for — skipping it costs nothing. -->
+    <form id="addrForm" novalidate${placed ? "" : " hidden"}>
+      <div class="step2__head">
+        <div class="done__mark">✓</div>
+        <h1 class="step2__title">Захиалга бүртгэгдлээ</h1>
+        <p class="step2__lead">Бид <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>-оос залгана. Хаягаа утсаар хэлж болно.</p>
+        <p class="step2__ask">Одоо хаягаа бөглөвөл хурдан хүргэнэ</p>
+      </div>
+    <div class="order-grid" style="margin-top:1.2rem">
+      <div>
         <!-- Chosen, not typed. A typed address went from the customer to the
              operator to the courier, and a misspelt district or a khoroo
              remembered wrong came back as a phone call to sort out. District
@@ -1666,8 +1756,7 @@ async function renderOrder() {
                  <!-- Three written lines, the way a courier reads a city address:
                       the building or street, then the way in — entrance,
                       floor, door, or the gate number in a ger district — then
-                      anything that saves a phone call: a gate code, a landmark,
-                      when someone is home. -->
+                      anything that saves a phone call. -->
                  <div class="field"><label class="field__label field__label--sub" for="aLine1">ХОРООЛОЛ, БАЙР / ГУДАМЖ</label>
                    <input class="input" id="aLine1" autocomplete="address-line1"></div>
                  <div class="field"><label class="field__label field__label--sub" for="aLine2">ОРЦ, ДАВХАР, ТООТ / ХАШААНЫ ДУГААР</label>
@@ -1677,18 +1766,6 @@ async function renderOrder() {
               : `<textarea class="input" id="fAddr" name="address" rows="2" placeholder="Дүүрэг, хороо, байр, тоот — эсвэл аймаг, сум" autocomplete="street-address" required></textarea>`
           }
         </div>
-        ${
-          d.pack
-            ? ""
-            : `<div class="field">
-                 <span class="field__label">ТОО ШИРХЭГ</span>
-                 <div class="qty">
-                   <button class="qty__btn" type="button" data-step="-1" aria-label="Хасах">−</button>
-                   <span class="qty__val" id="oQty">${d.qty}</span>
-                   <button class="qty__btn" type="button" data-step="1" aria-label="Нэмэх">+</button>
-                 </div>
-               </div>`
-        }
       </div>
 
       <div>
@@ -1743,23 +1820,18 @@ async function renderOrder() {
         </div>
 
         <div class="totals">
-          <div class="totals__row"><span>Бараа (<span id="tQty">${d.qty}</span>ш)</span><span id="tGoods"></span></div>
+          <div class="totals__row"><span>Бараа (<span id="t2Qty">${d.qty}</span>ш)</span><span id="t2Goods"></span></div>
           <div class="totals__row"><span>Хүргэлт <small>(${shipIncluded ? "үнэд багтсан" : "тусдаа төлнө"})</small></span><span id="tShip"></span></div>
           <div class="totals__row totals__row--big"><span>Нийт</span><span id="tAll"></span></div>
         </div>
-        ${shipIncluded ? "" : `<p class="note">Хүргэлтийн төлбөр барааны үнэ дээр нэмэгдэнэ. Нийт дүнг хүргэлтээр төлнө.</p>`}
 
-        <p class="err" id="formErr"></p>
+        <p class="err" id="addrErr"></p>
 
-        <button class="buy" type="submit" id="submitBtn">
+        <button class="buy" type="submit" id="addrBtn">
           <span class="buy__total" id="submitTotal"></span>
-          <span class="buy__label">ЗАХИАЛГА БАТАЛГААЖУУЛАХ</span>
+          <span class="buy__label">ХАЯГАА ИЛГЭЭХ</span>
         </button>
-        ${
-          d.preorder
-            ? `<p class="note note--pre"><b>${esc(preorderLabel(d))}.</b> ${esc(PREORDER_NOTE)}</p>`
-            : `<p class="note">Илгээснээр таны захиалга бүртгэгдэж, бид тантай утсаар холбогдоно.</p>`
-        }
+        <a class="skip" href="#/done" id="addrSkip">Алгасах — хаягаа утсаар хэлье</a>
       </div>
     </div>
     </form>`;
@@ -1769,40 +1841,38 @@ async function renderOrder() {
   let shipName = ship[0].name;
   let payment = "Хүргэлтээр төлөх";
 
-  /* What the screen shows before sending is the shop's own arithmetic and is
-     only ever a preview: the backend prices the order itself and its figure
-     is the one the confirmation page prints. */
+  /* What the screen shows is the shop's own arithmetic and only ever a
+     preview: the backend prices the order itself. */
   let qty = Math.max(1, Number(d.qty) || 1);
+  if (placed && placed.qty) qty = Number(placed.qty) || qty;
   // a bundle carries its own fixed total, so trust it over unit × qty
-  const goodsNow = () => (d.pack ? Number(d.goods) || d.unit * qty : d.unit * qty);
-  const tGoods = page.querySelector("#tGoods");
-  const tShip = page.querySelector("#tShip");
-  const tAll = page.querySelector("#tAll");
-  const submitTotal = page.querySelector("#submitTotal");
+  const goodsNow = () => (placed && placed.goods ? Number(placed.goods) : d.pack ? Number(d.goods) || d.unit * qty : d.unit * qty);
+  const $ = (id) => page.querySelector("#" + id);
 
   const refresh = () => {
     const goods = goodsNow();
-    tGoods.textContent = money(goods);
-    tShip.textContent = money(shipPrice);
-    tAll.textContent = money(goods + shipPrice);
-    submitTotal.textContent = `Нийт ${money(goods + shipPrice)}`;
+    $("tGoods").textContent = money(goods);
+    $("t2Goods").textContent = money(goods);
+    $("t2Qty").textContent = String(qty);
+    $("tShip").textContent = money(shipPrice);
+    $("tAll").textContent = money(goods + shipPrice);
+    $("submitTotal").textContent = `Нийт ${money(goods + shipPrice)}`;
   };
   refresh();
 
-  const oQty = page.querySelector("#oQty");
   page.querySelectorAll(".qty__btn").forEach((b) =>
     b.addEventListener("click", () => {
       qty = Math.min(qtyCeiling, Math.max(1, qty + Number(b.dataset.step)));
-      oQty.textContent = String(qty);
-      page.querySelector("#sumQty").textContent = String(qty);
-      page.querySelector("#tQty").textContent = String(qty);
+      $("oQty").textContent = String(qty);
+      $("sumQty").textContent = String(qty);
+      $("tQty").textContent = String(qty);
       setDraft(Object.assign({}, getDraft() || d, { qty, goods: d.unit * qty })); // survives a refresh
       refresh();
     })
   );
 
   const payItems = Array.from(page.querySelectorAll("#payPick .pick__item"));
-  const payLock = page.querySelector("#payLock");
+  const payLock = $("payLock");
   const cashItem = payItems.find((n) => n.dataset.pay === "Хүргэлтээр төлөх");
   const transferItem = payItems.find((n) => n.dataset.pay === "Шилжүүлгээр төлөх");
 
@@ -1828,13 +1898,13 @@ async function renderOrder() {
     applyPrepaid(item.dataset.prepaid === "1");
     refresh();
   };
-  page.querySelector("#shipPick").addEventListener("click", (e) => {
+  $("shipPick").addEventListener("click", (e) => {
     const item = e.target.closest(".pick__item");
     if (!item || item.classList.contains("is-locked")) return;
     pickShip(item);
   });
 
-  page.querySelector("#payPick").addEventListener("click", (e) => {
+  $("payPick").addEventListener("click", (e) => {
     const item = e.target.closest(".pick__item");
     if (!item || item.classList.contains("is-locked")) return;
     selectPayment(item);
@@ -1856,16 +1926,16 @@ async function renderOrder() {
     }
   };
   let addrKind = "ub";
-  if (A && page.querySelector("#addrKind")) {
+  if (A && $("addrKind")) {
     const kindBtns = Array.from(page.querySelectorAll("#addrKind .seg__btn"));
-    const ubBox = page.querySelector("#addrUb");
-    const mnBox = page.querySelector("#addrMn");
-    const aDist = page.querySelector("#aDist");
-    const aKhoroo = page.querySelector("#aKhoroo");
-    const aAimag = page.querySelector("#aAimag");
-    const aLine1 = page.querySelector("#aLine1");
-    const aLine2 = page.querySelector("#aLine2");
-    const aNote = page.querySelector("#aNote");
+    const ubBox = $("addrUb");
+    const mnBox = $("addrMn");
+    const aDist = $("aDist");
+    const aKhoroo = $("aKhoroo");
+    const aAimag = $("aAimag");
+    const aLine1 = $("aLine1");
+    const aLine2 = $("aLine2");
+    const aNote = $("aNote");
 
     /* the option's value is the courier's full string; what is shown is the short one */
     const fillKhoroo = (keep) => {
@@ -1890,7 +1960,7 @@ async function renderOrder() {
         b.setAttribute("aria-checked", on ? "true" : "false");
       });
       ubBox.hidden = addrKind !== "ub";
-      const ubHint = page.querySelector("#addrUbHint");
+      const ubHint = $("addrUbHint");
       if (ubHint) ubHint.hidden = addrKind !== "ub";
       mnBox.hidden = addrKind !== "mn";
       /* the examples change with the place: a khoroolol and a block in the
@@ -1933,46 +2003,25 @@ async function renderOrder() {
     setKind(savedAddr.kind === "mn" && A.mn.length ? "mn" : "ub");
   }
 
-  /* ---- submit ---- */
-  const form = page.querySelector("#orderForm");
-  const btn = page.querySelector("#submitBtn");
-  const err = page.querySelector("#formErr");
-  const errHome = err.parentNode;
-  // where it belongs when it is not pinned to a field: just above the button,
-  // never appended to the end of the form under the small print
-  const errAnchor = err.nextElementSibling;
-  const homeErr = () => {
-    if (err.parentNode !== errHome || err.nextElementSibling !== errAnchor) {
-      errHome.insertBefore(err, errAnchor);
-    }
+  /* ---- errors: next to the field they are about ---- */
+  /* The complaint used to be shown in one line at the foot of a form longer
+     than a phone screen; someone with an empty box near the top pressed send,
+     nothing appeared to happen, and they left. The message travels to the
+     field, and so do the cursor and the screen. Each step has its own line. */
+  const errBox = (id) => {
+    const el = $(id);
+    return { el, home: el.parentNode, anchor: el.nextElementSibling };
   };
-  let sending = false;
+  const E1 = errBox("formErr");
+  const E2 = errBox("addrErr");
+  let E = placed ? E2 : E1;
+  const homeErr = () => {
+    if (E.el.parentNode !== E.home || E.el.nextElementSibling !== E.anchor) E.home.insertBefore(E.el, E.anchor);
+  };
 
-  /* A number field that lets letters in only to reject them at the end wastes
-     the visitor's time twice. Nothing but digits ever lands in these. */
-  {
-    const el = page.querySelector("#fPhone");
-    el.addEventListener("input", () => {
-      const digits = el.value.replace(/[^0-9]/g, "").slice(0, 8);
-      if (el.value !== digits) el.value = digits;
-      el.classList.remove("is-invalid");
-    });
-  }
-  page.querySelectorAll(".input").forEach((el) =>
-    el.addEventListener("input", () => el.classList.remove("is-invalid"))
-  );
-
-  /* The complaint used to be shown in one line above the button, at the foot
-     of a form longer than a phone screen. Someone with an empty box near the
-     top pressed send, nothing appeared to happen, and they left. The message
-     now travels to the field it is about, which is also where the cursor and
-     the screen go. */
-  /* Getting there is not optional, so it does not ride on an animation. The
-     document is set to scroll smoothly, and a smooth scroll is skipped when
-     the visitor has asked for less motion and can be throttled to nothing in
-     an in-app browser — measured here scrolling zero pixels. The cursor would
-     then move to a field below the fold and the page would look like it had
-     ignored the button, which is the dead end this exists to prevent. */
+  /* Getting there is not optional, so it does not ride on an animation: a
+     smooth scroll is skipped under reduced motion and can be throttled to
+     nothing in an in-app browser (measured: zero pixels). */
   const bring = (el) => {
     const box = el.getBoundingClientRect();
     if (box.top >= 8 && box.bottom <= innerHeight - 8) return; // already in sight
@@ -1985,41 +2034,244 @@ async function renderOrder() {
 
   const fail = (id, msg) => {
     page.querySelectorAll(".input.is-invalid").forEach((n) => n.classList.remove("is-invalid"));
-    const el = page.querySelector("#" + id);
-    err.textContent = msg;
+    const el = id ? $(id) : null;
+    E.el.textContent = msg;
     if (!el) {
       homeErr();
+      bring(E.el);
       return;
     }
     el.classList.add("is-invalid");
-    (el.closest(".field") || errHome).appendChild(err);
+    (el.closest(".field") || E.home).appendChild(E.el);
     el.focus({ preventScroll: true });
     bring(el);
   };
 
   const clearFail = () => {
-    err.textContent = "";
+    E.el.textContent = "";
     page.querySelectorAll(".input.is-invalid").forEach((n) => n.classList.remove("is-invalid"));
     homeErr();
   };
 
-  form.addEventListener("submit", async (e) => {
+  /* A number field that lets letters in only to reject them at the end wastes
+     the visitor's time twice. Nothing but digits ever lands in it. */
+  {
+    const el = $("fPhone");
+    el.addEventListener("input", () => {
+      const digits = el.value.replace(/[^0-9]/g, "").slice(0, 8);
+      if (el.value !== digits) el.value = digits;
+      el.classList.remove("is-invalid");
+    });
+  }
+  page.querySelectorAll(".input").forEach((el) =>
+    el.addEventListener("input", () => el.classList.remove("is-invalid"))
+  );
+
+  /* A request is given thirty seconds and no more. Unbounded, a signal that
+     died mid-send left the button on "ИЛГЭЭЖ БАЙНА…" for good and no second
+     attempt was possible. */
+  const timed = async (url, init, ms) => {
+    const bail = typeof AbortController === "function" ? new AbortController() : null;
+    const t = setTimeout(() => bail && bail.abort(), ms);
+    try {
+      return await fetch(url, Object.assign({}, init, { signal: bail ? bail.signal : undefined }));
+    } finally {
+      clearTimeout(t);
+    }
+  };
+  const busy = (button, label) => {
+    button.disabled = !!label;
+    if (label) {
+      button.dataset.idle = button.dataset.idle || button.querySelector(".buy__label").textContent;
+      button.querySelector(".buy__label").textContent = label;
+    } else if (button.dataset.idle) {
+      button.querySelector(".buy__label").textContent = button.dataset.idle;
+    }
+  };
+
+  /* What the visitor picked on the product page. The intake has no field for
+     it, so it rides in the address detail in brackets, where the operator who
+     rings them reads it — dropping it would mean asking again. */
+  const pickedOnProduct = () =>
+    [d.color && `Өнгө: ${d.color}`, d.size && `Хэмжээ: ${d.size}`, d.pack && `Багц: ${d.pack}`].filter(Boolean);
+
+  /* Attach an address (or just the picks) to an order that already exists. */
+  const setAddress = async (orderId, districtFull, detail) => {
+    const res = await timed(
+      SET_ADDRESS,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON,
+          Authorization: `Bearer ${SUPABASE_ANON}`,
+        },
+        body: JSON.stringify({ p: { order_id: orderId, district_full: districtFull || null, address_detail: detail || null } }),
+      },
+      20000
+    );
+    const out = await res.json().catch(() => null);
+    return out || { ok: false, error: "http_" + res.status };
+  };
+
+  const saveDone = (extra) => {
+    let prev = {};
+    try { prev = JSON.parse(sessionStorage.getItem("ss_done") || "{}") || {}; } catch (e) { /* none */ }
+    sessionStorage.setItem("ss_done", JSON.stringify(Object.assign(prev, extra)));
+  };
+
+  const openStep2 = () => {
+    $("orderForm").hidden = true;
+    $("addrForm").hidden = false;
+    E = E2;
+    const root = document.documentElement;
+    const had = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, 0);
+    root.style.scrollBehavior = had;
+  };
+
+  /* ---- step one: the phone number is the order ---- */
+  const btn = $("submitBtn");
+  let sending = false;
+  $("orderForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sending) return;
 
-    const val = (id) => page.querySelector("#" + id).value.trim();
-    const name = val("fName");
-    const phone = val("fPhone");
-
-    if (!name) return fail("fName", "Нэрээ бичнэ үү.");
+    const phone = $("fPhone").value.trim();
+    const name = $("fName").value.trim().replace(/\s+/g, " ").slice(0, 80);
     if (!/^\d{8}$/.test(phone)) return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
+    clearFail();
 
-    /* The district and khoroo travel on their own, as `district_full`, in the
-       courier's exact words; the address line carries only what no list can
-       hold — building, entrance, door. */
+    /* The intake knows a product only by its database id. On 2026-09-17 two
+       real orders went out carrying the slug instead; the database refused
+       them and the visitors believed they had ordered. So nothing leaves
+       without an id. */
+    const productId = d.productId || (productBy(d.slug) || {}).product_id || "";
+    if (!productId) {
+      return fail("", "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 9550-5717 руу залгана уу.");
+    }
+
+    sending = true;
+    busy(btn, "ИЛГЭЭЖ БАЙНА…");
+    try {
+      /* No price and no address go out. The backend prices, checks stock and
+         spots duplicates; an order without an address is kept and marked for
+         review, and the operator rings for it. */
+      const res = await timed(
+        ORDER_INTAKE,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product_id: productId,
+            name: name || null,
+            phone,
+            address: null,
+            district_full: null,
+            quantity: qty,
+            channel: "web",
+            creative_id: creativeId(),
+            status: "draft",
+          }),
+        },
+        30000
+      );
+      /* A refusal arrives as JSON too, under a 4xx, so the body decides. */
+      const out = await res.json();
+      if (!out || out.ok !== true) {
+        const x = new Error("refused");
+        x.reply = out || {};
+        throw x;
+      }
+
+      const total = Number(out.total_mnt) || 0;
+      /* Purchase: once per real order, for the goods only (the delivery fee
+         goes to the courier), never for a duplicate. Sent in dollars — Meta
+         refuses MNT (pixelValue). The order id as eventID lets a server-side
+         event for the same order be recognised as the same one later. */
+      if (window.fbq && !out.is_duplicate)
+        fbq(
+          "track",
+          "Purchase",
+          {
+            content_ids: [d.slug],
+            content_type: "product",
+            content_name: d.name,
+            num_items: Number(out.quantity) || qty,
+            ...pixelValue(total),
+          },
+          { eventID: String(out.order_id || "") }
+        );
+
+      /* A repeat inside a day comes back as a duplicate row pointing at the
+         first; the address belongs on the first, the one the operator works. */
+      const target = String((out.is_duplicate && out.duplicate_of) || out.order_id || "");
+      placed = { slug: d.slug, orderId: target, qty: Number(out.quantity) || qty, goods: total };
+      try { sessionStorage.setItem(STEP2_KEY, JSON.stringify(placed)); } catch (e2) { /* refresh returns to step one */ }
+      saveDone({
+        code: String(out.order_id || ""),
+        product: out.product || d.name,
+        qty: placed.qty,
+        goods: total,
+        ship: shipPrice,
+        shipName,
+        shipIncluded,
+        total: total + shipPrice,
+        payment: "Хүргэлтээр төлөх",
+        name, phone,
+        noAddress: true,
+        leadTime: d.leadTime || "",
+        preorder: !!d.preorder,
+        shipsInDays: d.shipsInDays || null,
+      });
+      /* The picks go on the order straight away, so they are not lost if the
+         address step is skipped. Its failure costs nothing the phone call
+         cannot recover, so it is not waited on. */
+      const picks = pickedOnProduct();
+      if (picks.length && target) setAddress(target, null, `[${picks.join(" · ")}]`).catch(() => {});
+
+      sending = false;
+      busy(btn, "");
+      refresh();
+      openStep2();
+    } catch (ex) {
+      console.error(ex);
+      sending = false;
+      busy(btn, "");
+      const said = ex && ex.reply ? orderRefusal(ex.reply) : null;
+      if (said && said.field) return fail(said.field, said.text);
+      /* A request we gave up on may still have reached the backend, so the
+         wording stops short of telling them to fire a second one blind. */
+      fail(
+        "",
+        said
+          ? said.text
+          : ex && ex.name === "AbortError"
+            ? "Сүлжээ хариу өгсөнгүй. 9550-5717 руу залгавал бид захиалгыг тань шууд бүртгэнэ."
+            : "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 9550-5717 руу залгана уу."
+      );
+    }
+  });
+
+  /* ---- step two: the address, if they will give it ---- */
+  const finish = () => {
+    try { sessionStorage.removeItem(STEP2_KEY); } catch (e) { /* nothing to forget */ }
+  };
+  $("addrSkip").addEventListener("click", finish);
+
+  const addrBtn = $("addrBtn");
+  let sendingAddr = false;
+  $("addrForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (sendingAddr || !placed) return;
+    const val = (id) => $(id).value.trim();
+
+    /* The district and khoroo travel on their own, in the courier's exact
+       words; the written line carries only what no list can hold. */
     let where;
     let districtFull = "";
-    if (page.querySelector("#addrKind")) {
+    if ($("addrKind")) {
       const tidy = (id) => val(id).replace(/\s+/g, " ");
       const line1 = tidy("aLine1");
       const line2 = tidy("aLine2");
@@ -2032,8 +2284,6 @@ async function renderOrder() {
         districtFull = val("aAimag");
         if (!districtFull) return fail("aAimag", "Аймаг, хотоо сонгоно уу.");
       }
-      /* both written lines are needed: a courier with a building but no door,
-         or a street but no gate number, rings the operator */
       if (!line1) return fail("aLine1", "Хороолол, байр эсвэл гудамжаа бичнэ үү.");
       if (!line2) return fail("aLine2", "Орц, давхар, тоот эсвэл хашааны дугаараа бичнэ үү.");
       where = `${line1}, ${line2}` + (note ? ` · Тайлбар: ${note}` : "");
@@ -2043,148 +2293,35 @@ async function renderOrder() {
     }
     clearFail();
 
-    /* The intake knows a product only by its database id. On 2026-09-17 two
-       real orders went out carrying the slug instead; the database refused
-       them and the visitors believed they had ordered. So nothing leaves
-       without an id: the draft's own, or — when the draft was made against a
-       copy that had none yet — the one the catalogue has since brought. Failing
-       both, say so, with the number that does take the order. */
-    const productId = d.productId || (productBy(d.slug) || {}).product_id || "";
-    if (!productId) {
-      return fail(
-        "orderNoProductId",
-        "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 9550-5717 руу залгана уу."
-      );
-    }
+    const picked = [...pickedOnProduct(), shipName, payment].filter(Boolean);
+    const detail = `${where} [${picked.join(" · ")}]`;
 
-    /* The backend takes an address and nothing else about how the order is to
-       be carried out, so what the visitor picked on the way here — colour,
-       size, pack, delivery, payment — rides at the end of that line, where the
-       operator who rings them will read it. Dropping it would mean asking
-       again for something they already answered. */
-    const picked = [
-      d.color && `Өнгө: ${d.color}`,
-      d.size && `Хэмжээ: ${d.size}`,
-      d.pack && `Багц: ${d.pack}`,
-      shipName,
-      payment,
-    ].filter(Boolean);
-    const address = picked.length ? `${where} [${picked.join(" · ")}]` : where;
-
-    sending = true;
-    btn.disabled = true;
-    btn.querySelector(".buy__label").textContent = "ИЛГЭЭЖ БАЙНА…";
-
-    /* Nothing bounded this request once. On a signal that dies mid-send the
-       button read "ИЛГЭЭЖ БАЙНА…" for as long as the visitor was willing to
-       look at it, and no second attempt was possible because `sending` never
-       came back down — the one screen where a freeze costs an actual sale.
-       The backend answers in about two seconds when it is well, so thirty is
-       a dead line rather than a slow one. */
-    const bail = typeof AbortController === "function" ? new AbortController() : null;
-    const deadline = setTimeout(() => bail && bail.abort(), 30000);
-    const release = (label) => {
-      clearTimeout(deadline);
-      btn.disabled = false;
-      btn.querySelector(".buy__label").textContent = label;
-      sending = false;
-    };
-
+    sendingAddr = true;
+    busy(addrBtn, "ИЛГЭЭЖ БАЙНА…");
+    let out;
     try {
-      /* No price goes out. The backend prices, checks stock and spots
-         duplicates on its own; the shop only says who wants what. */
-      const res = await fetch(ORDER_INTAKE, {
-        method: "POST",
-        signal: bail ? bail.signal : undefined,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_id: productId,
-          name,
-          phone,
-          address,
-          // absent when the lists could not be loaded and the address was typed:
-          // the intake then keeps the order and marks it for review
-          district_full: districtFull || null,
-          quantity: qty,
-          channel: "web",
-          creative_id: creativeId(),
-        }),
-      });
-      /* A refusal arrives as JSON too, under a 4xx, so the status is not what
-         decides — the body is. Only a reply that is not JSON at all is treated
-         as the line having failed. */
-      const out = await res.json();
-      if (!out || out.ok !== true) {
-        const e = new Error("refused");
-        e.reply = out || {};
-        throw e;
-      }
-      clearTimeout(deadline);
-
-      /* A repeat of the same phone and product inside a day comes back marked
-         is_duplicate. That is the operator's to sort out; to the visitor it is
-         an order received, and is shown as one. */
-      const total = Number(out.total_mnt) || 0;
-      /* Purchase is said once per real order and for what the order brings in.
-         A duplicate is shown to the visitor as received but is not a second
-         sale, so it is not reported as one. The value is the intake's own
-         total for the goods: the delivery fee goes to the courier, and adding
-         it made every advert look better than it was. `content_ids` matches
-         ViewContent so Meta can tie the two to one product; the order id as
-         `eventID` lets a server-side event for the same order be recognised
-         as the same one later. */
-      if (window.fbq && !out.is_duplicate)
-        fbq(
-          "track",
-          "Purchase",
-          {
-            content_ids: [d.slug],
-            content_type: "product",
-            content_name: d.name,
-            num_items: Number(out.quantity) || qty,
-            value: total,
-            currency: "MNT",
-          },
-          { eventID: String(out.order_id || "") }
-        );
-
-      sessionStorage.setItem(
-        "ss_done",
-        JSON.stringify({
-          code: String(out.order_id || ""),
-          product: out.product || d.name,
-          qty: Number(out.quantity) || qty,
-          goods: total,
-          ship: shipPrice,
-          shipName,
-          shipIncluded,
-          total: total + shipPrice,
-          payment, name, phone,
-          leadTime: d.leadTime || "",
-          preorder: !!d.preorder,
-          shipsInDays: d.shipsInDays || null,
-        })
-      );
-      location.hash = "#/done";
+      out = await setAddress(placed.orderId, districtFull, detail);
     } catch (ex) {
-      console.error(ex);
-      const said = ex && ex.reply ? orderRefusal(ex.reply) : null;
-      if (said && said.field) {
-        release("ЗАХИАЛГА БАТАЛГААЖУУЛАХ");
-        return fail(said.field, said.text);
-      }
-      /* A request we gave up on may still have reached the backend, so the
-         wording stops short of telling them to fire a second one blind — a
-         duplicate order is worse for them than a phone call. */
-      err.textContent = said
-        ? said.text
-        : ex && ex.name === "AbortError"
-          ? "Сүлжээ хариу өгсөнгүй. 9550-5717 руу залгавал бид захиалгыг тань шууд бүртгэнэ."
-          : "Илгээхэд алдаа гарлаа. Дахин оролдоно уу, эсвэл 9550-5717 руу залгана уу.";
-      homeErr();
-      if (said) bring(err);
-      release("ЗАХИАЛГА БАТАЛГААЖУУЛАХ");
+      out = { ok: false, error: ex && ex.name === "AbortError" ? "timeout" : "network" };
     }
+    sendingAddr = false;
+    busy(addrBtn, "");
+
+    if (out.ok !== true) {
+      if (out.error === "bad_district") {
+        return fail(addrKind === "mn" ? "aAimag" : "aKhoroo", out.message || "Дүүрэг/хороо жагсаалтаас сонгоно уу.");
+      }
+      /* Already handed to the courier, or the line failed: the order itself
+         stands either way, so say that plainly and let them go on. */
+      return fail(
+        "",
+        "Хаягийг хадгалж чадсангүй — захиалга тань бүртгэгдсэн тул бид залгаж хаягаа асууна. Эсвэл «Алгасах»-ыг дарна уу."
+      );
+    }
+
+    saveDone({ ship: shipPrice, shipName, payment, total: (Number(placed.goods) || goodsNow()) + shipPrice, noAddress: false });
+    finish();
+    location.hash = "#/done";
   });
 }
 
@@ -2240,9 +2377,21 @@ function renderDone() {
   const amountRows = `
       <div class="totals" style="margin-top:1rem">
         <div class="totals__row"><span>${esc(info.product || "Бараа")} (${Number(info.qty) || 1}ш)</span><span>${money(info.goods || 0)}</span></div>
-        <div class="totals__row"><span>${esc(info.shipName || "Хүргэлт")} <small>(${info.shipIncluded ? "үнэд багтсан" : "тусдаа төлнө"})</small></span><span>${money(info.ship || 0)}</span></div>
-        <div class="totals__row totals__row--big"><span>Нийт</span><span>${money(info.total || 0)}</span></div>
+        ${
+          info.noAddress
+            ? `<div class="totals__row"><span>Хүргэлт <small>(${info.shipIncluded ? "үнэд багтсан" : "хаягаас хамаарна"})</small></span><span>${info.shipIncluded ? money(0) : esc(deliverySummary())}</span></div>`
+            : `<div class="totals__row"><span>${esc(info.shipName || "Хүргэлт")} <small>(${info.shipIncluded ? "үнэд багтсан" : "тусдаа төлнө"})</small></span><span>${money(info.ship || 0)}</span></div>`
+        }
+        ${info.noAddress ? "" : `<div class="totals__row totals__row--big"><span>Нийт</span><span>${money(info.total || 0)}</span></div>`}
       </div>`;
+  /* A name is optional since the two-step form (W8), so the greeting must not
+     start with a stray comma when there is none. */
+  const thanks = info.name ? `${esc(info.name)}, баярлалаа.` : "Баярлалаа.";
+  /* Ordered by phone number alone: what happens next is a call, and the
+     address can be given in it. Said first, because it is the whole plan. */
+  const callNote = info.noAddress
+    ? `<br><b>Бид ${ORDER_LINE.text}-оос залгана.</b> Хаягаа утсаар хэлж болно.`
+    : "";
 
   document.getElementById("donePage").innerHTML = `
     <div class="done">
@@ -2251,9 +2400,9 @@ function renderDone() {
       <p class="done__lead">
         ${
           info.preorder
-            ? `${esc(info.name)}, баярлалаа. ${info.shipsInDays ? `<b>~${Number(info.shipsInDays)} хоногт</b> хүргэнэ, ` : ""}ирэхээс өмнө бид залгана. Төлбөрийг хүлээн авахдаа төлнө.`
-            : `${esc(info.name)}, баярлалаа. Бид удахгүй тантай холбогдоно.
-        ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}`
+            ? `${thanks} ${info.shipsInDays ? `<b>~${Number(info.shipsInDays)} хоногт</b> хүргэнэ, ` : ""}ирэхээс өмнө бид залгана. Төлбөрийг хүлээн авахдаа төлнө.${callNote}`
+            : `${thanks} Бид удахгүй тантай холбогдоно.
+        ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}${callNote}`
         }
       </p>
 
@@ -2313,7 +2462,7 @@ function renderDone() {
                 </div>
                 <div class="pay__amount">
                   <span>Төлөх дүн</span>
-                  <b>${money(info.total)}</b>
+                  <b>${money(info.noAddress && !info.shipIncluded ? info.goods : info.total)}${info.noAddress && !info.shipIncluded ? " + хүргэлт" : ""}</b>
                 </div>
               </div>
             </div>`
@@ -2974,7 +3123,10 @@ fetch(DATA_SOURCE, { signal: feedDeadline() })
     if (!booted) {
       fetch(DATA_FALLBACK)
         .then((r) => r.json())
-        .then((data) => paint(merged(data), { first: true }))
+        /* booted may have come true while this was on its way (the database
+           painted first); a second "first" paint re-ran the route and sent a
+           second ViewContent for one visit — found in the W8 test. */
+        .then((data) => paint(merged(data), { first: !booted }))
         .catch(() => {
           catsStage.innerHTML =
             '<p style="opacity:.6;font-size:.85rem">Каталог ачаалж чадсангүй.</p>';

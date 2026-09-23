@@ -776,6 +776,48 @@ button.buy:disabled { opacity: 0.72; cursor: progress; }
   color: var(--fg-dim);
 }
 
+/* Ordering by chat (W8.2) — as prominent as the phone line, in Messenger's own
+   blue so it reads as "this opens Messenger" before it is read at all. */
+.chatbuy {
+  display: block;
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  background: #0866ff;
+  color: #fff;
+  text-align: center;
+  font-weight: 700; font-size: 0.9rem; letter-spacing: 0.02em;
+}
+.chatbuy:active { transform: scale(0.985); }
+
+/* the way back out of a pre-order, under the wait itself (W8.4) */
+.precancel {
+  margin: -0.35rem 0 0.7rem;
+  font-size: 0.74rem; line-height: 1.45;
+  color: var(--fg-dim);
+}
+
+/* Two-step order (W8.1): step one is a phone number and one big button. */
+.step1 { max-width: 480px; }
+.step1 .totals { margin-top: 0.4rem; }
+.input--big { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.08em; padding-top: 0.95rem; padding-bottom: 0.95rem; }
+.step2__head { text-align: center; max-width: 520px; margin: 0.6rem auto 0; }
+.step2__head .done__mark { margin: 0 auto 0.8rem; }
+.step2__title { font-family: var(--font-display); font-weight: 900; font-size: 1.5rem; margin-bottom: 0.45rem; }
+.step2__lead { font-size: 0.9rem; line-height: 1.6; color: var(--fg-dim); }
+.step2__lead a { color: var(--fg); font-weight: 700; }
+.step2__ask {
+  margin-top: 1.1rem; padding: 0.7rem 1rem;
+  border-radius: 12px; background: var(--bg-tint);
+  font-weight: 700; font-size: 0.92rem;
+}
+.skip {
+  display: block; margin-top: 0.9rem;
+  text-align: center; font-size: 0.82rem; font-weight: 600;
+  color: var(--fg-dim); text-decoration: underline; text-underline-offset: 3px;
+}
+
 /* Price and the order button, held at the foot of a phone screen while the
    real button is out of sight. The padding reads the home-indicator inset so
    the bar clears it on a notched phone — the viewport is viewport-fit=cover.
@@ -1313,7 +1355,7 @@ select.input {
   .pdp { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
   .pdp__left { position: sticky; top: 6.5rem; }
   .buy { max-width: 420px; }
-  .callbuy, .assure { max-width: 420px; }
+  .callbuy, .assure, .chatbuy, .skip { max-width: 420px; }
   /* beside a sticky gallery the real button is rarely far away */
   .stickybuy { display: none; }
   .trust { grid-template-columns: repeat(4, 1fr); }
