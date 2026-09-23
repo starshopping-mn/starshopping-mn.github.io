@@ -306,7 +306,11 @@ PAGE = """<!DOCTYPE html>
      crawler on to the shop, where there is nothing for it to read.
      The query string rides along: an ad link ends in ?ref=<creative>, and a
      redirect that drops it leaves every order unattributed. -->
-<script>location.replace({base} + location.search + {hash});</script>
+<!-- Before leaving, it tells the shop which photo it is about to need (W8.4):
+     the shop can then start that one file in its <head>, before its catalogue
+     arrives, instead of drawing a grey box first. Same origin, so the note
+     survives the hop; a refused storage just means no head start. -->
+<script>{first_note}location.replace({base} + location.search + {hash});</script>
 <style>
   body {{ margin:0; min-height:100vh; display:grid; place-items:center;
           background:#08080a; color:#fff;
@@ -319,6 +323,16 @@ PAGE = """<!DOCTYPE html>
 </body>
 </html>
 """
+
+
+def first_photo(product):
+    """The mirrored first photo the product page will draw, as the shop names it
+    (img/<id>-1200.webp), or "" when there is none on our domain yet."""
+    fid = drive_id((product.get("images") or [None])[0])
+    if not fid:
+        return ""
+    name = photo_name(fid, max(PHOTO_WIDTHS))
+    return "img/" + name if os.path.exists(os.path.join(PHOTO_DIR, name)) else ""
 
 
 def render(product, image_name):
@@ -366,6 +380,12 @@ def render(product, image_name):
         base=json.dumps(SITE + "/"),
         hash=json.dumps("#/p/%s" % urllib.parse.quote(slug, safe="")),
         target_plain=esc(target),
+        first_note=(
+            'try{sessionStorage.setItem("ss_first",%s)}catch(e){}'
+            % json.dumps(slug + "|" + first_photo(product))
+            if first_photo(product)
+            else ""
+        ),
     )
 
 
