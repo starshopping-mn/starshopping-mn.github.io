@@ -133,8 +133,18 @@ const SET_ADDRESS = `${SUPABASE_URL}/rest/v1/rpc/set_order_address`;
    rides along so the bot knows which advert brought them — the same value the
    web order carries as creative_id. */
 const MESSENGER_PAGE = "1300692469783051";
+/* On a phone `m.me` hands straight to the Messenger app, where the visitor is
+   already signed in. On a desktop it redirects to messenger.com, which keeps a
+   session of its own: measured on 2026-09-23, someone signed in to facebook.com
+   was still shown messenger.com/login.php and asked to sign in again — a login
+   wall on the one button that costs nothing to press. facebook.com/messages/t/
+   opens the same conversation inside the session the desktop visitor already
+   has. It carries no `ref`, so a desktop chat arrives unattributed; a chat that
+   opens beats a chat that is refused. */
+const onPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
 const messengerLink = () => {
   const ref = creativeId();
+  if (!onPhone()) return `https://www.facebook.com/messages/t/${MESSENGER_PAGE}`;
   return `https://m.me/${MESSENGER_PAGE}` + (ref ? `?ref=${encodeURIComponent(ref)}` : "");
 };
 const chatButton = () =>
