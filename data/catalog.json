@@ -73,7 +73,7 @@
       "product_id": "3acb498a-bebd-4784-bed3-8f9bf9c7fe30",
       "compareAt": null,
       "featured": true,
-      "deliveryPaidBy": "customer",
+      "deliveryPaidBy": "included",
       "fulfillment": "preorder",
       "shipsInDays": 14,
       "maxPerOrder": 5
