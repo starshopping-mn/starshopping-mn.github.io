@@ -39,7 +39,11 @@
      crawler on to the shop, where there is nothing for it to read.
      The query string rides along: an ad link ends in ?ref=<creative>, and a
      redirect that drops it leaves every order unattributed. -->
-<script>location.replace("https://starshopping.mn/" + location.search + "#/p/Huwtsas-hadgalah-sags");</script>
+<!-- Before leaving, it tells the shop which photo it is about to need (W8.4):
+     the shop can then start that one file in its <head>, before its catalogue
+     arrives, instead of drawing a grey box first. Same origin, so the note
+     survives the hop; a refused storage just means no head start. -->
+<script>try{sessionStorage.setItem("ss_first","Huwtsas-hadgalah-sags|img/1Sf27-uJhmDj0J7kLXJ5SnS7HritowKId-1200.webp")}catch(e){}location.replace("https://starshopping.mn/" + location.search + "#/p/Huwtsas-hadgalah-sags");</script>
 <style>
   body { margin:0; min-height:100vh; display:grid; place-items:center;
           background:#08080a; color:#fff;
