@@ -406,6 +406,7 @@ const productsIn = (slug) => DB.products.filter((p) => p.active !== false && p.c
    renamed after its address has been shared. */
 const ALIASES = {
   "huwtsas-hadgalah-shiid": "Huwtsas-hadgalah-sags",
+  "huuhdiin-oroo": "Huuhdiin-hashiwch", // the creatives carry this name; the product does not
 };
 
 const loosen = (s) =>
@@ -2141,6 +2142,17 @@ async function renderOrder() {
     root.style.scrollBehavior = had;
   };
 
+  /* Why an order did not go out, told to the pixel as a custom event. There
+     is no other channel: the site keeps no server of its own, and a diag
+     address does not belong in a public file. Events Manager then shows
+     "OrderIssue" with the reason, which is how a form that quietly fails for
+     phones we never tested on gets noticed. No personal data travels. */
+  const tell = (issue, extra) => {
+    try {
+      if (window.fbq) fbq("trackCustom", "OrderIssue", Object.assign({ issue, product: d.slug || "" }, extra || {}));
+    } catch (e) { /* the pixel is a bystander here */ }
+  };
+
   /* ---- step one: the phone number is the order ---- */
   const btn = $("submitBtn");
   let sending = false;
@@ -2148,9 +2160,20 @@ async function renderOrder() {
     e.preventDefault();
     if (sending) return;
 
-    const phone = $("fPhone").value.trim();
+    /* "8811 2233", "8811-2233", "+976 88112233", "976-8811-2233": the number
+       is the number however it was typed. Only the digits are compared, and a
+       country code in front is set aside. Anything else is refused with a
+       plain sentence — and counted, so a form that keeps refusing people is
+       seen in Events Manager rather than guessed at. */
+    const typed = $("fPhone").value;
+    let phone = typed.replace(/\D/g, "");
+    if (phone.length === 11 && phone.startsWith("976")) phone = phone.slice(3);
+    if (phone.length === 9 && phone.startsWith("0")) phone = phone.slice(1);
     const name = $("fName").value.trim().replace(/\s+/g, " ").slice(0, 80);
-    if (!/^\d{8}$/.test(phone)) return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
+    if (!/^\d{8}$/.test(phone)) {
+      tell("phone", { digits: phone.length });
+      return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
+    }
     clearFail();
 
     /* The intake knows a product only by its database id. On 2026-09-17 two
@@ -2159,6 +2182,7 @@ async function renderOrder() {
        without an id. */
     const productId = d.productId || (productBy(d.slug) || {}).product_id || "";
     if (!productId) {
+      tell("no_product_id", { live: liveLoaded ? 1 : 0 });
       return fail("", "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 9550-5717 руу залгана уу.");
     }
 
@@ -2249,6 +2273,10 @@ async function renderOrder() {
       console.error(ex);
       sending = false;
       busy(btn, "");
+      tell(
+        ex && ex.reply ? "refused" : ex && ex.name === "AbortError" ? "timeout" : "network",
+        ex && ex.reply ? { code: String(ex.reply.error || ex.reply.reason || ex.reply.refusal || "") } : {}
+      );
       const said = ex && ex.reply ? orderRefusal(ex.reply) : null;
       if (said && said.field) return fail(said.field, said.text);
       /* A request we gave up on may still have reached the backend, so the
@@ -2695,10 +2723,17 @@ const goHome = () => {
   location.hash = "#/";
 };
 
+/* The route, as `kind/slug` pieces. Anything after a `?` in the hash is
+   dropped first: Meta (and other trackers) append `?fbclid=…` to whatever
+   link they are given, and when that link is `#/p/slug` the marker lands
+   inside the hash — "slug?fbclid=…" names no product, and the visitor who
+   just clicked an ad would be told the product does not exist. */
+const hashParts = () => location.hash.replace(/^#\/?/, "").split("?")[0].split("/");
+
 /* Does the address currently point at something the loaded catalogue cannot
    resolve? Answering yes is what makes the shop reach for a fresher copy. */
 const routeUnresolved = () => {
-  const [kind, raw] = location.hash.replace(/^#\/?/, "").split("/");
+  const [kind, raw] = hashParts();
   if (kind !== "p" && kind !== "c") return false;
   let slug = raw;
   try {
@@ -2719,7 +2754,7 @@ function show(name) {
 let routedOnce = false;
 
 function route() {
-  const [kind, rawSlug] = location.hash.replace(/^#\/?/, "").split("/");
+  const [kind, rawSlug] = hashParts();
   /* Slugs are typed into the sheet by hand, so one arrives with spaces or
      Cyrillic sooner or later. The browser stores those percent-encoded, and
      comparing the encoded form against the sheet value matches nothing — the
@@ -2898,7 +2933,7 @@ function productSignature(slug) {
   ]);
 }
 const hashTarget = () => {
-  const [kind, slug] = location.hash.replace(/^#\/?/, "").split("/");
+  const [kind, slug] = hashParts();
   let want = slug;
   try {
     want = decodeURIComponent(slug || "");

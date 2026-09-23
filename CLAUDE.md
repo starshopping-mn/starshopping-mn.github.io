@@ -309,6 +309,16 @@ syntax for type uuid`-оор татгалзсан — зочин захиалс�
   зайтай хоёр мөр). `route()` тэмдгийг арилгана — гараад буцаж ирвэл дахин тоолно.
 - **Эхний route PageView явуулахгүй** (`routedOnce`) — `index.html` аль хэдийн
   явуулсан; өмнө нь ирэлт бүр хоёр тоологддог байв. Дараагийн route бүр явуулна.
+- **`OrderIssue` custom event** (2026-09-24): захиалгын форм илгээж чадаагүй
+  бүрд `fbq("trackCustom","OrderIssue",{issue, product, …})` явна — `phone`
+  (8 орон биш, `digits` хэдэн орон байсан), `no_product_id`, `refused`
+  (`code`), `timeout`, `network`. Хувийн мэдээлэл явахгүй. Сайт өөрийн сервэргүй,
+  diag хаяг нийтийн файлд орохгүй тул зочны төхөөрөмж дээр юу болж байгааг
+  харах цорын ганц суваг нь энэ: Events Manager → OrderIssue → параметрүүд.
+- Утасны дугаар: `\D` бүгдийг хаяж, урд `976` / `0` байвал хасаад 8 орон
+  шалгана — «8811 2233», «+976 88112233» хэлбэрээр бичсэн хүн буцаагдахгүй.
+- Router: hash доторх `?…`-г хаяж уншина (`hashParts()`): Meta `#/p/slug`
+  холбоос дээр `?fbclid=` залгавал өмнө нь «Бараа олдсонгүй» болдог байв.
 - 2026-09-21 гинжийн тест (`?ref=TEST-CHAIN`, эзний Chrome, Test Events):
   PageView → ViewContent → InitiateCheckout → Purchase бүгд ирсэн; Purchase-ийн
   Event ID = `order_id`, `value 119000`, `content_ids ["Huuhdiin-hashiwch"]`.
