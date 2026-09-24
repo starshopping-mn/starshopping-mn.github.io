@@ -6,7 +6,8 @@
   var KEY_NAME = 'ss_board_key';
   var q = {};
   new URLSearchParams(location.search).forEach(function (v, k) { q[k] = v; });
-  var view = q.view === 'research' ? 'research' : 'board';
+  // нүүр = Даалгавар; ?view=board — систем зураглал; ?view=research — судалгаа
+  var view = (q.view === 'research' || q.view === 'board') ? q.view : 'mission';
 
   function store(k) { try { if (k) localStorage.setItem(KEY_NAME, k); else localStorage.removeItem(KEY_NAME); } catch (e) { /* private window */ } }
   function load() { try { return localStorage.getItem(KEY_NAME) || ''; } catch (e) { return ''; } }
@@ -40,7 +41,7 @@
     .then(function (res) {
       var d = res[0];
       if (res[1]) d.pack = res[1];
-      var html = view === 'research' ? renderResearch(d, q) : renderBoard(d, q);
+      var html = view === 'research' ? renderResearch(d, q) : view === 'board' ? renderBoard(d, q) : renderMission(d, q);
       html = html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
       document.open(); document.write(html); document.close();
     })
