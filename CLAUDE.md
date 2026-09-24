@@ -1197,3 +1197,12 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - n8n `10b` (`/webhook/board-data`): GET `view=board|research|rank|pack&c=|verify&n=`; POST `?k=` body `{by, ads:[…], pages:[…]}` → `save_verdicts`.
 - Самбар: `/board/?view=research&tab=rank` (анхдагч), `tab=pack&c=<категори>` — app.js тухайн категорийн багцыг нэмж татна.
 - Шалгалтын хамрах хүрээ < 80% бол Telegram «🔍 шалгалт дутуу» гэж л мэдэгдэнэ, «ОР» өгөхгүй. Даваагийн скан task скан дууссаны дараа шалгалтыг хийнэ.
+
+## 25. Даалгавар — самбарын нүүр (2026-09-24, блок AD)
+- `/board/` = **Даалгавар** (mission.js · renderMission); `?view=board` = систем зураглал; `?view=research` = судалгаа.
+- Нотолгооны дохио (хуанли биш): шалгалт ≥80% · хаалга ✓ · №1–№2 ≥10 оноо · зар ≥5% өссөн 2 агшинд (rank_snapshots) №1 хэвээр → `signal_confirmation()`.
+- 4/4 болмогц `category_signal_check()` (n8n 25, 10/13/16/19 цаг) `mission_open()` дуудаж Telegram «💥 ДААЛГАВАР» илгээнэ; Даваа 13:00+ 7 хоногийн тойм.
+- Хүснэгт: `missions`, `mission_products` (тоглолт: ХУУЛЖ ОР / ЯЛГАРЧ ОР / ХУВИЛБАР ОЛ; үнэ: ИЖИЛ / БАГЦ / 1688), `mission_tasks` (7 хоног, эзэн самбараас «Хийсэн»; систем өөрөө танивал «систем баталсан»), `rank_snapshots`, `test_outcomes` (win/loss → ранкийн Чадвар ±2).
+- `product_play(pages, price)`: 5+ хуудас → хувилбар; 2–4 → ялгар; 1 → хуулж ор. Үнэ хаалганаас доош → багц (хямдруулахгүй).
+- Маягтын reel-ийн бараа → `vocab` (trigger), `term_market(term)` → Монголд хэдэн хуудас/хоног.
+- n8n 10b: GET `view=mission`; POST `{action:'task', task_id, status}` → `mission_task_set`. Даалгавар хаах: `mission_close({mission_id, result, note})`.
