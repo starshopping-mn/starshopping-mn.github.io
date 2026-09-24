@@ -1,4 +1,34 @@
-gsap.registerPlugin(ScrollTrigger);
+/* The motion library is fetched only when the front door is actually shown.
+   Every route used to load GSAP + ScrollTrigger (116KB) before this file could
+   run — and the visitor an advert sends lands on a product page that never
+   scrolls into anything. The front door preloads the two files from its
+   <head> (index.html), so for that visitor this is a cache hit; the scripts
+   are inserted with `async = false` so they still execute in order. Until they
+   are here, every ScrollTrigger call goes through `refreshMotion`, a no-op. */
+const MOTION_SRC = ["vendor/gsap.min.js", "vendor/ScrollTrigger.min.js"];
+let motionReady = null;
+function loadMotion() {
+  if (!motionReady) {
+    motionReady =
+      window.gsap && window.ScrollTrigger
+        ? Promise.resolve()
+        : new Promise((ok, no) => {
+            MOTION_SRC.forEach((src, i) => {
+              const s = document.createElement("script");
+              s.src = src;
+              s.async = false;
+              if (i === MOTION_SRC.length - 1) s.onload = ok;
+              s.onerror = () => no(new Error("motion: " + src));
+              document.head.appendChild(s);
+            });
+          });
+    motionReady = motionReady.then(() => gsap.registerPlugin(ScrollTrigger));
+  }
+  return motionReady;
+}
+const refreshMotion = () => {
+  if (window.ScrollTrigger) ScrollTrigger.refresh();
+};
 
 /* ScrollTrigger is deliberately left to refresh when a phone's viewport height
    changes. `ignoreMobileResize: true` was tried here and caused the opposite of
@@ -83,21 +113,23 @@ const shapeDistricts = (groups) => {
   const mn = (clean.find((g) => g.district === COUNTRYSIDE) || {}).khoroos || [];
   return ub.length ? { ub, mn } : null;
 };
+/* Read-only functions are asked with a plain GET and the public key in the
+   address (`?apikey=`), which Supabase accepts. A POST with the key in a
+   header is a "non-simple" request, and the browser first sends an OPTIONS
+   preflight and waits for its answer before the real one may go — one full
+   round trip, measured at 150–300ms per call from here and more from a phone
+   in Mongolia, on every cold visit. A GET with no custom headers needs none.
+   The writing calls (orders, checkout log) keep their POST. */
+const rpcGet = (fn) => `${SUPABASE_URL}/rest/v1/rpc/${fn}?apikey=${encodeURIComponent(SUPABASE_ANON)}`;
+/* Requests index.html started from its <head>, before this file arrived. */
+const early = (name) => (window.__ss && window.__ss[name]) || null;
 const loadAddressData = () => {
   if (!addressLoad) {
-    const live = fetch(DISTRICT_SOURCE, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${SUPABASE_ANON}`,
-        "Content-Type": "application/json",
-      },
-      body: "{}",
-    })
+    const live = fetch(rpcGet("web_districts"))
       .then((r) => (r.ok ? r.json() : null))
       .then(shapeDistricts)
       .catch(() => null);
-    const copy = fetch(DISTRICT_FALLBACK)
+    const copy = (early("districts") || fetch(DISTRICT_FALLBACK))
       .then((r) => (r.ok ? r.json() : null))
       .then(shapeDistricts)
       .catch(() => null);
@@ -566,6 +598,18 @@ const catTotalEl = document.getElementById("catTotal");
 let current = 0;
 let cycle = null;
 
+/* The category artwork is drawn into the home view whenever the catalogue
+   lands, home or not — and a hidden <img> with a `src` is fetched all the
+   same: measured at 115KB of category pictures downloaded on a product link
+   that never shows them. While the home view is hidden the address waits in
+   `data-src`; entering home wakes them (`wakeHome`). */
+function wakeHome() {
+  catsStage.querySelectorAll("img[data-src]").forEach((img) => {
+    img.src = img.dataset.src;
+    delete img.dataset.src;
+  });
+}
+
 function renderCategories() {
   const cats = DB.categories.filter((c) => c.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
   catsStage.innerHTML = "";
@@ -590,7 +634,7 @@ function renderCategories() {
           <span class="cat__go">Үзэх →</span>
         </a>
       </div>
-      <div class="cat__img"><img src="${photoSrc(c.image).src}" data-fallback="${esc(photoSrc(c.image).fallback)}" alt="${esc(c.name)}"></div>`;
+      <div class="cat__img"><img ${views.home.hidden ? "data-src" : "src"}="${photoSrc(c.image).src}" data-fallback="${esc(photoSrc(c.image).fallback)}" alt="${esc(c.name)}"></div>`;
     catsStage.appendChild(art);
   });
 
@@ -785,7 +829,17 @@ document.querySelectorAll(".arrow").forEach((arrow) =>
    HOME · motion
    ===================================================================== */
 const heroEl = document.getElementById("hero");
-const camImg = document.querySelector(".hero__cam img");
+/* The camera photograph lives in a <template> until the front door needs it
+   (index.html explains why), so on a product link there is no image here yet.
+   `ensureHero` stamps it out the first time home is shown; until then this is
+   null and nothing below may touch it. */
+let camImg = document.querySelector(".hero__cam img");
+function ensureHero() {
+  if (camImg) return;
+  const tpl = document.getElementById("heroPic");
+  if (tpl) tpl.parentNode.insertBefore(tpl.content.cloneNode(true), tpl);
+  camImg = document.querySelector(".hero__cam img");
+}
 let homeTriggers = [];
 let heroTl = null;
 
@@ -805,6 +859,7 @@ if (/(^|[?&])diag/.test(location.search)) {
   addEventListener("DOMContentLoaded", () => document.body.appendChild(box));
   let worst = 0;
   const report = () => {
+    if (!camImg || !window.ScrollTrigger) return; // the front door has not been built yet
     const vh = window.visualViewport ? window.visualViewport.height : innerHeight;
     const h = heroEl.getBoundingClientRect();
     const c = camImg.getBoundingClientRect();
@@ -834,6 +889,24 @@ const lensOffset = (axis) => () => {
 
 function buildHomeMotion() {
   if (heroTl) return;
+  ensureHero();
+  /* The library arrives on its own schedule (see `loadMotion`): the first
+     time through it is usually not here yet, so come back once it is — and
+     only if the visitor is still on the front door by then. The hero is laid
+     out by CSS alone in the meantime, so nothing is blank while it loads. */
+  if (!window.gsap || !window.ScrollTrigger) {
+    loadMotion()
+      .then(() => {
+        if (views.home.hidden || heroTl) return;
+        buildHomeMotion();
+        // the same late measurements `load` gets: fonts and images still landing
+        refreshMotion();
+        setTimeout(refreshMotion, 250);
+        setTimeout(refreshMotion, 1200);
+      })
+      .catch((err) => console.warn("Хөдөлгөөний сан ирсэнгүй — нүүр хөдөлгөөнгүй харагдана:", err));
+    return;
+  }
 
   /* Scrolling flies the viewer into the lens: the image scales about the
      lens while the lens itself travels to the middle of the screen, so it
@@ -924,6 +997,7 @@ function buildHomeMotion() {
 
 function destroyHomeMotion() {
   stopCycle();
+  if (!window.gsap || !camImg) return; // nothing was ever built, nothing to clear
   if (heroTl) {
     heroTl.scrollTrigger && heroTl.scrollTrigger.kill();
     heroTl.kill();
@@ -2840,13 +2914,14 @@ function route() {
     renderPolicy(slug);
   } else {
     show("home");
+    wakeHome();
     setHead("", "/");
     buildHomeMotion();
     setRail("hero");
   }
 
   window.scrollTo(0, 0);
-  ScrollTrigger.refresh();
+  refreshMotion();
   /* index.html has already reported the page the visitor landed on; saying it
      again for the first route counted every arrival twice. Later routes are
      pages of their own and are reported here. */
@@ -2873,7 +2948,7 @@ document.addEventListener("keydown", (e) => {
    So it is taken again, after the window has stopped moving and whenever the
    viewport genuinely changes. Refreshing keeps the scroll position, so nobody
    is thrown anywhere; it only re-measures. */
-const settle = () => ScrollTrigger.refresh();
+const settle = refreshMotion;
 addEventListener("load", () => {
   setTimeout(settle, 250);
   setTimeout(settle, 1200);
@@ -3028,7 +3103,7 @@ function paint(data, { first }) {
     }
   }
   // fonts and images landing late can shift a pin's measurements
-  requestAnimationFrame(() => ScrollTrigger.refresh());
+  requestAnimationFrame(refreshMotion);
 }
 
 /* ---- Supabase rows → the shape every render function already reads ----
@@ -3130,8 +3205,10 @@ const feedDeadline = () => {
    only the sheet to wait for — measured at four to five seconds, and that is
    on a wired line. This file is rebuilt every twenty minutes, sits on our own
    domain and answers in half a second, so it is asked every time and used
-   whenever the address points at something the stored copy cannot resolve. */
-fetch(DATA_FALLBACK, { cache: "no-cache" })
+   whenever the address points at something the stored copy cannot resolve.
+   index.html has usually asked for it already, from its <head>, before this
+   file was even downloaded (`__ss.copy`) — so it tends to be here by now. */
+(early("copy") || fetch(DATA_FALLBACK, { cache: "no-cache" }))
   .then((r) => r.json())
   .then((data) => {
     if (!extras) extras = data;
@@ -3154,17 +3231,8 @@ fetch(DATA_FALLBACK, { cache: "no-cache" })
 
 /* 2 — the products, from the database the intake prices from. An empty answer
    is not an error: nothing has been registered yet, and the sheet carries the
-   shelf exactly as it did before. */
-fetch(CATALOG_SOURCE, {
-  method: "POST",
-  headers: {
-    apikey: SUPABASE_ANON,
-    Authorization: `Bearer ${SUPABASE_ANON}`,
-    "Content-Type": "application/json",
-  },
-  body: "{}",
-  signal: feedDeadline(),
-})
+   shelf exactly as it did before. A GET, so no preflight (see `rpcGet`). */
+fetch(rpcGet("web_products"), { signal: feedDeadline() })
   .then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
