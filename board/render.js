@@ -889,6 +889,33 @@ function renderResearch(DATA, QUERY) {
   // ══ 4. ХОЦРОГДОЛ
   if (TAB === 'lag') {
     o('<p class="lead">' + esc(LAG.lead || '') + ' ' + esc(LAG.note || '') + '</p>');
+    const RD = LAG.radar || {};
+    if (RD.lead) {
+      const st = RD.status || {};
+      o('<div class="h3">Viral радар · АНУ / Солонгос</div><p class="lead">' + esc(RD.lead) + '</p>');
+      o('<div class="cm">Сүүлийн скан: ' + esc(RD.last_scan ? String(RD.last_scan).slice(0, 10) : '—') + ' · шинэ зар (≤30 хоног): ' + n(RD.fresh_ads)
+        + ' · дэвшсэн ' + n(st.promoted) + ' · шалгах ' + n(st.new) + ' · хянаж буй ' + n(st.watch)
+        + ' · татгалзсан ' + (n(st.rejected) + n(st.generic) + n(st.brand) + n(st.dupe)) + '</div>');
+      const PR = A(RD.promoted);
+      if (PR.length) {
+        const MS = { confirmed: 'гарсан', already: 'аль хэдийн байсан', candidate: 'шалгагдаж буй', generic: 'үг ерөнхий', page: 'page', watching: 'олдоогүй — цонх нээлттэй' };
+        o('<div class="sc"><table><tr><th>Бараа</th><th>Хуудас</th><th>Гадаадад эхэлсэн</th><th>1688</th><th>Монголд</th><th></th></tr>');
+        PR.forEach((r) => o('<tr><td><b>' + esc(r.product) + '</b><div class="cm">' + esc(A(r.countries).join('/')) + '</div></td><td class="nm">' + n(r.pages)
+          + (n(r.growth) > 0 ? ' <span class="gt ok">+' + n(r.growth) + '</span>' : '') + '</td><td class="nm">' + esc(r.first_started || '—')
+          + (has(r.days) ? '<div class="cm">' + n(r.days) + ' хоногийн өмнө</div>' : '')
+          + '</td><td class="nm">' + (has(r.cn_price) ? '¥' + esc(r.cn_price) : '—') + (r.cn_sold ? '<div class="cm">' + esc(r.cn_sold) + '</div>' : '')
+          + '</td><td>' + esc(MS[r.mn_status] || r.mn_status || '—') + (r.mn_first_ad_on ? '<div class="cm">' + esc(r.mn_first_ad_on) + '</div>' : '')
+          + '</td><td>' + (url(r.url) ? '<a class="go" href="' + url(r.url) + '" target="_blank" rel="noopener">зар</a>' : '') + '</td></tr>'));
+        o('</table></div>');
+      }
+      const OP = A(RD.open);
+      if (OP.length) {
+        o('<div class="cm" style="margin-top:8px">Шалгагдаж буй нэр дэвшигч (Claude шалгана):</div><div class="sc"><table><tr><th>Хэллэг</th><th>Төрөл</th><th>Хуудас</th><th>Хоног</th><th></th></tr>');
+        OP.forEach((r) => o('<tr><td>' + esc(r.label || '—') + '</td><td>' + esc(r.kind === 'scale' ? 'олон хувилбар ×' + n(r.collation) : 'хуулбарлагчид') + '</td><td class="nm">' + n(r.pages)
+          + '</td><td class="nm">' + (has(r.days) ? n(r.days) : '—') + '</td><td>' + (url(r.url) ? '<a class="go" href="' + url(r.url) + '" target="_blank" rel="noopener">зар</a>' : '') + '</td></tr>'));
+        o('</table></div>');
+      }
+    }
     const SE = A(LAG.seasons);
     if (SE.length) {
       o('<div class="h3">Баярын сэрүүлэг · 60 / 45 / 30 хоног</div><div class="sc"><table><tr><th>Баяр</th><th>Үлдсэн</th><th>Одоогийн алхам</th><th>Бараа · Монгол дахь нотолгоо</th></tr>');
