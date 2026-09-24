@@ -1293,3 +1293,13 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 кирилл-ext, латин тоо); `script.js`-ийг minify хийгээгүй (build алхам байхгүй, gzip-ээр
 50KB); Supabase fetch-ийг толгойноос эхлүүлээгүй (түлхүүр хоёр газар болно, `preconnect`
 хангалттай); фонтын хэмжээ, Pixel-ийн 250KB — манай гарт биш.
+
+## 30. Viral радар (блок AJ–AJ4, 2026-09-24)
+- Зорилго: АНУ/Солонгосын Ad Library-д **хуулбарлагчдын бөөгнөрөл** (нэг барааг ≤30 хоногт ≥3 өөр хуудас) эсвэл ≥8 хувилбартай нэг зарыг автоматаар олох. Эзэн өөрөө шүүхгүй — систем олно, Claude баталгаажуулна.
+- Хүснэгт: `radar_queries` (хайх үг, country) · `radar_ads` (≤45 хоногийн түүхий зар, ad_signals-аас ТУСДАА) · `radar_candidates` · суралцах жагсаалт `radar_stopwords`, `radar_stop_bigrams` (generic шийдвэрээс), `radar_skip_pages` (brand шийдвэрээс).
+- Урсгал: скан → anon `ingest_radar_ads` → самбар `GET view=radar` (= `radar_detect()`, service_role 60с; anon 3с-д багтахгүй тул anon-д ӨГӨХГҮЙ) → `verify_queue().radar_queue` → `save_verdicts({radar:[…]})` promote|reject|generic|brand|dupe|watch|cn → promote нь `log_global_find` (source='radar') → `global_lag_match` → Монгол хоцрогдол. Telegram: n8n 15 салбар `radar_alerts()` → `mark_radar_announced`.
+- Илрүүлэлтийн дүрэм (бодит өгөгдлөөс сурсан): (1) ≥2 өөр хуудасны зард хамт орсон хос үгс = нэг бараа (холбоот бүрэлдэхүүн); (2) хайлтын үг өөрөө бараа биш — хасна (AJ3); (3) ганц ерөнхий хэллэг («say goodbye», «걱정 없이») бараа биш — ≥2 хос үг, ≥4 өөр үг (AJ4); (4) >40 хуудастай бүрэлдэхүүн = ерөнхий хэллэг холбосон → хамгийн олон хуудастай хос үгсийг таслана.
+- Supabase `safeupdate`: PostgREST-ээр дуудагдах функцэд WHERE-гүй UPDATE/DELETE хориотой (AJ2). Локал PG үүнийг барихгүй — `where …` заавал.
+- Supabase SQL Editor: string literal дотор `into <үг>` байвал «relation does not exist» өгч болно (AJ-ийн stopword мөр) — литералд SQL түлхүүр үг бүү хий.
+- Анхны бодит үр дүн (660 зар): машины тоос сорогч+хийлэгч 2in1 (KR 17 хуудас, 1688 ¥56–106), аккумлятор салгагч (US 5 хуудас, 1688 ¥4.5) → дэвшсэн. Шуугиан: богино драм апп («NS-…»), AI апп, брэндүүд → brand.
+- Scheduled task «Viral радар» Даваа 12:30 (УБ). TikTok Creative Center «Top Products» алга болсон (TikTok One) — Top Ads/Hashtag нь хоёрдугаар шатны баталгаа.
