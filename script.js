@@ -114,6 +114,40 @@ const loadAddressData = () => {
    sends who and what, shows the answer, and works nothing out itself. */
 const ORDER_INTAKE = "https://starshopping.app.n8n.cloud/webhook/order-intake";
 
+/* Checkout telemetry (2026-09-24). In three days 231 visitors pressed
+   «Захиалах» and none sent a phone number — and nothing said where they
+   stopped. Each step of the order form now leaves one anonymous line
+   (a random id per page load, never the number itself), so the board can name
+   the step that leaks. Fire-and-forget: a failed log never touches the order.
+   Complements tell(): that one reports refusals to the pixel, this one the
+   whole funnel to Supabase (checkout_events → checkout_funnel on the board). */
+const CHECKOUT_LOG = `${SUPABASE_URL}/rest/v1/rpc/log_checkout`;
+const CK_SID = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const CK_UA = navigator.userAgent || "";
+const CK_APP = /FBAN|FBAV|FB_IAB|FBIOS|FB4A/i.test(CK_UA) ? "fb" : /Instagram/i.test(CK_UA) ? "ig" : "none";
+const CK_DEV = /iPhone|iPad|iPod/i.test(CK_UA) ? "ios" : /Android/i.test(CK_UA) ? "android" : "desktop";
+const ckSeen = new Set();
+let ckSlug = null;
+let ckDone = false;
+function ck(step, detail) {
+  if (step !== "invalid" && step !== "error" && ckSeen.has(step)) return;
+  ckSeen.add(step);
+  let cr = null;
+  try { cr = creativeId(); } catch (e) { /* no ad in the address */ }
+  try {
+    fetch(CHECKOUT_LOG, {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+      body: JSON.stringify({ p: { sid: CK_SID, slug: ckSlug, step, detail: detail ? String(detail).slice(0, 200) : null,
+                                  in_app: CK_APP, device: CK_DEV, creative: cr } }),
+    }).catch(() => {});
+  } catch (e) { /* telemetry must never break the shop */ }
+}
+const ckLeave = () => { if (ckSeen.has("open") && !ckDone && !ckSeen.has("leave")) ck("leave", location.hash); };
+window.addEventListener("pagehide", ckLeave);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") ckLeave(); });
+
 /* Who to ring about what. The courier changed in September 2026: deliveries are
    carried by Гялс хүргэлт, and "where is my parcel" is theirs to answer. What
    was ordered, changing or cancelling it, is the shop's own order line. The
@@ -1551,6 +1585,8 @@ function renderProduct(slug) {
         num_items: qty,
         ...pixelValue(orderTotal()),
       });
+    ckSlug = p.slug;
+    ck("open");
     location.hash = "#/order";
   });
 
@@ -2068,10 +2104,14 @@ async function renderOrder() {
      the visitor's time twice. Nothing but digits ever lands in it. */
   {
     const el = $("fPhone");
+    ckSlug = ckSlug || d.slug || null;
+    ck("form_view");
+    el.addEventListener("focus", () => ck("phone_focus"));
     el.addEventListener("input", () => {
       const digits = el.value.replace(/[^0-9]/g, "").slice(0, 8);
       if (el.value !== digits) el.value = digits;
       el.classList.remove("is-invalid");
+      if (digits.length === 8) ck("phone_typed");
     });
   }
   page.querySelectorAll(".input").forEach((el) =>
@@ -2159,6 +2199,7 @@ async function renderOrder() {
   $("orderForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sending) return;
+    ck("submit_try");
 
     /* "8811 2233", "8811-2233", "+976 88112233", "976-8811-2233": the number
        is the number however it was typed. Only the digits are compared, and a
@@ -2171,6 +2212,7 @@ async function renderOrder() {
     if (phone.length === 9 && phone.startsWith("0")) phone = phone.slice(1);
     const name = $("fName").value.trim().replace(/\s+/g, " ").slice(0, 80);
     if (!/^\d{8}$/.test(phone)) {
+      ck("invalid", "phone:" + phone.length);
       tell("phone", { digits: phone.length });
       return fail("fPhone", "Утасны дугаар 8 оронтой тоо байх ёстой.");
     }
@@ -2182,6 +2224,7 @@ async function renderOrder() {
        without an id. */
     const productId = d.productId || (productBy(d.slug) || {}).product_id || "";
     if (!productId) {
+      ck("error", "no_product_id");
       tell("no_product_id", { live: liveLoaded ? 1 : 0 });
       return fail("", "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 9550-5717 руу залгана уу.");
     }
@@ -2238,6 +2281,9 @@ async function renderOrder() {
           { eventID: String(out.order_id || "") }
         );
 
+      ckDone = true;
+      ck("ok", out.is_duplicate ? "duplicate" : null);
+
       /* A repeat inside a day comes back as a duplicate row pointing at the
          first; the address belongs on the first, the one the operator works. */
       const target = String((out.is_duplicate && out.duplicate_of) || out.order_id || "");
@@ -2278,6 +2324,7 @@ async function renderOrder() {
         ex && ex.reply ? { code: String(ex.reply.error || ex.reply.reason || ex.reply.refusal || "") } : {}
       );
       const said = ex && ex.reply ? orderRefusal(ex.reply) : null;
+      ck("error", said ? said.text : ex && ex.name === "AbortError" ? "timeout" : String((ex && ex.message) || ex));
       if (said && said.field) return fail(said.field, said.text);
       /* A request we gave up on may still have reached the backend, so the
          wording stops short of telling them to fire a second one blind. */
