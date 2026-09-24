@@ -121,6 +121,7 @@ function renderBoard(DATA, QUERY) {
   P('<header><div class="hd"><div class="bm">S</div><div>');
   P('<div class="bt">Starshopping</div><div class="bs">Систем зураглал · ' + esc(gen) + ' UTC</div></div>');
   P('<div class="sp"></div>');
+  P('<a class="chip gold" href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">▶ Даалгавар</a>');
   const alive = n(PU.msg_in) > 0 || n(PU.orders) > 0;
   P('<span class="chip"><span class="dot' + (alive ? '' : ' off') + '"></span>' + (alive ? 'LIVE' : 'ЧИМЭЭГҮЙ') + '</span>');
   const SCN = d.scan || {};
@@ -574,7 +575,7 @@ function renderBoard(DATA, QUERY) {
     + 'b.textContent=L[t];b.setAttribute("aria-label","Горим: "+L[t])}'
     + 'apply(get());b.addEventListener("click",function(){var o=["auto","dark","light"],t=o[(o.indexOf(get())+1)%3];'
     + 'try{localStorage.setItem(K,t)}catch(e){}apply(t);'
-    + 'var u=location.pathname+(t==="auto"?"":"?theme="+t);'
+    + 'var u=location.pathname+"?view=board"+(t==="auto"?"":"&theme="+t);'
     + 'try{history.replaceState(null,"",u)}catch(e){location.replace(u)}})})();</script>');
   P('</body></html>');
 
@@ -660,7 +661,7 @@ function renderResearch(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Судалгаа</div>');
   o('<div class="bs">зах зээл · hook · зохиомж · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="chip" target="_blank" rel="noopener" href="https://www.facebook.com/ads/library/?active_status=active&amp;ad_type=all&amp;country=MN&amp;media_type=all">Ad Library · MN ↗</a>');
-  o('<a class="rf" href="' + HOME + '">← Самбар</a></div></header>');
+  o('<a class="rf" href="' + HOME + '">← Даалгавар</a> <a class="rf" href="/board/?view=board' + (themeQ ? '&theme=' + themeQ : '') + '">Систем</a></div></header>');
 
   // ── KPI
   const VP = n(R.viable_price_mnt);
