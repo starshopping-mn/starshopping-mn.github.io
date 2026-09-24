@@ -584,13 +584,13 @@ function renderBoard(DATA, QUERY) {
 }
 
 function renderResearch(DATA, QUERY) {
-  // «Судалгааны хуудас» — /webhook/board?view=research&tab=cat|mn|global|lag
+  // «Судалгааны хуудас» — /board/?view=research&tab=rank|pack(&c=)|cat|mn|global|lag
   // Самбартай нэг Загвар (өнгө, гэрэл/харанхуй) хэрэглэнэ. Табууд нь энгийн холбоос:
   // JS шаардахгүй, ?theme= хадгалагдана.
   const d = DATA || {};
   const Q = QUERY || {};
   const themeQ = Q.theme === 'dark' || Q.theme === 'light' ? Q.theme : '';
-  const TAB = ['cat', 'mn', 'global', 'lag'].includes(Q.tab) ? Q.tab : 'cat';
+  const TAB = ['rank', 'pack', 'cat', 'mn', 'global', 'lag'].includes(Q.tab) ? Q.tab : 'rank';
   const BASE = 'https://starshopping.app.n8n.cloud';
   const HOME = '/board/' + (themeQ ? '?theme=' + themeQ : '');
   const link = (tab) => '/board/?view=research&tab=' + tab + (themeQ ? '&theme=' + themeQ : '');
@@ -612,6 +612,10 @@ function renderResearch(DATA, QUERY) {
   const reels = A(d.reels);
   const glob = A(d.global);
   const LAG = d.lag || {};
+  const RANK = d.rank || {};
+  const rankCats = A(RANK.categories);
+  const PACK = d.pack || null;
+  const VER = d.verify || {};
 
   const P = []; const o = (s) => P.push(s);
   o('<!doctype html><html lang="mn"' + (themeQ ? ' data-theme="' + themeQ + '"' : '') + '><head><meta charset="utf-8">');
@@ -644,6 +648,11 @@ function renderResearch(DATA, QUERY) {
    + '.card .ft{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:10px}.card .ft a{color:var(--blue)}'
    + '.bands{display:flex;gap:4px;flex-wrap:wrap}.bands span{font-size:11px;padding:4px 8px;border-radius:6px;background:var(--s2);color:var(--ink2)}.bands span.v{background:var(--good-a);color:var(--good)}'
    + '.lead{font-size:13px;color:var(--ink2);margin:6px 0 2px;max-width:760px;line-height:1.5}'
+   + '.rk{font-size:18px;font-weight:800;min-width:38px;font-variant-numeric:tabular-nums}'
+   + '.ax{display:grid;grid-template-columns:70px 1fr 34px;gap:4px 10px;align-items:center;font-size:13px;margin:8px 0}'
+   + '.ax i{display:block;height:8px;border-radius:4px;background:var(--s2);overflow:hidden}.ax u{display:block;height:100%;background:var(--f3)}'
+   + '.ax b{text-align:right;font-variant-numeric:tabular-nums}.ax small{grid-column:2/4;color:var(--mut);font-size:11px}'
+   + '.ft a+a{margin-left:0}'
    + '@media(max-width:640px){.bar{grid-template-columns:110px 1fr 28px}}');
   o('</style></head><body><div class="w">');
 
@@ -658,10 +667,14 @@ function renderResearch(DATA, QUERY) {
   o('<div class="kpi">');
   const kpi = (l, v, s, c) => o('<div class="k ' + (c || '') + '"><div class="kl">' + esc(l) + '</div><div class="kv">' + esc(v) + '</div>'
     + (s ? '<div class="ks">' + esc(s) + '</div>' : '') + '</div>');
-  kpi('Орох зах зээл', ENTRY ? ENTRY.category : '—', ENTRY ? 'хаалга давсан · ' + n(ENTRY.viable_pages_180) + ' хуудас' : 'хаалга давсан категори алга', ENTRY ? 'good' : '');
+  const COV0 = ((d.rank || {}).coverage || {});
+  const SURE = n(COV0.pct) >= 80;
+  kpi('Орох зах зээл', ENTRY ? ENTRY.category : '—', ENTRY ? (SURE ? 'хаалга давсан · ' : 'ТААМАГ · шалгалт ' + n(COV0.pct) + '% · ') + n(ENTRY.viable_pages_180) + ' хуудас' : 'хаалга давсан категори алга', ENTRY ? (SURE ? 'good' : 'warn') : '');
   kpi('Хаалга', VP ? mnt(VP) : '—', 'бараа+карго ' + Math.round(n(R.cost_ratio_assumed) * 100) + '% · ' + mnt(R.min_contribution_mnt) + ' үлдэнэ');
   kpi('Монгол reel', n(H.reels_usable) + ' / 15', 'ашиглагдах · нийт ' + n(H.reels), n(H.reels_usable) >= 15 ? 'good' : 'warn');
   kpi('Гадаад олдвор', String(glob.length), glob.filter((g) => g.screened).length + ' шүүгдсэн');
+  const COV = (RANK.coverage || {});
+  kpi('Шалгалт', n(COV.pct) + '%', n(COV.verified_180) + '/' + n(COV.ads_180) + ' зар (180+) · ' + n(VER.pending) + ' хүлээгдэж', n(COV.pct) >= 80 ? 'good' : 'warn');
   // Видео үйлдвэрийн бэлэн байдал (эзэнтэй тохирсон, 2026-09-24): 15 ашиглагдах reel + hook-ийн эрэмбэ,
   // эзэнтэй хамт хийсэн 3 креатив зар болж явсан, тэдний hook/hold медианаас доош биш. Гурвуулаа биелэхэд сануулна.
   const vReel = n(H.reels_usable) >= 15;
@@ -669,10 +682,114 @@ function renderResearch(DATA, QUERY) {
   o('</div>');
 
   // ── табууд
-  const TABS = [['cat', 'Категори · hook', cats.length], ['mn', 'Монгол reel', reels.length],
+  const TABS = [['rank', 'Ранк', rankCats.length], ['pack', 'Орох багц', PACK ? A(PACK.niches).length : 0], ['cat', 'Категори · hook', cats.length], ['mn', 'Монгол reel', reels.length],
                 ['global', 'Гадаад viral', glob.length], ['lag', 'Хоцрогдол', n(LAG.products)]];
   o('<nav class="tabs">' + TABS.map((t) => '<a class="' + (t[0] === TAB ? 'on' : '') + '" href="' + link(t[0]) + '">'
     + esc(t[1]) + '<em>' + t[2] + '</em></a>').join('') + '</nav>');
+
+  // ══ 0. РАНК — аль зах зээлд орох вэ (зөвхөн шалгасан зар тоологдоно)
+  if (TAB === 'rank') {
+    const cov = RANK.coverage || {};
+    const W = (RANK.rules || {}).weights || {};
+    o('<p class="lead">Категориудыг 5 тэнхлэгээр эрэмбэлнэ: Эрэлт ' + Math.round(n(W.demand) * 100) + '% · Ашиг ' + Math.round(n(W.profit) * 100)
+      + '% · Цонх ' + Math.round(n(W.window) * 100) + '% · Хурд ' + Math.round(n(W.momentum) * 100) + '% · Чадвар ' + Math.round(n(W.fit) * 100)
+      + '%. Зөвхөн Ad Library дээр шалгасан дропшип зар тоологдоно; оноо нь категориудын хоорондох харьцангуй (0–100).</p>');
+    if (n(cov.pct) < 80) {
+      o('<div class="card"><div class="t1"><span class="pn">Шалгалт дутуу · ' + n(cov.pct) + '%</span><span class="gt wr">'
+        + n(VER.pending) + ' зар хүлээгдэж байна</span></div><div class="ln">180+ хоногийн ' + n(cov.ads_180) + ' зарын '
+        + n(cov.verified_180) + ' нь шалгагдсан. 80% хүрэхээс өмнө ранк «таамаг» — Telegram «ОР» дохио өгөхгүй.</div></div>');
+    }
+    if (!rankCats.length) o('<div class="em">Ранк алга — блок AC ажиллаагүй эсвэл скан хоосон.</div>');
+    const AX = [['demand', 'Эрэлт'], ['profit', 'Ашиг'], ['window', 'Цонх'], ['momentum', 'Хурд'], ['fit', 'Чадвар']];
+    rankCats.forEach((c, i) => {
+      const ax = c.axes || {};
+      o('<details class="cc"' + (i === 0 ? ' open' : '') + '><summary>');
+      o('<span class="rk">№' + n(c.rank) + '</span><span class="cn">' + esc(c.category) + '</span>');
+      o('<span class="gt bl">' + n(c.total).toFixed(1) + '</span>');
+      o(c.gate_ok ? '<span class="gt ok">хаалга ✓</span>' : '<span class="gt no">хаалга ' + n(c.viable_pages_180) + '/2</span>');
+      if (n(c.pending)) o('<span class="gt wr">шалгаагүй ' + n(c.pending) + '</span>');
+      o(c.our_page ? '<span class="gt ok">page бий</span>' : '<span class="gt no">page алга</span>');
+      o('<span class="cm">' + n(c.pages_180) + ' хуудас 180+ · медиан ' + mnt(c.median_price) + '</span></summary><div class="cb">');
+      AX.forEach((a) => {
+        const x = ax[a[0]] || {};
+        o('<div class="ax"><span>' + a[1] + '</span><i><u style="width:' + Math.max(0, Math.min(100, n(x.score))) + '%"></u></i><b>'
+          + n(x.score) + '</b><small>' + esc(x.facts || '') + '</small></div>');
+      });
+      const ev = A(c.evidence);
+      o('<div class="h3">Нотолгоо · шалгасан 180+ зар (нэг хуудас нэг мөр)</div>');
+      if (!ev.length) o('<div class="cm">Шалгасан зар алга.</div>');
+      ev.slice(0, 12).forEach((e) => o('<div class="hk"><div class="dd">' + n(e.days) + '<small>хоног</small></div><div><div class="tx">'
+        + esc(e.product || '—') + (e.bundle ? ' <span class="gt ok">багц</span>' : '') + '</div><div class="mt">' + esc(e.niche || '') + ' · ' + esc(e.page)
+        + (has(e.price) ? ' · ' + mnt(e.price) : '') + (e.library_id ? ' · <a href="https://www.facebook.com/ads/library/?id=' + esc(e.library_id)
+        + '" target="_blank" rel="noopener">Ad Library</a>' : '') + '</div></div></div>'));
+      o('<div class="ft"><a class="go" href="' + link('pack') + '&amp;c=' + encodeURIComponent(c.category) + '">Орох багц →</a></div>');
+      o('</div></details>');
+    });
+  }
+
+  // ══ 0b. ОРОХ БАГЦ — сонгосон категорийн дэд бүлэг, бараа, hook, page/сайт
+  if (TAB === 'pack') {
+    if (!PACK || !PACK.category) o('<div class="em">Багц алга.</div>');
+    else {
+      const rk = PACK.rank || {};
+      o('<div class="card"><div class="t1"><span class="pn">' + esc(PACK.category) + '</span>'
+        + (has(rk.rank) ? '<span class="gt bl">№' + n(rk.rank) + ' · ' + n(rk.total).toFixed(1) + '</span>' : '')
+        + (rk.gate_ok ? '<span class="gt ok">хаалга ✓</span>' : '<span class="gt no">хаалга ' + n(rk.viable_pages_180) + '/2</span>') + '</div>');
+      o('<div class="ln"><span>page</span>' + (PACK.our_page ? esc(PACK.our_page.name) + ' (' + esc(PACK.our_page.status) + ')' : 'алга — шинэ page хэрэгтэй') + '</div>');
+      const st = PACK.site || {};
+      o('<div class="ln"><span>сайт</span>' + (st.slug ? esc(st.label || st.slug) + ' · ' + n(st.products) + ' идэвхтэй бараа' : 'категори алга') + '</div>');
+      const ns = A(PACK.next_steps);
+      if (ns.length) o('<div class="nt">' + ns.map((s, j) => (j + 1) + '. ' + esc(s)).join('<br>') + '</div>');
+      o('<div class="ft">' + rankCats.map((c) => '<a href="' + link('pack') + '&amp;c=' + encodeURIComponent(c.category) + '">'
+        + esc(c.category) + '</a>').join('') + '</div></div>');
+
+      const nc = A(PACK.niches);
+      o('<div class="h3">Дэд бүлэг · эрэмбээр</div>');
+      if (!nc.length) o('<div class="cm">Энэ категорид шалгасан зар алга — дэд бүлэг гарахгүй.</div>');
+      const WC = { 'нээлттэй — батлагдсан': 'ok', 'хаагдаж байна': 'wr', 'ганц хуудас': 'no' };
+      nc.forEach((x, i) => {
+        o('<details class="cc"' + (i === 0 ? ' open' : '') + '><summary><span class="rk">' + (i + 1) + '</span><span class="cn">' + esc(x.niche) + '</span>');
+        o('<span class="cm">' + n(x.pages_180) + ' хуудас 180+ · ' + n(x.pages_250) + ' нь 250+ · ≥' + mnt(VP) + ': ' + n(x.viable_pages_180)
+          + ' · медиан ' + mnt(x.median_price) + (n(x.rising_products) ? ' · rising ' + n(x.rising_products) : '') + '</span></summary><div class="cb">');
+        const pr = A(x.products);
+        if (pr.length) {
+          o('<div class="sc"><table><tr><th>Бараа</th><th>Хуудас</th><th>Хоног</th><th>Үнэ</th><th>Цонх</th></tr>');
+          pr.forEach((p) => o('<tr><td>' + esc(p.product) + (p.bundle ? ' <span class="gt ok">багц</span>' : '') + '</td><td class="nm">' + n(p.pages)
+            + '</td><td class="nm">' + n(p.max_days) + '</td><td class="nm">' + (has(p.min_price) ? (n(p.min_price) === n(p.max_price) ? mnt(p.min_price)
+            : mnt(p.min_price) + '–' + mnt(p.max_price)) : '—') + '</td><td><span class="gt ' + (WC[p.window] || 'no') + '">' + esc(p.window) + '</span></td></tr>'));
+          o('</table></div>');
+        }
+        const hk = A(x.hooks);
+        if (hk.length) {
+          o('<div class="h3">Hook · хамгийн удаан амьд</div>');
+          hk.slice(0, 6).forEach((h) => o('<div class="hk"><div class="dd">' + n(h.days) + '<small>хоног</small></div><div><div class="tx">'
+            + esc(h.hook) + '</div><div class="mt">' + esc(h.template || '') + ' · ' + esc(h.page) + '</div></div></div>'));
+        }
+        o('</div></details>');
+      });
+
+      const tm = A(PACK.templates);
+      if (tm.length) {
+        const mx = Math.max(1, ...tm.map((t) => n(t.pages)));
+        o('<div class="h3">Hook загвар · шалгасан 180+ хуудсаар</div>');
+        tm.slice(0, 8).forEach((t) => o('<div class="bar"><span>' + esc(t.template) + '</span><i style="width:'
+          + Math.round(100 * n(t.pages) / mx) + '%"></i><b>' + n(t.pages) + '</b></div>'));
+      }
+      const rl = A(PACK.reels);
+      o('<div class="h3">Бүртгэсэн reel · ' + rl.length + '</div>');
+      if (!rl.length) o('<div class="cm">Энэ категорид reel алга — зохиомж судлахын тулд /form/reel-ээр 3–5 нэмнэ.</div>');
+      rl.slice(0, 8).forEach((r) => o('<div class="hk"><div class="dd">' + (has(r.days) ? n(r.days) : '—') + '<small>хоног</small></div><div><div class="tx">'
+        + esc(r.hook || '—') + '</div><div class="mt">' + esc(r.fmt || '') + (r.angle ? ' · ' + esc(r.angle) : '')
+        + (url(r.url) ? ' · <a href="' + url(r.url) + '" target="_blank" rel="noopener">үзэх</a>' : '') + '</div></div></div>'));
+      const gl = A(PACK.global);
+      if (gl.length) {
+        o('<div class="h3">Гадаадын олдвор · энэ категори</div>');
+        gl.forEach((g) => o('<div class="hk"><div class="dd">' + (has(g.lag) ? n(g.lag) : '—') + '<small>хоцр.</small></div><div><div class="tx">'
+          + esc(g.product) + '</div><div class="mt">' + (g.mn_first_ad_on ? 'Монголд ' + esc(g.mn_first_ad_on) : 'Монголд хараахан алга')
+          + (url(g.url) ? ' · <a href="' + url(g.url) + '" target="_blank" rel="noopener">үзэх</a>' : '') + '</div></div></div>'));
+      }
+    }
+  }
 
   // ══ 1. КАТЕГОРИ → HOOK + ЗОХИОМЖ
   if (TAB === 'cat') {
