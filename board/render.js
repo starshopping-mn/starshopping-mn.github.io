@@ -889,6 +889,15 @@ function renderResearch(DATA, QUERY) {
   // ══ 4. ХОЦРОГДОЛ
   if (TAB === 'lag') {
     o('<p class="lead">' + esc(LAG.lead || '') + ' ' + esc(LAG.note || '') + '</p>');
+    const SE = A(LAG.seasons);
+    if (SE.length) {
+      o('<div class="h3">Баярын сэрүүлэг · 60 / 45 / 30 хоног</div><div class="sc"><table><tr><th>Баяр</th><th>Үлдсэн</th><th>Одоогийн алхам</th><th>Бараа · Монгол дахь нотолгоо</th></tr>');
+      SE.forEach((s) => o('<tr><td><b>' + esc(s.name) + '</b><div class="cm">' + esc(s.event_date) + '</div></td><td class="nm">' + n(s.days_left) + ' хоног</td><td>'
+        + esc(s.step) + '<div class="cm">T−60 ' + esc(s.t60) + ' · T−45 ' + esc(s.t45) + ' · T−30 ' + esc(s.t30) + '</div></td><td>'
+        + (A(s.products).length ? A(s.products).map((p) => esc(p.product) + '<div class="cm">' + esc((p.evidence && p.evidence.fact) || '') + '</div>').join('')
+                                : '<span class="cm">бараа бүртгээгүй</span>') + '</td></tr>'));
+      o('</table></div>');
+    }
     const bm = A(LAG.by_market);
     const MK = { TT: 'TikTok', US: 'АНУ', KR: 'Солонгос', CN: 'Хятад', '?': 'тодорхойгүй' };
     if (!bm.length) o('<div class="em">Хэмжилт хараахан эхлээгүй.</div>');
