@@ -1211,3 +1211,19 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - Ad Library-г DOM гүйлгэж уншихад нуугдсан таб дээр ~30 зараас цааш ачаалдаггүй. Одоо Ad Library-ийн өөрийн GraphQL хүсэлтийг (`AdLibrarySearchPaginationQuery`) нэг удаа барьж аваад, бүх үгийг нэг табаас `fetch('/api/graphql/')`-ээр татна (76 үг ≈ 6 мин). Даваагийн сканы task-ийн заавар шинэчлэгдсэн.
 - 2026-09-24 өргөтгөсөн скан: 76 шинэ үг (эзний формын global/reel нэрс) → 1,827 шинэ зар. Шалгалт 99% (365/367). Гэр ахуй 99 оноо, 27 хуудас 180+.
 - Зар ~4,000 болмогц `category_signal_check()` 8 сек хязгаар давсан (ранкийг 8+ удаа тооцдог байв). Блок AE: `category_rank('{}')` transaction дотор нэг л удаа тооцогдоно (`ss.rank_memo`, хуучин бие нь `category_rank_calc`), service_role хугацаа 60 сек.
+
+## 27. Гадаад → Монгол хоцрогдлын төлөв (2026-09-24, блок AF)
+- `global_finds.mn_status`: watching → generic (зөвхөн 1 үгтэй эсвэл >25 хуудсанд гардаг үг) / already (Монголд гадаадаас ӨМНӨ байсан) / candidate (дараа нь гарсан — шалгах) → confirmed.
+- Хоцрогдол (`mn_first_ad_on`, `mn_lag_days`) болон ранкийн «Хурд» зөвхөн **confirmed**-ийг тоолно. Батлах: `save_verdicts` body-д `globals:[{find_id, library_id, status:'confirmed'|'rejected'}]` (самбарын POST). `verify_queue` → `globals[]` нэр дэвшигчид; Даваагийн шалгалтын task АЛХАМ 3б-д батална.
+- Telegram-д зөвхөн шинэ төлөв (candidate/already) нэг л удаа гарна (`mn_announced`).
+- **Блок AG** (AF-ийн засвар): «already» ч Claude баталсны дараа л тогтооно (AF-ийн 8 «already»-гийн 7 нь өөр бараа байсан). Тохирол бүр `candidate` (`mn_candidate.before` = гадаадаас өмнө эсэх) → `save_verdicts.globals` status: `confirmed` (before бол автоматаар `already`) | `rejected` | `page` (эзний тайлбарт «энэ page-ийг судал» гэсэн олдвор). Telegram зөвхөн батлагдсан үр дүнг нэг удаа.
+- Олдвор шалгахдаа эзний `/form/global` тайлбар (`note`) ба `angle`-г заавал унш — тэнд бараа уу, page уу, яг ямар хэлбэрийн бараа вэ гэдгийг бичсэн байдаг.
+
+## 28. Баярын сэрүүлэг ба Монгол дахь барааны нотолгоо (2026-09-24, блок AH + AI)
+- AH: олдворт шийдвэр өгмөгц `global_lag_match()` дахин ажиллаж дараагийн нэр дэвшигч гарна; 3 татгалзал = «ерөнхий»; хайх үг солигдоход түүх цэвэрлэгдэнэ.
+- AI: хуучин `calendar_events` (Блок G) + workflow 15 «Season Radar»-ийг өргөтгөсөн — шинэ хуанли үүсгээгүй. `events_to_alert()` одоо 60/45/30 алхамтай, бүтэн Telegram текст буцаана (`season_alarms_sent`-д нэг л удаа). Бараагүй баяр — урьдын адил нэг сануулга.
+- `/form/global`-д «Баяр / улирал» (calendar_events.name) → `global_finds.season_name`.
+- Олдворыг гадаад зараар нь биш, **тэр бараа Монголд хэрхэн зарагдсанаар** дүгнэнэ: `mn_matches` (Claude «ижил бараа» гэж баталсан МН зар, бүх хуудас) → `find_mn_evidence(find_id)`: хуудас, хамгийн удаан хоног, одоо идэвхтэй, өнгөрсөн жилийн баярын үеийн хуудас.
+- Өнгөрсөн жилийн идэвхгүй зар `ad_history`-д (ad_signals-д ХОЛИХГҮЙ — амьд зарын тоо эвдэрнэ). Даваагийн скан баярт ≤75 хоног үлдсэн олдворын үгсийг `activeStatus:'all'`-аар татна (`season_scan_terms()`, `ingest_ad_history()` anon).
+- Шалгалт: `verify_queue().season_queue` → `save_verdicts.globals` status `match | nomatch | tag`.
+- Самбар: Судалгаа → Хоцрогдол табын дээд хэсэгт «Баярын сэрүүлэг» хүснэгт (`trend_lag_report().seasons`).
