@@ -1206,3 +1206,8 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - `product_play(pages, price)`: 5+ хуудас → хувилбар; 2–4 → ялгар; 1 → хуулж ор. Үнэ хаалганаас доош → багц (хямдруулахгүй).
 - Маягтын reel-ийн бараа → `vocab` (trigger), `term_market(term)` → Монголд хэдэн хуудас/хоног.
 - n8n 10b: GET `view=mission`; POST `{action:'task', task_id, status}` → `mission_task_set`. Даалгавар хаах: `mission_close({mission_id, result, note})`.
+
+## 26. Өргөтгөсөн скан ба хурд (2026-09-24, блок AE)
+- Ad Library-г DOM гүйлгэж уншихад нуугдсан таб дээр ~30 зараас цааш ачаалдаггүй. Одоо Ad Library-ийн өөрийн GraphQL хүсэлтийг (`AdLibrarySearchPaginationQuery`) нэг удаа барьж аваад, бүх үгийг нэг табаас `fetch('/api/graphql/')`-ээр татна (76 үг ≈ 6 мин). Даваагийн сканы task-ийн заавар шинэчлэгдсэн.
+- 2026-09-24 өргөтгөсөн скан: 76 шинэ үг (эзний формын global/reel нэрс) → 1,827 шинэ зар. Шалгалт 99% (365/367). Гэр ахуй 99 оноо, 27 хуудас 180+.
+- Зар ~4,000 болмогц `category_signal_check()` 8 сек хязгаар давсан (ранкийг 8+ удаа тооцдог байв). Блок AE: `category_rank('{}')` transaction дотор нэг л удаа тооцогдоно (`ss.rank_memo`, хуучин бие нь `category_rank_calc`), service_role хугацаа 60 сек.
