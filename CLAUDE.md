@@ -1189,3 +1189,11 @@ slug-ийн үсгийг өөрчилбөл явж буй зарын холбо�
 амжилттай гүйлтийг хадгалахгүй — утасны дугаар лог руу орохгүй).
 Түлхүүр repo-д БАЙХГҮЙ: эзэн анх `/board/#k=…` холбоосоор орход төхөөрөмж нь
 localStorage-д хадгална. Хуудас `noindex`. Засвар = энд файл засаад push.
+
+## 24. Категорийн ранк ба шалгасан өгөгдөл (2026-09-24, блок AC)
+- Regex ангилагч шийдвэрт найдваргүй (2026-09-24 «Гоо сайхан хаалга давлаа» худал байв). Хаалга, ранк, Telegram «ОР» дохио **зөвхөн Claude Ad Library дээр шалгасан** зарыг тоолно.
+- Хүснэгт: `ad_verdicts` (library_id → бараа, дэд бүлэг, категори, үнэ, багц, эмчилгээний амлалт, exclude), `page_verdicts` (хуудас → dropship/distributor/service/other), `category_meta` (категори ↔ page_id ↔ сайтын slug).
+- Функц: `ad_live_eff()` (зар бүрийн үр дүнтэй утга), `verify_queue()`, `save_verdicts(p)`, `category_rank()` (Эрэлт .30 · Ашиг .30 · Цонх .15 · Хурд .15 · Чадвар .10, 0–100 харьцангуй), `niche_rank({category})`, `category_pack({category})`.
+- n8n `10b` (`/webhook/board-data`): GET `view=board|research|rank|pack&c=|verify&n=`; POST `?k=` body `{by, ads:[…], pages:[…]}` → `save_verdicts`.
+- Самбар: `/board/?view=research&tab=rank` (анхдагч), `tab=pack&c=<категори>` — app.js тухайн категорийн багцыг нэмж татна.
+- Шалгалтын хамрах хүрээ < 80% бол Telegram «🔍 шалгалт дутуу» гэж л мэдэгдэнэ, «ОР» өгөхгүй. Даваагийн скан task скан дууссаны дараа шалгалтыг хийнэ.
