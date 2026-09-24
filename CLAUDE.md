@@ -39,8 +39,9 @@ Supabase-аас уншигдана — **шинэ бараа = n8n маягт 13
 Хөтөч (GitHub Pages, статик)
   index.html · style.css · script.js · vendor/gsap · assets/
         │
-        ├─ POST → бараа (нэр, үнэ, хямдралын өмнөх үнэ, зураг, нөөц, product_id)
-        │         Supabase RPC `web_products` — anon key, зөвхөн унших
+        ├─ GET  → бараа (нэр, үнэ, хямдралын өмнөх үнэ, зураг, нөөц, product_id)
+        │         Supabase RPC `web_products?apikey=…` — anon key, зөвхөн унших,
+        │         GET тул CORS preflight байхгүй (§29)
         │         ← n8n маягт «13 · Бараа бүртгэх» → `upsert_product`
         │
         ├─ GET  → дэлгүүрийн мэдээлэл, хүргэлт, категори, багц, сэтгэгдэл
@@ -212,8 +213,9 @@ GPU-гээр хямдхан томруулахын оронд. Энэ зураг
 **stylesheet-ийн ДЭЭР**, хаягийг уншиж `<html data-route>` тавина, hero
 зургийн preload-ыг зөвхөн нүүрэнд үүсгэнэ; `</main>`-ийн дараах нь home-ыг нууж
 skeleton зурна. Өмнө нь кэшгүй зочин Fast 3G дээр **3.2с нүүр хуудас** хардаг
-байв. Скриптийг stylesheet-ийн доор зөөвөл preload 780ms хоцорно. Hero `<img>`
-`loading="lazy"` — нуугдсан home 224KB татахгүй.
+байв. Скриптийг stylesheet-ийн доор зөөвөл preload 780ms хоцорно. Hero `<picture>`
+нь `<template id="heroPic">` дотор — нуугдсан home 229KB-ийг ямар ч хөтөч дээр
+татахгүй; нүүрэнд ард нь байгаа inline скрипт stamp хийнэ (§29).
 
 ### Feed ирэхэд барааны хуудсыг дэмий дахин зурахгүй
 `paint()` нь `productSignature()`-ээр өмнөх/дараах өгөгдлийг харьцуулж, өөрчлөлтгүй
@@ -1154,8 +1156,8 @@ slug-ийн үсгийг өөрчилбөл явж буй зарын холбо�
 - Хажуугийн засвар: Sheet feed унасан үед `paint(…, {first:true})` хоёр дахь удаа дуудагдаж ViewContent
   давхардаж байсан → `first: !booted`.
 - Хэмжсэн нь (Playwright, бүх гадаад дуудлага mock): 20/20 — `scratchpad/test_w8.py` маягаар.
-- Мэдэгдэж буй: барааны deep link дээр `assets/hero-camera.webp` (229KB) preload scanner-ээр эхний 100ms-д
-  татагдаж байна (hero `<source srcset>`). Hero-г эвдэхгүйн тулд хөндөөгүй — дараагийн ажил.
+- ✅ Шийдэгдсэн (2026-09-24, §29): барааны deep link дээр `assets/hero-camera.webp` (229KB) preload
+  scanner-ээр татагддаг байсныг `<picture>`-ийг `<template>` дотор хийж зогсоосон.
 
 ## 21. Захиалгын маягтын хэмжилт (2026-09-24)
 
@@ -1227,3 +1229,67 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - Өнгөрсөн жилийн идэвхгүй зар `ad_history`-д (ad_signals-д ХОЛИХГҮЙ — амьд зарын тоо эвдэрнэ). Даваагийн скан баярт ≤75 хоног үлдсэн олдворын үгсийг `activeStatus:'all'`-аар татна (`season_scan_terms()`, `ingest_ad_history()` anon).
 - Шалгалт: `verify_queue().season_queue` → `save_verdicts.globals` status `match | nomatch | tag`.
 - Самбар: Судалгаа → Хоцрогдол табын дээд хэсэгт «Баярын сэрүүлэг» хүснэгт (`trend_lag_report().seasons`).
+
+## 29. Хурд — deep link-ийн зам (2026-09-24, «хувилбар А»)
+
+Зарын зочин (`#/p/<slug>`) нүүрэнд л хэрэгтэй зүйлсийг татдаг байсан. Хэмжилт
+(локал, 375×812, кэшгүй, `#/p/Huuhdiin-hashiwch`):
+
+| | Өмнө | Одоо |
+|---|---|---|
+| Хүсэлт | 23 | **19** |
+| Байт (шахаагүй, Meta Pixel-ийн 250KB орсон) | 921KB | **694KB** |
+| GSAP + ScrollTrigger | 116KB татагдана, ажиллана | татагдахгүй |
+| Категорийн зураг (нуугдсан нүүрний `<img src>`) | 115KB татагдана | `data-src`-д хүлээнэ |
+| Hero зураг (WebKit-ийн preload scanner) | 229KB (§20-ийн мэдэгдэж буй асуудал) | `<template>` дотор — татагдахгүй |
+| Supabase RPC (`web_products`, `web_districts`) | POST + OPTIONS preflight = нэмэлт RTT | GET `?apikey=` — preflight байхгүй (curl-ээр 0.30с → 0.13с) |
+| `catalog.json`, `districts.json` | script.js ажилласны дараа | `<head>`-ээс, script.js татагдахаас өмнө |
+| `load` event | 578ms | 217ms |
+
+Нүүрний зочинд юу ч өөрчлөгдөөгүй: hero зураг, GSAP, ScrollTrigger гурвуулаа
+`<head>`-ээс `preload` хийгдэж урьдын адил эхний хормоос татагдана; hero-гийн
+`<picture>`-ийг ард нь байгаа inline скрипт parser явж байхад л stamp хийнэ.
+
+**Юу өөрчлөгдсөн**
+- `index.html`: толгойн скрипт `data/catalog.json` (бараа route-д `districts.json` ч)
+  fetch-ийг эхлүүлж `window.__ss.copy / .districts`-д тавина; Supabase руу
+  `preconnect`; нүүрэнд `vendor/gsap.min.js`, `vendor/ScrollTrigger.min.js`-ийг
+  `preload as=script`. Hero `<picture>` → `<template id="heroPic">` + stamp скрипт.
+  Доод талын `vendor/*.js` script tag-ууд хасагдсан; `script.js` `defer`-тэй.
+- `script.js`: `loadMotion()` — GSAP-ийг **зөвхөн нүүр route** дээр динамикаар
+  ачаална (`async=false` → дараалал), `registerPlugin` тэнд; `refreshMotion()` —
+  ScrollTrigger байхгүй бол юу ч хийхгүй (`route`, `settle`, `paint` бүгд үүгээр);
+  `ensureHero()` — template-ийг stamp хийж `camImg`-ийг олно (`let`); `buildHomeMotion()`
+  сан ирээгүй бол ачаалаад, зочин нүүрэнд байсаар байвал өөрийгөө дахин дуудна
+  (+ 250/1200ms-ийн дахин хэмжилт); `destroyHomeMotion()` сан/зураг байхгүй бол
+  `stopCycle()`-ийн дараа шууд буцна; `wakeHome()` — нүүр нуугдсан үед
+  `renderCategories()` зургийг `data-src`-д тавина, нүүр рүү ормогц `src`;
+  `rpcGet(fn)` — уншдаг RPC-г GET-ээр; `early(name)` — толгойн fetch-ийг хэрэглэнэ.
+
+**Дүрэм**
+- **Нүүрнээс бусад route дээр `window.gsap`, `window.ScrollTrigger` БАЙХГҮЙ.**
+  ScrollTrigger дуудах бол `refreshMotion()`-оор эсвэл `window.ScrollTrigger`-ийг
+  шалгаад. §6-ийн шалгах snippet зөвхөн нүүрэнд ажиллана.
+- `camImg` null байж болно (бараа route). Hero-д хүрэх код `ensureHero()`-ийн дараа л.
+- Supabase-ийн **уншдаг** функцийг GET `?apikey=`-ээр дууд — custom header (`apikey`,
+  `Authorization`, `Content-Type: application/json`) = preflight. Бичдэг нь
+  (`log_checkout`, `set_order_address`) POST хэвээр. Backend RPC-г POST-only болговол
+  сайт бараагаа алдана — `_bus/to-backend/2026-09-24-web-hurd-GET-rpc.md`-д хэлсэн.
+- Anon key одоо URL-д явна — публик түлхүүр (§2), аюулгүй. `tools/catalog.py`
+  түлхүүрээ `script.js`-ийн `SUPABASE_URL` / `SUPABASE_ANON`-оос уншсаар — тэдгээр
+  тогтмолыг хөндөөгүй. `CATALOG_SOURCE` одоо `tools`-д л хэрэгтэй.
+- Хэмжихдээ: hash солиод биш, `?v=<шинэ>`-тэй хаягаар **дахин ачаал**; server асаахад
+  нээгдсэн tab хуучин файлыг барьж байдаг; python `http.server` heuristic кэшлүүлдэг
+  тул `Cache-Control: no-store` өгдөг жижиг сервер (scratchpad `serve.py` маягаар) ашигла.
+- Шалгасан (2026-09-24, Chromium): бараа/категори deep link (GSAP, hero, категорийн
+  зураг татагдаагүй, Supabase GET 200, `liveLoaded`/`supaSettled` үнэн, товч «ЗАХИАЛАХ»);
+  захиалгын маягт нээгдэж хаягийн сонголт 6+25 ирсэн; бараа → `#/` шилжилтэд GSAP тэр
+  агшинд татагдаж zoom scale 11, линз 0px, pin завсар 0; хүйтэн нүүр 375×812, 390×600,
+  1280×800 дээр мөн (1280-д X зөрүү −7 = scrollbar-ын хагас, hero.width ≠ innerWidth);
+  `?diag` ажиллана; консол алдаагүй. **Жинхэнэ утас (Safari, FB/IG дотоод браузер) дээр
+  хараахан хэмжээгүй** — deploy-ийн дараа эзэн утсаараа нүүр + зарын холбоосыг үзнэ.
+
+**Санаатай хийгээгүй:** фонт preload-ыг өөрчлөөгүй (6 файл бүгд хэрэгтэй — кирилл,
+кирилл-ext, латин тоо); `script.js`-ийг minify хийгээгүй (build алхам байхгүй, gzip-ээр
+50KB); Supabase fetch-ийг толгойноос эхлүүлээгүй (түлхүүр хоёр газар болно, `preconnect`
+хангалттай); фонтын хэмжээ, Pixel-ийн 250KB — манай гарт биш.
