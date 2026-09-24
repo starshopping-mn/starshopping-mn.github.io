@@ -911,7 +911,7 @@ function renderResearch(DATA, QUERY) {
       const OP = A(RD.open);
       if (OP.length) {
         o('<div class="cm" style="margin-top:8px">Шалгагдаж буй нэр дэвшигч (Claude шалгана):</div><div class="sc"><table><tr><th>Хэллэг</th><th>Төрөл</th><th>Хуудас</th><th>Хоног</th><th></th></tr>');
-        OP.forEach((r) => o('<tr><td>' + esc(r.label || '—') + '</td><td>' + esc(r.kind === 'scale' ? 'олон хувилбар ×' + n(r.collation) : 'хуулбарлагчид') + '</td><td class="nm">' + n(r.pages)
+        OP.forEach((r) => o('<tr><td>' + esc(r.label || '—') + '</td><td>' + esc(r.kind === 'scale' ? 'олон хувилбар ×' + n(r.variants) : 'хуулбарлагчид') + '</td><td class="nm">' + n(r.pages)
           + '</td><td class="nm">' + (has(r.days) ? n(r.days) : '—') + '</td><td>' + (url(r.url) ? '<a class="go" href="' + url(r.url) + '" target="_blank" rel="noopener">зар</a>' : '') + '</td></tr>'));
         o('</table></div>');
       }
