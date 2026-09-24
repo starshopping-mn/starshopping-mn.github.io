@@ -26,13 +26,20 @@
   }
   if (!key) return ask('');
 
-  fetch(DATA_URL + '?view=' + view + '&k=' + encodeURIComponent(key), { cache: 'no-store' })
-    .then(function (r) {
-      if (r.status === 401 || r.status === 403) { store(''); throw new Error('key'); }
-      if (!r.ok) throw new Error('http ' + r.status);
-      return r.json();
-    })
-    .then(function (d) {
+  function get(v, extra) {
+    return fetch(DATA_URL + '?view=' + v + '&k=' + encodeURIComponent(key) + (extra || ''), { cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 403) { store(''); throw new Error('key'); }
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.json();
+      });
+  }
+  // «Орох багц» өөр категорит: судалгааны өгөгдөл + тухайн категорийн багц
+  var wantPack = view === 'research' && q.tab === 'pack' && q.c;
+  Promise.all([get(view), wantPack ? get('pack', '&c=' + encodeURIComponent(q.c)) : null])
+    .then(function (res) {
+      var d = res[0];
+      if (res[1]) d.pack = res[1];
       var html = view === 'research' ? renderResearch(d, q) : renderBoard(d, q);
       html = html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
       document.open(); document.write(html); document.close();
