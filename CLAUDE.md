@@ -1178,3 +1178,14 @@ slug-ийн үсгийг өөрчилбөл явж буй зарын холбо�
 4. GitHub Pages 1–3 минутад шинэчлэгдэнэ; `?v=` шаардлагагүй.
 
 Өөр чат (web) мөн энэ repo-г засдаг — ажил эхлэхээс өмнө заавал pull.
+
+## 23. Самбар — `/board/` (2026-09-24)
+
+Самбар ба Судалгааны хуудас n8n-ийн Code node-оос энэ repo руу шилжсэн:
+`board/index.html` (ачаалагч), `board/app.js` (түлхүүр + өгөгдөл татах),
+`board/render.js` (`renderBoard`, `renderResearch`), `board/icons.js`,
+`board/board.css`. n8n зөвхөн өгөгдөл өгнө: `10b · Самбарын өгөгдөл`
+(`/webhook/board-data?view=board|research&k=…`, CORS зөвхөн starshopping.mn,
+амжилттай гүйлтийг хадгалахгүй — утасны дугаар лог руу орохгүй).
+Түлхүүр repo-д БАЙХГҮЙ: эзэн анх `/board/#k=…` холбоосоор орход төхөөрөмж нь
+localStorage-д хадгална. Хуудас `noindex`. Засвар = энд файл засаад push.
