@@ -14,6 +14,28 @@
    sheet to arrive before running, and the preload was issued 780ms late. */
 (function () {
   var m = /^#\/(p|c|order|done|policy)(\/|$)/.exec(location.hash);
+  var head = document.head;
+  var hint = function (rel, href, as) {
+    var l = document.createElement("link");
+    l.rel = rel; l.href = href;
+    if (as) l.as = as;
+    if (as === "image") { l.type = "image/webp"; l.setAttribute("fetchpriority", "high"); }
+    if (rel === "preconnect") l.crossOrigin = "";
+    head.appendChild(l);
+  };
+  /* The catalogue is asked for from here, before the stylesheet and the
+     shop's own script have even been downloaded: on a phone the script alone
+     is a few hundred milliseconds of waiting, and the offline copy used to
+     start only after it. The promises are picked up by script.js (`__ss`);
+     a rejection here is caught there too, so nothing is left unhandled. */
+  window.__ss = {};
+  try {
+    window.__ss.copy = fetch("data/catalog.json", { cache: "no-cache" });
+    window.__ss.copy.catch(function () {});
+  } catch (e) { /* no fetch — script.js asks in the old way */ }
+  /* The live products come from Supabase and the DNS + TLS handshake to it
+     is the slow part from Mongolia; opened now, it is ready when asked. */
+  hint("preconnect", "https://tdnjnqftxschbliumwwm.supabase.co");
   if (m) {
     document.documentElement.setAttribute("data-route", m[1]);
     /* An advert's link comes through the product's card page, which leaves a
@@ -24,22 +46,21 @@
       try {
         var note = String(sessionStorage.getItem("ss_first") || "").split("|");
         var slug = decodeURIComponent((/^#\/p\/([^/?]+)/.exec(location.hash) || [])[1] || "");
-        if (note[1] && note[0] === slug && /^img\/[\w-]+\.webp$/.test(note[1])) {
-          var pl = document.createElement("link");
-          pl.rel = "preload"; pl.as = "image"; pl.href = note[1];
-          pl.type = "image/webp"; pl.setAttribute("fetchpriority", "high");
-          document.head.appendChild(pl);
-        }
+        if (note[1] && note[0] === slug && /^img\/[\w-]+\.webp$/.test(note[1])) hint("preload", note[1], "image");
+        // someone on a product page may order, and the form wants this list
+        window.__ss.districts = fetch("data/districts.json");
+        window.__ss.districts.catch(function () {});
       } catch (e) { /* no note, no head start — nothing else changes */ }
     }
   } else {
     /* the hero photograph is the first thing a front-door visitor sees, so
        it is started before the parser reaches the markup — but only for
-       them: a product link never shows it */
-    var l = document.createElement("link");
-    l.rel = "preload"; l.as = "image"; l.href = "assets/hero-camera.webp";
-    l.type = "image/webp"; l.setAttribute("fetchpriority", "high");
-    document.head.appendChild(l);
+       them: a product link never shows it. The motion library is the same:
+       only the front door scrolls into the lens, so only the front door
+       fetches it; script.js attaches it once it is on hand (`loadMotion`). */
+    hint("preload", "assets/hero-camera.webp", "image");
+    hint("preload", "vendor/gsap.min.js", "script");
+    hint("preload", "vendor/ScrollTrigger.min.js", "script");
   }
 })();
 </script>
@@ -137,12 +158,28 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
       <div class="hero__inner">
         <span class="hero__word hero__word--back" style="--chars:4">STAR</span>
         <div class="hero__cam">
-          <picture>
-            <source srcset="assets/hero-camera.webp" type="image/webp">
-            <!-- lazy so a hidden home view never fetches it; on the front door the
-                 preload above has already brought it in -->
-            <img src="assets/hero-camera.png" alt="Онцлох бүтээгдэхүүн — камер" fetchpriority="high" loading="lazy">
-          </picture>
+          <!-- Held in a template rather than written straight into the page:
+               the browser's preload scanner reads `srcset` off the raw markup
+               before any script or stylesheet has had a say, and on WebKit it
+               fetched this 229KB photograph for a product link that never
+               shows it. Nothing inside a template is fetched. The script right
+               after stamps it out for the front door, synchronously, while the
+               parser is still here — so that visitor sees the camera exactly
+               when they did before (the preload above has already brought it
+               in). A product link leaves it here; script.js stamps it the
+               moment someone actually navigates home (`ensureHero`). -->
+          <template id="heroPic">
+            <picture>
+              <source srcset="assets/hero-camera.webp" type="image/webp">
+              <img src="assets/hero-camera.png" alt="Онцлох бүтээгдэхүүн — камер" fetchpriority="high">
+            </picture>
+          </template>
+          <script>
+            if (!document.documentElement.hasAttribute("data-route")) {
+              var heroPic = document.getElementById("heroPic");
+              heroPic.parentNode.insertBefore(heroPic.content.cloneNode(true), heroPic);
+            }
+          </script>
         </div>
         <span class="hero__word hero__word--front" style="--chars:8">SHOPPING</span>
         <div class="hero__veil"></div>
@@ -246,10 +283,12 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
   </div>
 </footer>
 
-<!-- served from our own origin: a CDN hop is another DNS + TLS handshake
-     before any of the motion or the catalogue can start -->
-<script src="vendor/gsap.min.js"></script>
-<script src="vendor/ScrollTrigger.min.js"></script>
-<script src="script.js"></script>
+<!-- The motion library (vendor/gsap + ScrollTrigger, 116KB) is no longer
+     loaded here: only the front door scrolls into the lens, and a product link
+     — the visitor every advert sends — was downloading and running it for a
+     page that never moves. script.js fetches it itself on the home route
+     (`loadMotion`), from our own origin as before: a CDN hop is another DNS +
+     TLS handshake before the motion can start. -->
+<script src="script.js" defer></script>
 </body>
 </html>
