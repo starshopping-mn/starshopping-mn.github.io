@@ -342,7 +342,9 @@ def render(product, image_name):
     # a product sold ahead of arrival says so under the reel too: the wait is
     # part of the offer, and someone who learns it only on the form feels tricked
     ahead = ""
-    if product.get("fulfillment") in ("preorder", "test"):
+    # a product on trial promises no time before the order (W9): the wait is told
+    # right after the phone number is left, so the card says nothing about it
+    if product.get("fulfillment") == "preorder":
         days = product.get("shipsInDays")
         ahead = "Урьдчилсан захиалга" + (" · ~%d хоногт" % days if days else "")
     bits = [b for b in (money(price), ahead, one_line(product.get("desc"), 150)) if b]
