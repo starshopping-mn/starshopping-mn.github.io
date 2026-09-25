@@ -1459,7 +1459,7 @@ function renderProduct(slug) {
     <div class="trust">
       <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэгүй · Монгол даяар" : deliverySummary() + " · тусдаа төлнө"}</div>
       <div><b>Хугацаа</b>${esc(leadTime)}</div>
-      <div><b>Төлбөр</b>Хүргэлтээр эсвэл шилжүүлгээр</div>
+      <div><b>Төлбөр</b>${isTest(p) ? "Бараа ирэхэд, хүргэлтээр" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
     </div>
     <!-- full width rather than inside the grid above: the explanation runs long
