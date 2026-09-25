@@ -1411,3 +1411,13 @@ select.input {
 .note--pre b { color: var(--fg); }
 .stickybuy__ship--pre { color: #b0702a; font-weight: 700; }
 .field__hint { margin: -0.35rem 0 0.8rem; font-size: 0.72rem; color: var(--fg-dim); }
+
+/* W9: goods counted into the warehouse promise the day, where the price is read.
+   Never shown for a product on trial — nothing is on a shelf to send. */
+.fastline {
+  margin: -0.4rem 0 1rem;
+  font-size: 0.82rem; font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #3f9a5c;
+}
+.fastline + .stockline { margin-top: -0.7rem; }
