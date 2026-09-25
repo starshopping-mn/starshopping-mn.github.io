@@ -274,6 +274,21 @@ const DEFAULT_LEAD_NOTE = "Захиалга баталгаажсаны дара�
    For these the database's own figure replaces whatever the sheet said about
    timing, and no count is shown at all. "test" is handled the same way. */
 const isPreorder = (p) => !!p && (p.fulfillment === "preorder" || p.fulfillment === "test");
+/* A product on TRIAL (W9, 2026-09-25) is not bought yet. Before the order no
+   delivery time is promised at all — not a fast one that would be untrue, and
+   not the long wait that kept people from leaving a number. The wait is told
+   plainly the moment the phone number is in, and nothing is ever paid for it.
+   Only goods counted into the warehouse ("live" with stock) promise 24 hours. */
+const isTest = (p) => !!p && p.fulfillment === "test";
+const showsWait = (p) => isPreorder(p) && !isTest(p);
+const FAST_LINE = "Улаанбаатар дотор 24 цагт хүргэнэ";
+const TEST_LEAD_TIME = "Захиалсны дараа бид залгаж тохирно";
+const TEST_LEAD_NOTE = `Одоо юу ч төлөхгүй — бид ${ORDER_LINE.text}-оос залгаж хаяг, хүргэлтийг тань тохирно.`;
+const WAITLIST_TITLE = "Эхний ээлжийн жагсаалтад бүртгэгдлээ";
+const waitlistText = (days) =>
+  `Энэ бараа одоогоор агуулахад ирээгүй байна. Та эхний ээлжийн жагсаалтад бүртгэгдлээ — бараа ирмэгц${
+    days ? ` (ойролцоогоор ${Number(days)} хоногт)` : ""
+  } бид ${ORDER_LINE.text}-оос залгаж хүргэлтийг тохирно. Одоо юу ч төлөхгүй.`;
 const preorderLabel = (p) =>
   `Урьдчилсан захиалга${p && p.shipsInDays ? ` · ~${p.shipsInDays} хоногт хүргэнэ` : ""}`;
 const PREORDER_NOTE =
@@ -284,11 +299,13 @@ const PREORDER_NOTE =
 const PREORDER_CANCEL =
   "Хүлээх хугацаа таалагдахгүй бол дуудлагаар цуцалж болно — урьдчилгаа байхгүй.";
 const leadTimeOf = (p) =>
-  isPreorder(p) && p.shipsInDays
+  isTest(p)
+    ? TEST_LEAD_TIME
+    : isPreorder(p) && p.shipsInDays
     ? `~${p.shipsInDays} хоногт`
     : String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
 const leadNoteOf = (p) =>
-  isPreorder(p) ? PREORDER_NOTE : String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
+  isTest(p) ? TEST_LEAD_NOTE : isPreorder(p) ? PREORDER_NOTE : String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
 
 /* Delivery prices were written out in the markup of the product badge and
    again in the delivery policy, so a change in the sheet left two pages
@@ -343,12 +360,13 @@ const isSoldOut = (slug) => availableOf(slug) === 0;
    genuinely low, otherwise it reads as a sales tactic rather than a fact. */
 function stockBadge(slug) {
   const item = productBy(slug);
+  if (isTest(item)) return "";
   if (isPreorder(item)) return `<span class="tag tag--soft">Урьдчилсан захиалга</span>`;
   const left = availableOf(slug);
   if (left === null) return "";
   if (left === 0) return `<span class="tag tag--out">Дууссан</span>`;
   if (left <= 5) return `<span class="tag tag--soft">Үлдсэн ${left}ш</span>`;
-  return "";
+  return `<span class="tag tag--soft">24 цагт хүргэнэ</span>`;
 }
 
 /* Assets shipped with the site that also exist as WebP. The sheet stores the
@@ -1385,7 +1403,8 @@ function renderProduct(slug) {
     ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
     <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
-    ${isPreorder(p) ? `<p class="preline">${esc(preorderLabel(p))}</p><p class="precancel">${esc(PREORDER_CANCEL)}</p>` : ""}
+    ${showsWait(p) ? `<p class="preline">${esc(preorderLabel(p))}</p><p class="precancel">${esc(PREORDER_CANCEL)}</p>` : ""}
+    ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 ? `<p class="fastline">${esc(FAST_LINE)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
@@ -1470,7 +1489,7 @@ function renderProduct(slug) {
     bar.innerHTML = `
       <span class="stickybuy__sum">
         <span class="stickybuy__price"></span>
-        ${isPreorder(p) ? `<span class="stickybuy__ship stickybuy__ship--pre">${esc(
+        ${showsWait(p) ? `<span class="stickybuy__ship stickybuy__ship--pre">${esc(
           "Урьдчилсан" + (p.shipsInDays ? ` · ~${p.shipsInDays} хоногт` : "")
         )}</span>` : ""}
         <span class="stickybuy__ship">${esc(
@@ -1649,6 +1668,7 @@ function renderProduct(slug) {
       leadTime,
       leadNote,
       preorder: isPreorder(p),
+      test: isTest(p),
       shipsInDays: p.shipsInDays || null,
     });
     if (window.fbq)
@@ -1818,9 +1838,9 @@ async function renderOrder() {
         <span class="buy__total">Бид залгаж баталгаажуулна</span>
         <span class="buy__label">УТСАА ҮЛДЭЭХ</span>
       </button>
-      <p class="note${d.preorder ? " note--pre" : ""}">
-        ${d.preorder ? `<b>${esc(preorderLabel(d))}.</b> ` : ""}Одоо юу ч төлөхгүй. Бид ${ORDER_LINE.text}-оос залгаж
-        хаяг, хүргэлтийг тань тохирно.${d.preorder ? " " + esc(PREORDER_CANCEL) : ""}
+      <p class="note${d.preorder && !d.test ? " note--pre" : ""}">
+        ${d.preorder && !d.test ? `<b>${esc(preorderLabel(d))}.</b> ` : ""}Одоо юу ч төлөхгүй. Бид ${ORDER_LINE.text}-оос залгаж
+        хаяг, хүргэлтийг тань тохирно.${d.preorder && !d.test ? " " + esc(PREORDER_CANCEL) : ""}
       </p>
       ${chatButton()}
     </form>
@@ -1830,9 +1850,15 @@ async function renderOrder() {
     <form id="addrForm" novalidate${placed ? "" : " hidden"}>
       <div class="step2__head">
         <div class="done__mark">✓</div>
-        <h1 class="step2__title">Захиалга бүртгэгдлээ</h1>
+        ${
+          d.test
+            ? `<h1 class="step2__title">${esc(WAITLIST_TITLE)}</h1>
+        <p class="step2__lead">${esc(waitlistText(d.shipsInDays))}</p>
+        <p class="step2__ask">Хаягаа одоо үлдээвэл бараа ирмэгц шууд хүргэнэ</p>`
+            : `<h1 class="step2__title">Захиалга бүртгэгдлээ</h1>
         <p class="step2__lead">Бид <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>-оос залгана. Хаягаа утсаар хэлж болно.</p>
-        <p class="step2__ask">Одоо хаягаа бөглөвөл хурдан хүргэнэ</p>
+        <p class="step2__ask">Одоо хаягаа бөглөвөл хурдан хүргэнэ</p>`
+        }
       </div>
     <div class="order-grid" style="margin-top:1.2rem">
       <div>
@@ -1911,12 +1937,12 @@ async function renderOrder() {
         <div class="field">
           <span class="field__label">ХҮРГЭЛТИЙН ХУГАЦАА</span>
           <div class="leadtime">
-            <b>${esc(d.leadTime || DEFAULT_LEAD_TIME)}</b>
-            <span>${esc(d.leadNote || DEFAULT_LEAD_NOTE)}</span>
+            <b>${esc(d.test ? (d.shipsInDays ? `~${Number(d.shipsInDays)} хоногт` : "Бараа ирмэгц") : d.leadTime || DEFAULT_LEAD_TIME)}</b>
+            <span>${esc(d.test ? "Бараа агуулахад ирмэгц бид залгаж хүргэнэ. Одоо юу ч төлөхгүй." : d.leadNote || DEFAULT_LEAD_NOTE)}</span>
           </div>
         </div>
 
-        <div class="field">
+        <div class="field"${d.test ? " hidden" : ""}>
           <span class="field__label">ТӨЛБӨРИЙН СОНГОЛТ</span>
           <div class="pick" id="payPick">
             <div class="pick__item is-active" data-pay="Хүргэлтээр төлөх">
@@ -2006,6 +2032,8 @@ async function renderOrder() {
      to take cash — those force prepayment rather than letting the customer
      pick an option that cannot actually be honoured. */
   const applyPrepaid = (prepaid) => {
+    // a product on trial is never paid for ahead — there is nothing to send yet
+    if (d.test) prepaid = false;
     cashItem.classList.toggle("is-locked", prepaid);
     payLock.hidden = !prepaid;
     if (prepaid) selectPayment(transferItem);
@@ -2377,6 +2405,7 @@ async function renderOrder() {
         noAddress: true,
         leadTime: d.leadTime || "",
         preorder: !!d.preorder,
+        test: !!d.test,
         shipsInDays: d.shipsInDays || null,
       });
       /* The picks go on the order straight away, so they are not lost if the
@@ -2525,7 +2554,7 @@ function renderDone() {
   setHead("Захиалга хүлээн авлаа", "/");
 
   const s = DB.shop || {};
-  const transfer = info.payment === "Шилжүүлгээр төлөх";
+  const transfer = info.payment === "Шилжүүлгээр төлөх" && !info.test;
 
   const acct = String(s.account || "");
   const iban = "MN" + acct;
@@ -2555,10 +2584,12 @@ function renderDone() {
   document.getElementById("donePage").innerHTML = `
     <div class="done">
       <div class="done__mark">✓</div>
-      <h1 class="done__title">${info.preorder ? "Урьдчилсан захиалга хүлээн авлаа" : "Захиалга хүлээн авлаа"}</h1>
+      <h1 class="done__title">${info.test ? esc(WAITLIST_TITLE) : info.preorder ? "Урьдчилсан захиалга хүлээн авлаа" : "Захиалга хүлээн авлаа"}</h1>
       <p class="done__lead">
         ${
-          info.preorder
+          info.test
+            ? `${thanks} ${esc(waitlistText(info.shipsInDays))}`
+            : info.preorder
             ? `${thanks} ${info.shipsInDays ? `<b>~${Number(info.shipsInDays)} хоногт</b> хүргэнэ, ` : ""}ирэхээс өмнө бид залгана. Төлбөрийг хүлээн авахдаа төлнө.${callNote}`
             : `${thanks} Бид удахгүй тантай холбогдоно.
         ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}${callNote}`
