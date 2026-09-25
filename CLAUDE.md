@@ -3,9 +3,11 @@
 Энэ файлыг **шинэ сесс эхлэх бүрд эхлээд уншина**.
 
 > **Аль бичиг юуны эх сурвалж вэ** (backend чаттай 2026-09-20-нд тохирсон):
-> API-ийн гэрээ = эзний `WEBSITE-INTEGRATION.md`; чат хоорондын даалгавар =
-> эзний `_bus/` хавтас (`to-web/` уншина, `to-backend/` бичнэ) — **сесс эхлэхэд
-> `_bus/to-web/`-ийг заавал шалга**; энэ `CLAUDE.md` = вэб талын дотоод бичиг.
+> **2026-09-25-аас компани 4 хэлтэстэй (MAIN · WEB · MARKETING · PLANNING). Энэ чат = WEB.**
+> Сесс эхлэхэд: эзний хавтсын `00-ENEES-EHEL.md` → `_shared/STATUS.md` → `_shared/inbox/to-web/`
+> → `web/JOURNAL.md`. Дуусахдаа `web/JOURNAL.md` + STATUS-ийн WEB хэсгийг шинэчил.
+> API-ийн гэрээ = `_shared/WEBSITE-INTEGRATION.md`; MAIN (хуучин «backend») руу хүсэлт =
+> `_shared/inbox/to-main/`; энэ `CLAUDE.md` = вэб талын дотоод техник бичиг.
 > Эдгээр нь энэ repo-д биш, эзний Mac дээрх `Claude Starshopping drop` хавтсанд. Хуучин ярианы түүхийг
 дахин ярих шаардлагагүй — шаардлагатай бүх зүйл энд бий.
 
