@@ -188,6 +188,49 @@ function renderMission(DATA, QUERY) {
     }
   }
 
+  // ══ W9 · ТЕСТ ↔ БОРЛУУЛАЛТ — нэг товч (блок AK, set_product_mode)
+  const PM = A((d.modes || {}).products);
+  if (PM.length) {
+    const ML = { test: ['ТЕСТ', 'wr'], live: ['БОРЛУУЛАЛТ', 'ok'], preorder: ['УРЬДЧИЛСАН', 'wr'], stop: ['ЗОГССОН', 'no'] };
+    o('<div class="sec"><b>Бараа</b><span class="st">Тест ↔ Борлуулалт</span></div>');
+    o('<p style="font-size:13px;color:var(--ink2);margin:0 0 8px;max-width:760px">' + esc((d.modes || {}).rule || '') + '</p>');
+    o('<div class="sc"><table><tr><th>Бараа</th><th>Горим</th><th>Утсаа үлдээсэн</th><th>Хүлээж буй</th><th>Зар</th><th>1 хүний өртөг</th><th></th></tr>');
+    PM.forEach((x) => {
+      const L = ML[x.mode] || [x.mode, 'no'];
+      const btn = (mode, label) => '<button class="pm" data-slug="' + esc(x.slug) + '" data-mode="' + mode + '" data-name="' + esc(x.name) + '">' + label + '</button>';
+      const acts = x.mode === 'live' ? btn('test', '↺ Тест')
+        : x.mode === 'stop' ? btn('test', '↺ Дахин тест')
+        : btn('live', '▶ Борлуулалт') + ' ' + btn('stop', '■ Зогсоох');
+      o('<tr><td><b>' + esc(x.name) + '</b><div class="cm">' + mnt(x.price_mnt) + (x.mode === 'live' && has(x.stock_qty) ? ' · үлдэгдэл ' + n(x.stock_qty) : '') + '</div></td>'
+        + '<td><span class="gt ' + L[1] + '">' + L[0] + '</span></td><td class="nm">' + n(x.signups) + '</td><td class="nm">' + n(x.waiting)
+        + '</td><td class="nm">' + mnt(x.spend_mnt) + '</td><td class="nm">' + (has(x.cpa_mnt) ? mnt(x.cpa_mnt) : '—') + '</td><td style="white-space:nowrap">' + acts + '</td></tr>');
+    });
+    o('</table></div><div id="pmOut"></div>');
+    o('<style>.pm{font:inherit;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1px solid var(--ln);background:var(--s1);color:var(--ink);cursor:pointer}'
+      + '#pmOut .box{border:1px solid var(--ln);border-radius:var(--r-s);padding:12px;margin:10px 0;background:var(--s1);font-size:13px;line-height:1.5}'
+      + '#pmOut textarea{width:100%;min-height:70px;font:inherit;font-size:13px;margin-top:6px}</style>');
+    o('<script>(function(){var U="https://starshopping.app.n8n.cloud/webhook/board-data";'
+      + 'function e(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]})}'
+      + 'document.querySelectorAll(".pm").forEach(function(b){b.addEventListener("click",function(){'
+      + 'var m=b.dataset.mode,nm=b.dataset.name,q=null;'
+      + 'if(m==="live"){q=prompt("«"+nm+"» агуулахад хэдэн ширхэг тоолж авсан бэ?");if(q===null)return;q=parseInt(q,10);if(!(q>=0)){alert("Тоо оруулна уу");return}}'
+      + 'else if(m==="stop"){if(!confirm("«"+nm+"»-ийн тестийг зогсоох уу? Хүлээж буй захиалгууд цуцлагдаж, бараа сайтаас нуугдана."))return}'
+      + 'else if(!confirm("«"+nm+"»-ийг ТЕСТ горимд шилжүүлэх үү?"))return;'
+      + 'var k="";try{k=localStorage.getItem("ss_board_key")||""}catch(x){}'
+      + 'b.disabled=true;b.textContent="…";'
+      + 'fetch(U+"?k="+encodeURIComponent(k),{method:"POST",headers:{"Content-Type":"application/json"},'
+      + 'body:JSON.stringify({action:"mode",slug:b.dataset.slug,mode:m,stock_qty:q,by:"owner"})})'
+      + '.then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})'
+      + '.then(function(j){if(!j.ok)throw new Error(j.error||"алдаа");'
+      + 'var L=j.call_list||j.sorry_list||[];var h="<div class=box><b>"+e(j.product)+" → "+e(j.mode)+"</b><br>"+e(j.next||"");'
+      + 'if(j.short>0)h+="<br>⚠️ "+j.short+" ш ДУТУУ — нэмж захиал!";'
+      + 'if(L.length){h+="<br><br><b>"+(j.call_list?"Залгах":"Уучлалт хүсэх")+" ("+L.length+")</b><br>"+L.map(function(x){return e(x.phone)+(x.name?" · "+e(x.name):"")+" · "+x.qty+"ш"}).join("<br>")}'
+      + 'if(j.script)h+="<br><br><b>Хэлэх үг:</b><textarea readonly>"+e(j.script)+"</textarea>";'
+      + 'h+="<br><button class=pm onclick=location.reload()>Шинэчлэх</button></div>";'
+      + 'document.getElementById("pmOut").innerHTML=h;b.textContent="✓"})'
+      + '.catch(function(x){b.disabled=false;b.textContent="алдаа: "+x.message})})})})();</script>');
+  }
+
   o('<footer><span>Систем нотолгоогоор шийднэ: шалгасан зар → ранк → даалгавар → тест → үр дүн ранк руу буцна.</span></footer></div>');
   // «Хийсэн» товч — түлхүүр энэ төхөөрөмжийн localStorage-д
   o('<script>(function(){var U="https://starshopping.app.n8n.cloud/webhook/board-data";'
