@@ -39,11 +39,13 @@
   var wantPack = view === 'research' && q.tab === 'pack' && q.c;
   // Даалгаврын нүүрэнд «Тест ↔ Борлуулалт» (W9) — унасан ч нүүр ачаална
   Promise.all([get(view), wantPack ? get('pack', '&c=' + encodeURIComponent(q.c)) : null,
-               view === 'mission' ? get('modes').catch(function () { return null; }) : null])
+               view === 'mission' ? get('modes').catch(function () { return null; }) : null,
+               view === 'mission' ? get('queue').catch(function () { return null; }) : null])
     .then(function (res) {
       var d = res[0];
       if (res[1]) d.pack = res[1];
       if (res[2]) d.modes = res[2];
+      if (res[3]) d.queue = res[3];
       var html = view === 'research' ? renderResearch(d, q) : view === 'board' ? renderBoard(d, q) : renderMission(d, q);
       html = html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
       document.open(); document.write(html); document.close();
