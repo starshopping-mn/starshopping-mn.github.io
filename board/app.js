@@ -1,13 +1,26 @@
-/* Самбарын ачаалагч. Хуудсыг энд зурна, n8n зөвхөн өгөгдөл өгнө.
+/* Самбарын ачаалагч (чиглүүлэгч). Хуудсыг энд зурна, n8n зөвхөн өгөгдөл өгнө.
    Түлхүүр: анх удаа /board/#k=... холбоосоор орход энэ төхөөрөмжид хадгалагдана
-   (hash сервер рүү явдаггүй). Дараа нь /board/ гэж л орно. */
+   (hash сервер рүү явдаггүй). Дараа нь /board/ гэж л орно.
+
+   Архитектур: нэг хуудас = нэг мөр (VIEWS). Шинэ хуудас нэмэх = мөр нэмэх, render функц бичих.
+     data  — n8n board-data view-ийн нэр (нэг үндсэн дуудлага)
+     extra — нэмэлт view-үүд (унасан ч хуудас ачаална), үр дүн d[нэр] дээр очно
+     render — window дээрх зурагч функцийн нэр */
 (function () {
   var DATA_URL = 'https://starshopping.app.n8n.cloud/webhook/board-data';
   var KEY_NAME = 'ss_board_key';
   var q = {};
   new URLSearchParams(location.search).forEach(function (v, k) { q[k] = v; });
-  // нүүр = Даалгавар; ?view=board — систем зураглал; ?view=research — судалгаа
-  var view = (q.view === 'research' || q.view === 'board') ? q.view : 'mission';
+
+  var VIEWS = {
+    tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // нүүр: тестийн урсгал (блок AR)
+    category: { data: 'mission',  extra: { modes: 'modes', queue: 'queue' }, render: 'renderMission' }, // категорийн 7 хоногийн даалгавар (блок AD)
+    research: { data: 'research', extra: {}, render: 'renderResearch' },
+    board:    { data: 'board',    extra: {}, render: 'renderBoard' }
+  };
+  if (q.view === 'mission') q.view = 'category';           // хуучин холбоос
+  var view = VIEWS[q.view] ? q.view : 'tests';
+  var V = VIEWS[view];
 
   function store(k) { try { if (k) localStorage.setItem(KEY_NAME, k); else localStorage.removeItem(KEY_NAME); } catch (e) { /* private window */ } }
   function load() { try { return localStorage.getItem(KEY_NAME) || ''; } catch (e) { return ''; } }
@@ -36,17 +49,14 @@
       });
   }
   // «Орох багц» өөр категорит: судалгааны өгөгдөл + тухайн категорийн багц
-  var wantPack = view === 'research' && q.tab === 'pack' && q.c;
-  // Даалгаврын нүүрэнд «Тест ↔ Борлуулалт» (W9) — унасан ч нүүр ачаална
-  Promise.all([get(view), wantPack ? get('pack', '&c=' + encodeURIComponent(q.c)) : null,
-               view === 'mission' ? get('modes').catch(function () { return null; }) : null,
-               view === 'mission' ? get('queue').catch(function () { return null; }) : null])
+  var extras = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
+  if (view === 'research' && q.tab === 'pack' && q.c) extras.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
+
+  Promise.all([get(V.data)].concat(extras.map(function (x) { return x.p; })))
     .then(function (res) {
-      var d = res[0];
-      if (res[1]) d.pack = res[1];
-      if (res[2]) d.modes = res[2];
-      if (res[3]) d.queue = res[3];
-      var html = view === 'research' ? renderResearch(d, q) : view === 'board' ? renderBoard(d, q) : renderMission(d, q);
+      var d = res[0] || {};
+      extras.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
+      var html = window[V.render](d, q);
       html = html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
       document.open(); document.write(html); document.close();
     })
