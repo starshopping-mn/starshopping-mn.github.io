@@ -21,7 +21,7 @@ function renderMission(DATA, QUERY) {
   const P = []; const o = (s) => P.push(s);
   o('<!doctype html><html lang="mn"' + (themeQ ? ' data-theme="' + themeQ + '"' : '') + '><head><meta charset="utf-8">');
   o('<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark">');
-  o('<title>Starshopping · Даалгавар</title><style>');
+  o('<title>Starshopping · Категори</title><style>');
   o(''
    + '.nav{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}.nav a{padding:7px 13px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}'
    + '.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
@@ -81,8 +81,9 @@ function renderMission(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Starshopping</div>');
   o('<div class="bs">даалгавар · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
-  o('<nav class="nav"><a class="on" href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">Даалгавар</a>'
-    + '<a href="/board/?view=research&amp;tab=rank' + tq + '">Судалгаа · ранк</a>'
+  o('<nav class="nav"><a href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">Даалгавар</a>'
+    + '<a href="/board/?view=research&amp;tab=rank' + tq + '">Судалгаа</a>'
+    + '<a class="on" href="/board/?view=category' + tq + '">Категори</a>'
     + '<a href="/board/?view=board' + tq + '">Систем</a></nav>');
 
   const PLAY = { 'ХУУЛЖ ОР': 'copy', 'ЯЛГАРЧ ОР': 'diff', 'ХУВИЛБАР ОЛ': 'alt' };
