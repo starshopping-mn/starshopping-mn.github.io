@@ -18,6 +18,14 @@ function renderTests(DATA, QUERY) {
   const big = (v) => { if (!has(v)) return '—'; const x = n(v);
     return x >= 1e6 ? (x / 1e6).toFixed(1).replace('.0', '') + 'сая' : x >= 1e3 ? Math.round(x / 1e3) + 'м' : String(x); };
   const url = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '');
+  // AR6: вирал reel ба 1688 товч (Amazon самбарт хэрэггүй — эзэн 2026-09-27)
+  const bigN = (v) => { v = n(v); return v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? Math.round(v / 1e3) + 'K' : String(v); };
+  const reelBtn = (c) => url(c.reel_url)
+    ? '<a class="lb tt" href="' + url(c.reel_url) + '" target="_blank" rel="noopener">▶ ' + (/instagram/i.test(c.reel_url) ? 'Instagram' : 'TikTok') + ' reel<small>' + esc(String(c.reel_posted_at || '').slice(0, 10) || 'огноо?') + ' · ' + (has(c.reel_views) ? bigN(c.reel_views) + ' үзэлт' : '—') + '</small></a>'
+    : '<span class="lb no">▶ reel холбоогүй<small>огноо, үзэлт шалгаагүй</small></span>';
+  const cnBtn = (c) => /1688\.com\/offer\//.test(String(c.cn_offer_url || ''))
+    ? '<a class="lb cn" href="' + url(c.cn_offer_url) + '" target="_blank" rel="noopener">🛒 1688 — авах бараа<small>¥' + esc(c.cn_price == null ? '?' : c.cn_price) + (has(c.cn_sold) ? ' · ' + n(c.cn_sold).toLocaleString('en-US') + 'ш зарагдсан' : '') + (c.weight_g ? ' · ' + n(c.weight_g) + 'г' : '') + '</small></a>'
+    : '<span class="lb no">🛒 1688 offer алга<small>зургаар сонгох хэрэгтэй</small></span>';
   const day = (s) => (s ? String(s).slice(0, 10) : '—');
   const ago = (s) => { if (!s) return ''; const h = Math.round((Date.now() - new Date(s).getTime()) / 36e5);
     return h < 1 ? 'саяхан' : h < 48 ? h + ' цагийн өмнө' : Math.round(h / 24) + ' хоногийн өмнө'; };
@@ -43,6 +51,7 @@ function renderTests(DATA, QUERY) {
    + '.cd .sc{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px}.cd .sc b{font-size:18px;font-variant-numeric:tabular-nums}.cd .sc i{flex:1;height:6px;border-radius:3px;background:var(--s2);overflow:hidden;font-style:normal}.cd .sc i u{display:block;height:100%;background:var(--f3)}'
    + '.vf{display:flex;gap:3px;margin-top:10px}.vf span{flex:1;height:7px;border-radius:2px;background:var(--s2)}.vf span.ok{background:var(--good)}.vf span.no{background:var(--crit-a)}'
    + '.cd .src{font-size:12px;color:var(--ink2);margin-top:8px}.cd .src a{color:var(--blue);text-decoration:none}'
+   + '.lk{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.lb{flex:1;min-width:130px;display:block;padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;line-height:1.35;border:1px solid var(--line)}.lb small{display:block;font-weight:500;color:var(--mut);font-size:11px}.lb.tt{background:var(--s2);color:var(--ink)}.lb.cn{background:var(--warn-a);color:var(--ink)}.lb.no{background:var(--crit-a);color:var(--crit);border-color:transparent}.lb:hover{border-color:var(--blue)}'
    + '.gt{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;display:inline-block}.gt.ok{background:var(--good-a);color:var(--good)}.gt.wr{background:var(--warn-a);color:var(--warn)}.gt.no{background:var(--crit-a);color:var(--crit)}.gt.bl{background:var(--blue-a);color:var(--blue)}.gt.mu{background:var(--s2);color:var(--mut)}'
    + '.btn{font:inherit;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;border:1px solid var(--ln);background:var(--s1);color:var(--ink);cursor:pointer}.btn.p{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.g{background:var(--good);color:#fff;border-color:var(--good)}.btn.r{background:var(--crit);color:#fff;border-color:var(--crit)}.btn:disabled{opacity:.45;cursor:not-allowed}.btn.s{font-size:12px;padding:6px 10px}'
    + '.det{grid-column:1/-1;background:var(--s1);border:1px solid var(--blue);border-radius:var(--r);padding:16px;display:none}.det.on{display:block}'
@@ -94,7 +103,7 @@ function renderTests(DATA, QUERY) {
     + '<span>Тестийн босго ' + n(TH.min_score) + ' оноо</span><span>' + esc(TH.why || '') + '</span></div></section>');
 
   // ── 1. TOP-5
-  o('<div class="sec"><b>1 · Top-' + C.length + ' нэр дэвшигч</b><span class="st">оноо + суралцсан тохируулга · нягтлалт 7 баримт · картыг дарж дэлгэрэнгүй</span></div>');
+  o('<div class="sec"><b>1 · Top-' + C.length + ' нэр дэвшигч</b><span class="st">оноо + суралцсан тохируулга · нягтлалт 9 баримт · ▶ вирал reel ба 🛒 1688 товч · картыг дарж дэлгэрэнгүй</span></div>');
   if (!C.length) o('<div class="em">Нэр дэвшигч алга.</div>');
   o('<div class="cands">');
   C.forEach((c, i) => {
@@ -104,7 +113,8 @@ function renderTests(DATA, QUERY) {
     o('<div class="sc"><b>' + n(c.score_adj) + '</b><i><u style="width:' + Math.min(100, n(c.score_adj)) + '%"></u></i>' + (n(c.adj) ? '<span class="gt mu">' + (n(c.adj) > 0 ? '+' : '') + n(c.adj) + ' сурсан</span>' : '') + '</div>');
     o('<div class="vf">' + chk.map((k) => '<span class="' + (k.ok ? 'ok' : 'no') + '" title="' + esc(k.label) + '"></span>').join('') + '</div>');
     o('<div class="mt">' + (cf.ok ? '<span class="gt ok">нягтлагдсан ' + n(cf.of) + '/' + n(cf.of) + '</span>' : '<span class="gt wr">нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '</span> ' + esc(A(cf.missing).join(', '))) + '</div>');
-    o('<div class="src">' + esc(c.found_by || '?') + ' · ' + esc(c.found_where || '?') + ' · ' + day(c.found_at) + (url(c.source_url) ? ' · <a href="' + url(c.source_url) + '" target="_blank" rel="noopener">эх сурвалж ↗</a>' : ' · <span class="gt no">холбоос алга</span>') + '</div>');
+    o('<div class="lk">' + reelBtn(c) + cnBtn(c) + '</div>');
+    o('<div class="src">' + esc(c.found_by || '?') + ' · ' + esc(c.found_where || '?') + ' · ' + day(c.found_at) + (n(c.mn_common) > 0 ? ' · <span class="gt no">МН-д түгээмэл</span>' : '') + '</div>');
     o('</div>');
   });
   // дэлгэрэнгүй самбар (нэг л, сонгосон картынх)
@@ -192,14 +202,17 @@ function renderTests(DATA, QUERY) {
     + 'var det=document.getElementById("det"),cards=document.querySelectorAll(".cd");'
     + 'cards.forEach(function(cd){cd.addEventListener("click",function(ev){if(ev.target.closest("a,button"))return;var i=+cd.dataset.i,c=D.c[i],cf=c.confidence||{},W=c.why||{},E=W.econ||{};var open=cd.classList.contains("open");cards.forEach(function(x){x.classList.remove("open")});if(open){det.className="det";return}cd.classList.add("open");'
     + 'var h="<h3>#"+c.rank+" "+e(c.product)+(c.product_en?" <small style=\\"color:var(--mut);font-weight:400\\">"+e(c.product_en)+"</small>":"")+"</h3>";'
-    + 'h+="<div class=kv><span>Эх сурвалж</span>"+e(c.found_by||"?")+" · "+e(c.found_where||"?")+" · "+String(c.found_at||"").slice(0,10)+(/^https?:/.test(c.source_url||"")?" · <a target=_blank rel=noopener href=\\""+e(c.source_url)+"\\">нээх ↗</a>":" · <b style=color:var(--crit)>холбоос алга</b>")+(c.views?" · ▶ "+Number(c.views).toLocaleString("en-US"):"")+"</div>";'
+    + 'h+="<div class=kv><span>Олсон</span>"+e(c.found_by||"?")+" · "+e(c.found_where||"?")+" · "+String(c.found_at||"").slice(0,10)+"</div>";'
+    + 'var VV=W.viral||{};h+="<div class=kv><span>Вирал reel</span>"+(/^https?:/.test(c.reel_url||"")?"<a target=_blank rel=noopener href=\\""+e(c.reel_url)+"\\">▶ "+(/instagram/i.test(c.reel_url)?"Instagram":"TikTok")+" нээх ↗</a> · upload "+e(String(c.reel_posted_at||"?").slice(0,10))+" · "+(c.reel_views?Number(c.reel_views).toLocaleString("en-US")+" үзэлт":"")+(c.reel_likes?" · "+Number(c.reel_likes).toLocaleString("en-US")+" like":""):"<b style=color:var(--crit)>reel холбоогүй</b>")+(VV.last_strong_date&&!(VV.fresh>=16)?" · <b style=color:var(--crit)>хуучирсан (сүүлийн хүчтэй "+e(VV.last_strong_date)+")</b>":"")+"</div>";'
     + 'h+="<div class=kv><span>Оноо</span>"+(c.score||0)+" (вирал "+((W.parts||{}).viral||0)+" · МН зай "+((W.parts||{}).gap||0)+" · ашиг "+((W.parts||{}).econ||0)+" · тохирол "+((W.parts||{}).fit||0)+")"+(Number(c.adj)?" · сурсан "+(Number(c.adj)>0?"+":"")+c.adj:"")+"</div>";'
     + 'if(E.price_mnt)h+="<div class=kv><span>Эдийн засаг</span>үнэ "+m(E.price_mnt)+" · нэг захиалгын ашиг "+m(E.contribution_mnt)+" · буусан өртөг "+m(E.landed_mnt)+" · ¥"+(c.cn_price||"?")+(c.weight_g?" · "+c.weight_g+"г":" · жин таамаг")+"</div>";'
-    + 'h+="<div class=kv><span>1688</span>"+(/1688\\.com\\/offer\\//.test(c.cn_offer_url||"")?"<a target=_blank rel=noopener href=\\""+e(c.cn_offer_url)+"\\">тодорхой offer ↗</a>":(c.cn_url?"<a target=_blank rel=noopener href=\\""+e(c.cn_url)+"\\">зөвхөн хайлт ↗</a> — offer сонгох хэрэгтэй":"алга"))+(c.supplier_note?" · "+e(c.supplier_note):"")+"</div>";'
+    + 'h+="<div class=kv><span>1688</span>"+(/1688\\.com\\/offer\\//.test(c.cn_offer_url||"")?"<a target=_blank rel=noopener href=\\""+e(c.cn_offer_url)+"\\">🛒 авах бараа ↗</a> · ¥"+e(c.cn_price)+(c.cn_sold?" · "+Number(c.cn_sold).toLocaleString("en-US")+"ш зарагдсан":""):(c.cn_url?"<a target=_blank rel=noopener href=\\""+e(c.cn_url)+"\\">зөвхөн хайлт ↗</a> — offer сонгох хэрэгтэй":"алга"))+(c.supplier_note?" · "+e(c.supplier_note):"")+"</div>";'
     + 'h+="<div class=chk>"+(cf.checks||[]).map(function(x){return"<div class="+(x.ok?"ok":"no")+"><b>"+(x.ok?"✓ ":"✗ ")+e(x.label)+"</b>"+e(x.fact)+"</div>"}).join("")+"</div>";'
     + 'var g=(W.good||[]).map(function(t){return"✅ "+e(t)}).concat((W.warn||[]).map(function(t){return"⚠️ "+e(t)}));if(g.length)h+="<div class=kv style=font-size:12px>"+g.join("<br>")+"</div>";'
-    + 'var busy=c.open_test!=null,free=' + free + ';h+="<div class=launch><button class=\\"btn p sel-b\\" data-f="+c.find_id+" data-n=\\""+e(c.product)+"\\""+(busy||!free?" disabled":"")+">Тестэд сонгох</button><div class=why>"+(busy?"Аль хэдийн тестэд байна (#"+c.open_test+").":!free?"Зэрэг тестийн хязгаар дүүрсэн — эхлээд нэгийг WIN/LOSS болго.":cf.ok?"Нягтлагдсан — сонгомогц 1-р алхам систем өөрөө хаана.":"Нягтлалт "+(cf.passed||0)+"/"+(cf.of||7)+" — сонгож болно; 1-р алхамд Claude дутууг нөхнө: "+e((cf.missing||[]).join(", ")))+"</div></div><div class=\\"out\\" id=out-sel></div>";'
+    + 'var busy=c.open_test!=null,free=' + free + ';h+="<div class=launch><button class=\\"btn p sel-b\\" data-f="+c.find_id+" data-n=\\""+e(c.product)+"\\""+(busy||!free?" disabled":"")+">Тестэд сонгох</button><div class=why>"+(busy?"Аль хэдийн тестэд байна (#"+c.open_test+").":!free?"Зэрэг тестийн хязгаар дүүрсэн — эхлээд нэгийг WIN/LOSS болго.":cf.ok?"Нягтлагдсан — сонгомогц 1-р алхам систем өөрөө хаана.":"Нягтлалт "+(cf.passed||0)+"/"+(cf.of||9)+" — сонгож болно; 1-р алхамд Claude дутууг нөхнө: "+e((cf.missing||[]).join(", ")))+"</div></div><div class=\\"out\\" id=out-sel></div>";'
+    + 'h+="<div class=kv><span>МН зах зээл</span>"+(Number(c.mn_common)>0?"<b style=color:var(--crit)>түгээмэл: "+Number(c.mn_common)+"+ дэлгүүр</b> · ":"FB зараар л шалгасан · ")+"<button class=\\"btn s mnc-b\\" data-f="+c.find_id+">МН-д түгээмэл эсэхийг тэмдэглэх</button></div><div class=\\"out\\" id=out-mnc></div>";'
     + 'det.innerHTML=h;det.className="det on";det.scrollIntoView({behavior:"smooth",block:"nearest"});'
+    + 'det.querySelector(".mnc-b").addEventListener("click",function(){var b=this,v=prompt("Монголд энэ барааг хэдэн дэлгүүр/зарын сайт зарж байна вэ? (0 = байхгүй, 3+ = түгээмэл)","3");if(v===null)return;var ex=prompt("Жишээ (дэлгүүрийн нэр/холбоос, заавал биш):","")||"";post({action:"mncommon",find_id:+b.dataset.f,mn_common:+v||0,examples:ex?[ex]:[],by:"эзэн"},b,document.getElementById("out-mnc")).then(function(){b.textContent="✓ хадгаллаа";reload()})});'
     + 'det.querySelector(".sel-b").addEventListener("click",function(){var b=this;if(!confirm("«"+b.dataset.n+"»-ийг тестэд сонгох уу?"))return;post({action:"select",find_id:+b.dataset.f,by:"owner"},b,document.getElementById("out-sel")).then(function(){b.textContent="✓ сонгогдлоо";reload()})})})});'
     // алхам
     + 'document.querySelectorAll(".stp-b").forEach(function(b){b.addEventListener("click",function(){post({action:"step",test_id:+b.dataset.t,step:+b.dataset.s,status:b.dataset.st,by:"owner"},b,document.getElementById("out-t"+b.dataset.t)).then(function(){b.textContent="✓";reload(250)})})});'
