@@ -83,24 +83,27 @@ function renderTests(DATA, QUERY) {
     sub = nx ? 'Дараагийн алхам: ' + nx.step + '. ' + nx.title + ' — ' + nx.owner + '.' : 'Бүх алхам бэлэн — «AD явуулсан» дар.';
   } else {
     head = 'ТЕСТ СОНГОХ · top-' + C.length + ' бэлэн';
-    sub = C.length ? 'Rank 1-ээс эхэл. Нягтлалт 6/6 биш бол сонгоод 1-р алхамд Claude баримт нөхнө.' : 'Нэр дэвшигч алга — өдөр бүрийн шүүлт ажилласны дараа энд гарна.';
+    sub = C.length ? 'Rank 1-ээс эхэл. Нягтлалт бүрэн биш бол сонгоод 1-р алхамд Claude баримт нөхнө.' : 'Нэр дэвшигч алга — өдөр бүрийн шүүлт ажилласны дараа энд гарна.';
   }
   o('<section class="hero"><div class="tag">Одоо юу хийх вэ</div><h1>' + esc(head) + '</h1><div class="sub">' + esc(sub) + '</div>');
   const F = [['Судалгаа', true], ['Top-5', C.length > 0], ['Тест бэлтгэл', ACT.length > 0], ['AD үнэлгээ', EV.length > 0], ['WIN / LOSS', HIS.some((h) => h.result)]];
   o('<div class="flow">' + F.map((f, i) => '<span class="' + (f[1] ? (i === 0 ? 'ok' : 'on') : '') + '">' + f[0] + '</span>').join('<span style="background:none;color:var(--mut)">→</span>') + '</div>');
-  o('<div class="sub" style="margin-top:10px;font-size:12px">Зэрэг тест ' + n(S.used) + '/' + n(S.max) + ' · ханш ¥1=' + n(ST.fx_cny) + '₮ · карго ' + mnt(ST.cargo_min) + ' (301г–1кг)</div></section>');
+  const K = d.kpi || {}; const TH = K.threshold || {};
+  o('<div class="sub" style="margin-top:10px;font-size:12px">Зэрэг тест ' + n(S.used) + '/' + n(S.max) + ' · ханш ¥1=' + n(ST.fx_cny) + '₮ · карго ' + mnt(ST.cargo_min) + ' (301г–1кг)</div>');
+  o('<div class="flow" style="margin-top:8px"><span class="' + (has(K.win_rate) && n(K.win_rate) >= n(K.target || 0.8) ? 'ok' : 'on') + '">WIN ' + (has(K.win_rate) ? Math.round(n(K.win_rate) * 100) + '%' : '—') + ' · ' + n(K.wins) + '/' + n(K.closed) + ' тест · зорилт ' + Math.round(n(K.target || 0.8) * 100) + '%</span>'
+    + '<span>Тестийн босго ' + n(TH.min_score) + ' оноо</span><span>' + esc(TH.why || '') + '</span></div></section>');
 
   // ── 1. TOP-5
-  o('<div class="sec"><b>1 · Top-' + C.length + ' нэр дэвшигч</b><span class="st">оноо + суралцсан тохируулга · нягтлалт 6 баримт · картыг дарж дэлгэрэнгүй</span></div>');
+  o('<div class="sec"><b>1 · Top-' + C.length + ' нэр дэвшигч</b><span class="st">оноо + суралцсан тохируулга · нягтлалт 7 баримт · картыг дарж дэлгэрэнгүй</span></div>');
   if (!C.length) o('<div class="em">Нэр дэвшигч алга.</div>');
   o('<div class="cands">');
   C.forEach((c, i) => {
     const cf = c.confidence || {}; const chk = A(cf.checks); const busy = has(c.open_test);
     o('<div class="cd' + (i === 0 ? ' r1' : '') + (busy ? ' busy' : '') + '" data-i="' + i + '"><div class="rk">#' + n(c.rank) + '</div>');
-    o('<div class="nm">' + esc(c.product) + '</div><div class="mt">' + esc(c.category || '—') + (c.verdict === 'test' ? ' · <span class="gt ok">ТЕСТ</span>' : ' · <span class="gt wr">ХҮЛЭЭХ</span>') + (busy ? ' · <span class="gt bl">тестэд байна</span>' : '') + '</div>');
+    o('<div class="nm">' + esc(c.product) + '</div><div class="mt">' + esc(c.category || '—') + (c.ready ? ' · <span class="gt ok">БЭЛЭН</span>' : c.verdict === 'test' ? ' · <span class="gt wr">ТЕСТ · нягтлах</span>' : c.verdict === 'reject' ? ' · <span class="gt no">ТАТГАЛЗСАН</span>' : ' · <span class="gt wr">ХҮЛЭЭХ</span>') + (c.resurfaced ? ' · <span class="gt bl" title="' + esc(c.resurface_why || '') + '">↻ эргэн ирсэн</span>' : '') + (busy ? ' · <span class="gt bl">тестэд байна</span>' : '') + '</div>');
     o('<div class="sc"><b>' + n(c.score_adj) + '</b><i><u style="width:' + Math.min(100, n(c.score_adj)) + '%"></u></i>' + (n(c.adj) ? '<span class="gt mu">' + (n(c.adj) > 0 ? '+' : '') + n(c.adj) + ' сурсан</span>' : '') + '</div>');
     o('<div class="vf">' + chk.map((k) => '<span class="' + (k.ok ? 'ok' : 'no') + '" title="' + esc(k.label) + '"></span>').join('') + '</div>');
-    o('<div class="mt">' + (cf.ok ? '<span class="gt ok">нягтлагдсан 6/6</span>' : '<span class="gt wr">нягтлалт ' + n(cf.passed) + '/6</span> ' + esc(A(cf.missing).join(', '))) + '</div>');
+    o('<div class="mt">' + (cf.ok ? '<span class="gt ok">нягтлагдсан ' + n(cf.of) + '/' + n(cf.of) + '</span>' : '<span class="gt wr">нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '</span> ' + esc(A(cf.missing).join(', '))) + '</div>');
     o('<div class="src">' + esc(c.found_by || '?') + ' · ' + esc(c.found_where || '?') + ' · ' + day(c.found_at) + (url(c.source_url) ? ' · <a href="' + url(c.source_url) + '" target="_blank" rel="noopener">эх сурвалж ↗</a>' : ' · <span class="gt no">холбоос алга</span>') + '</div>');
     o('</div>');
   });
@@ -114,7 +117,7 @@ function renderTests(DATA, QUERY) {
     const steps = A(t.steps); const done = n(t.done); const cf = t.confidence || {};
     const nowStep = (steps.find((s) => s.status === 'todo') || {}).step;
     o('<div class="tc"><div class="hd2"><h3>#' + n(t.rank) + ' ' + esc(t.name) + '</h3><span class="gt bl">' + esc(t.category || '—') + '</span>'
-      + (cf.ok ? '<span class="gt ok">нягтлагдсан 6/6</span>' : '<span class="gt wr">нягтлалт ' + n(cf.passed) + '/6</span>')
+      + (cf.ok ? '<span class="gt ok">нягтлагдсан ' + n(cf.of) + '/' + n(cf.of) + '</span>' : '<span class="gt wr">нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '</span>')
       + (t.slug ? '<span class="gt ok">ТЕСТ горимд · ' + esc(t.slug) + '</span>' : '<span class="gt mu">бүртгээгүй</span>')
       + '<span class="gt mu">креатив ' + n(t.creatives) + '</span><span class="gt mu">' + esc(ago(t.selected_at)) + '</span></div>');
     o('<div class="prog"><i style="width:' + Math.round(100 * done / 6) + '%"></i></div><div class="st" style="font-size:12px;color:var(--mut)">' + done + '/6 алхам</div>');
@@ -130,7 +133,7 @@ function renderTests(DATA, QUERY) {
     o('</div>');
     o('<div class="launch"><button class="btn p lau-b" data-t="' + n(t.test_id) + '" data-n="' + esc(t.name) + '"' + (t.can_launch ? '' : ' disabled') + '>🚀 AD явуулсан</button>'
       + '<div class="why">' + (t.can_launch ? 'Бэлэн. Дарахад бараа Тестээс хасагдаж Үнэлгээ (AD) хэсэгт шилжинэ, систем WIN/LOSS хүлээнэ.'
-        : 'Идэвхжих нөхцөл: 6/6 алхам · нягтлалт 6/6 · ТЕСТ горимд бүртгэлтэй.' + (done < 6 ? ' Дутуу алхам ' + (6 - done) + '.' : '') + (!cf.ok ? ' Нягтлалт ' + n(cf.passed) + '/6.' : '') + (!t.slug ? ' Бүртгэлгүй.' : '')) + '</div>'
+        : 'Идэвхжих нөхцөл: 6/6 алхам · нягтлалт ' + n(cf.of) + '/' + n(cf.of) + ' · ТЕСТ горимд бүртгэлтэй.' + (done < 6 ? ' Дутуу алхам ' + (6 - done) + '.' : '') + (!cf.ok ? ' Нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '.' : '') + (!t.slug ? ' Бүртгэлгүй.' : '')) + '</div>'
       + '<button class="btn s drop-b" data-t="' + n(t.test_id) + '" data-n="' + esc(t.name) + '">Тестээс гаргах</button></div>');
     o('<div class="out" id="out-t' + n(t.test_id) + '"></div></div>');
   });
@@ -166,7 +169,12 @@ function renderTests(DATA, QUERY) {
     });
     o('</table></div>');
   }
-  if (LEARN.length) o('<p style="font-size:12px;color:var(--ink2);margin:8px 0">Суралцсан: ' + LEARN.map((l) => esc(l.category) + ' ' + (n(l.adj) > 0 ? '+' : '') + n(l.adj) + ' (W' + n(l.wins) + '/L' + n(l.losses) + ')').join(' · ') + '</p>');
+  const LF = LEARN.filter((l) => n(l.adj) !== 0);
+  if (LF.length) o('<p style="font-size:12px;color:var(--ink2);margin:8px 0"><b>Ad-аас суралцсан:</b> ' + LF.map((l) => esc(l.val) + ' ' + (n(l.adj) > 0 ? '+' : '') + n(l.adj) + ' (' + n(l.wins) + '/' + n(l.n) + ' WIN)').join(' · ') + '</p>');
+  const CL = (d.creative_learn || {}).by_template || [];
+  if (A(CL).length) o('<p style="font-size:12px;color:var(--ink2);margin:8px 0"><b>Hook загвар (3с үзэлт · CTR):</b> ' + A(CL).map((c) => esc(c.template) + ' ' + (has(c.hook_pct) ? c.hook_pct + '%' : '—') + ' · ' + (has(c.ctr_pct) ? c.ctr_pct + '%' : '—')).join(' | ') + '</p>');
+  const DM = A(d.demand);
+  if (DM.length) o('<p style="font-size:12px;color:var(--ink2);margin:8px 0"><b>Хүмүүс асуусан (манайд алга):</b> ' + DM.map((x) => esc(x.guess || x.text)).join(' · ') + '</p>');
   o('<div class="out" id="out-pm"></div>');
   o('<footer>' + esc(d.rule || '') + '</footer></div>');
 
@@ -190,7 +198,7 @@ function renderTests(DATA, QUERY) {
     + 'h+="<div class=kv><span>1688</span>"+(/1688\\.com\\/offer\\//.test(c.cn_offer_url||"")?"<a target=_blank rel=noopener href=\\""+e(c.cn_offer_url)+"\\">тодорхой offer ↗</a>":(c.cn_url?"<a target=_blank rel=noopener href=\\""+e(c.cn_url)+"\\">зөвхөн хайлт ↗</a> — offer сонгох хэрэгтэй":"алга"))+(c.supplier_note?" · "+e(c.supplier_note):"")+"</div>";'
     + 'h+="<div class=chk>"+(cf.checks||[]).map(function(x){return"<div class="+(x.ok?"ok":"no")+"><b>"+(x.ok?"✓ ":"✗ ")+e(x.label)+"</b>"+e(x.fact)+"</div>"}).join("")+"</div>";'
     + 'var g=(W.good||[]).map(function(t){return"✅ "+e(t)}).concat((W.warn||[]).map(function(t){return"⚠️ "+e(t)}));if(g.length)h+="<div class=kv style=font-size:12px>"+g.join("<br>")+"</div>";'
-    + 'var busy=c.open_test!=null,free=' + free + ';h+="<div class=launch><button class=\\"btn p sel-b\\" data-f="+c.find_id+" data-n=\\""+e(c.product)+"\\""+(busy||!free?" disabled":"")+">Тестэд сонгох</button><div class=why>"+(busy?"Аль хэдийн тестэд байна (#"+c.open_test+").":!free?"Зэрэг тестийн хязгаар дүүрсэн — эхлээд нэгийг WIN/LOSS болго.":cf.ok?"Нягтлагдсан — сонгомогц 1-р алхам систем өөрөө хаана.":"Нягтлалт "+(cf.passed||0)+"/6 — сонгож болно; 1-р алхамд Claude дутууг нөхнө: "+e((cf.missing||[]).join(", ")))+"</div></div><div class=\\"out\\" id=out-sel></div>";'
+    + 'var busy=c.open_test!=null,free=' + free + ';h+="<div class=launch><button class=\\"btn p sel-b\\" data-f="+c.find_id+" data-n=\\""+e(c.product)+"\\""+(busy||!free?" disabled":"")+">Тестэд сонгох</button><div class=why>"+(busy?"Аль хэдийн тестэд байна (#"+c.open_test+").":!free?"Зэрэг тестийн хязгаар дүүрсэн — эхлээд нэгийг WIN/LOSS болго.":cf.ok?"Нягтлагдсан — сонгомогц 1-р алхам систем өөрөө хаана.":"Нягтлалт "+(cf.passed||0)+"/"+(cf.of||7)+" — сонгож болно; 1-р алхамд Claude дутууг нөхнө: "+e((cf.missing||[]).join(", ")))+"</div></div><div class=\\"out\\" id=out-sel></div>";'
     + 'det.innerHTML=h;det.className="det on";det.scrollIntoView({behavior:"smooth",block:"nearest"});'
     + 'det.querySelector(".sel-b").addEventListener("click",function(){var b=this;if(!confirm("«"+b.dataset.n+"»-ийг тестэд сонгох уу?"))return;post({action:"select",find_id:+b.dataset.f,by:"owner"},b,document.getElementById("out-sel")).then(function(){b.textContent="✓ сонгогдлоо";reload()})})})});'
     // алхам
