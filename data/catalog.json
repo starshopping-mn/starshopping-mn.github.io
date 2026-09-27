@@ -42,6 +42,23 @@
   ],
   "products": [
     {
+      "slug": "Halaaguurtai-hantaaz",
+      "product_id": "dbb41907-aea5-4d61-944e-125e77a096ff",
+      "category": "",
+      "name": "USB халаагууртай дулаан хантааз",
+      "desc": "USB халаагууртай дулаан хантааз\nPower bank-д залгаад халаана — өвлийн хүйтэнд\nЭрэгтэй, эмэгтэй хэмжээтэй",
+      "price": 74000,
+      "discount": null,
+      "compareAt": null,
+      "images": [],
+      "featured": false,
+      "deliveryPaidBy": "included",
+      "fulfillment": "test",
+      "shipsInDays": 14,
+      "maxPerOrder": 5,
+      "active": true
+    },
+    {
       "slug": "Huwtsas-hadgalah-sags",
       "category": "ger-ahui",
       "name": "Хувцас хадгалах сагсны шийд",
