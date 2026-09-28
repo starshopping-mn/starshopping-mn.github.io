@@ -491,6 +491,17 @@ function priceOf(p, base) {
   };
 }
 
+/* Block AV: the database's SKU for a colour + size pick. Matching is by the
+   visible label, case-insensitive; a product without variants gives "". The
+   intake resolves a missing id itself (one-SKU products) or flags the order. */
+function skuFor(p, color, size) {
+  const list = p && Array.isArray(p.variants) ? p.variants : [];
+  if (!list.length) return "";
+  const eq = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  const hit = list.find((v) => (!v.color || eq(v.color, color)) && (!v.size || eq(v.size, size)));
+  return hit ? hit.sku_id : "";
+}
+
 /* Cheapest variant, so a list row shows "from" pricing that matches reality. */
 function lowestPrice(p) {
   const sp = listOf(p.sizePrices).map(Number).filter((n) => n > 0);
@@ -1686,6 +1697,8 @@ function renderProduct(slug) {
       pack: pack ? pack.label || `${pack.qty} ширхэгийн багц` : "",
       color,
       size,
+      /* the SKU those two picks add up to — the intake books stock by it */
+      skuId: skuFor(p, color, size),
       leadTime,
       leadNote,
       preorder: isPreorder(p),
@@ -2372,6 +2385,9 @@ async function renderOrder() {
             quantity: qty,
             channel: "web",
             creative_id: creativeId(),
+            sku_id: d.skuId || skuFor(productBy(d.slug), d.color, d.size) || null,
+            color: d.color || null,
+            size: d.size || null,
             status: "draft",
           }),
         },
@@ -3259,6 +3275,20 @@ function fromSupabase(rows, base) {
       fulfillment: ["preorder", "test"].includes(r.fulfillment_mode) ? r.fulfillment_mode : "live",
       shipsInDays: Number(r.ships_in_days) > 0 ? Number(r.ships_in_days) : null,
       active: r.status ? r.status === "active" : r.active !== false,
+      /* Block AV (2026-09-28): colours, sizes and the photo per colour now
+         come from the database's SKUs (`variants`). A product that has none
+         yet keeps whatever the sheet row said, so nothing goes blank. */
+      ...(Array.isArray(r.variants) && r.variants.length
+        ? {
+            variants: r.variants,
+            colors: Array.isArray(r.colors) && r.colors.length ? r.colors : listOf(was.colors),
+            sizes: Array.isArray(r.sizes) && r.sizes.length ? r.sizes : listOf(was.sizes),
+            colorImages:
+              Array.isArray(r.color_images) && r.color_images.some(Boolean)
+                ? r.color_images.map((u, i) => u || listOf(was.colorImages)[i] || "")
+                : listOf(was.colorImages),
+          }
+        : {}),
     });
     /* Stock is the intake's to enforce; here it only decides the badge and the
        button. A count wins, a plain in_stock:false closes the product, and no
