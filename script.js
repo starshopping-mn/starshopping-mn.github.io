@@ -379,6 +379,16 @@ const WEBP_ASSETS = {
   "assets/product-clock.png": "assets/product-clock.webp",
   "assets/product-turntable.png": "assets/product-turntable.webp",
   "assets/cat-huuhdiin-heregsel.png": "assets/cat-huuhdiin-heregsel.webp",
+  "assets/cat-huwtsas.png": "assets/cat-huwtsas.webp",
+};
+
+/* A category's picture is its product cut out of its backdrop, so it can sit
+   on the shop's own ground with a shadow of its own. The owner pastes a plain
+   photo into the sheet; the cutout made from it ships with the site and is
+   named here by the category's slug, so the sheet cell can stay as it is.
+   A category not listed falls back to whatever the sheet gives. */
+const CATEGORY_ART = {
+  huwtsas: "assets/cat-huwtsas.png",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -3052,7 +3062,7 @@ const writeCache = (data) => {
 function setDB(data) {
   DB = {
     shop: data.shop || {},
-    categories: data.categories || [],
+    categories: (data.categories || []).map((c) => (CATEGORY_ART[c.slug] ? { ...c, image: CATEGORY_ART[c.slug] } : c)),
     products: (data.products || []).map((p) => ({ ...p, images: listOf(p.images) })),
     bundles: data.bundles || [],
     reviews: data.reviews || [],
@@ -3102,12 +3112,37 @@ const hashTarget = () => {
   return [kind, want];
 };
 
+/* Everything the front door draws from the catalogue: which categories, under
+   what name and picture, in what order, and how many products each holds. */
+const homeSignature = () =>
+  JSON.stringify(
+    DB.categories
+      .filter((c) => c.active !== false)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((c) => [c.slug, c.name, c.image, productsIn(c.slug).length])
+  );
+
 function paint(data, { first }) {
   const [kindWas, slugWas] = hashTarget();
   const sigWas = !first && kindWas === "p" && slugWas ? productSignature(slugWas) : "";
+  /* The catalogue lands in pieces — the stored copy, the offline copy, the
+     database, then the sheet four or five seconds in — and each arrival used
+     to rebuild the front door whole: measured at four rebuilds in the first
+     five seconds, the last one well after the visitor had begun to look. Each
+     put the category ring back on its first name, swapped the very pictures
+     on screen and re-measured the pinned hero mid-scroll, which is the hitch
+     a returning visitor saw. The front door is now rebuilt only when what it
+     shows has actually changed, and then it stays on the category in view. */
+  const homeWas = first ? "" : homeSignature();
   setDB(data);
-  renderCategories();
-  showCat(0);
+  const homeChanged = first || homeSignature() !== homeWas;
+  if (homeChanged) {
+    const slugInView = first ? "" : (catsStage.querySelector(".cat.is-active .cat__cta") || { hash: "" }).hash;
+    renderCategories();
+    const cards = [...catsStage.querySelectorAll(".cat .cat__cta")];
+    const at = slugInView ? cards.findIndex((a) => a.hash === slugInView) : 0;
+    showCat(at > 0 ? at : 0);
+  }
   if (first) {
     window.scrollTo(0, 0);
     route();
@@ -3139,8 +3174,9 @@ function paint(data, { first }) {
       }
     }
   }
-  // fonts and images landing late can shift a pin's measurements
-  requestAnimationFrame(refreshMotion);
+  // fonts and images landing late can shift a pin's measurements — but only
+  // a front door that was rebuilt has anything new to measure
+  if (homeChanged) requestAnimationFrame(refreshMotion);
 }
 
 /* ---- Supabase rows → the shape every render function already reads ----
