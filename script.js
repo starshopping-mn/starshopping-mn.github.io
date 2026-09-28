@@ -210,13 +210,21 @@ const MESSENGER_PAGE = "1300692469783051";
    has. It carries no `ref`, so a desktop chat arrives unattributed; a chat that
    opens beats a chat that is refused. */
 const onPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
-const messengerLink = () => {
+/* The chat opens with a first message already typed: the product's name, so
+   the bot answers about the right thing, and the advert code in brackets.
+   An m.me `ref` alone arrives from Meta as a separate referral event with no
+   text, which bridge 29 skips (it only forwards messages that carry text), so
+   the code also rides in the text, where 29 reads it back out as the referral. */
+const messengerLink = (productName) => {
   const ref = creativeId();
+  const intro = productName ? `Сайн байна уу! «${productName}» сонирхож байна.` : "Сайн байна уу!";
+  const text = intro + (ref ? ` [${ref}]` : "");
   if (!onPhone()) return `https://www.facebook.com/messages/t/${MESSENGER_PAGE}`;
-  return `https://m.me/${MESSENGER_PAGE}` + (ref ? `?ref=${encodeURIComponent(ref)}` : "");
+  const qs = [ref ? `ref=${encodeURIComponent(ref)}` : "", `text=${encodeURIComponent(text)}`].filter(Boolean).join("&");
+  return `https://m.me/${MESSENGER_PAGE}?${qs}`;
 };
-const chatButton = () =>
-  `<a class="chatbuy" href="${esc(messengerLink())}" target="_blank" rel="noopener" data-chat>💬 Чатаар захиалах</a>`;
+const chatButton = (productName) =>
+  `<a class="chatbuy" href="${esc(messengerLink(productName))}" target="_blank" rel="noopener" data-chat>💬 Чатаар захиалах</a>`;
 /* One listener for every chat button, wherever it is drawn. `Contact` is the
    standard event for it, so the ad report can count chat starts next to orders. */
 document.addEventListener("click", (e) => {
@@ -287,10 +295,11 @@ const FAST_LINE = "Улаанбаатар дотор 24 цагт хүргэнэ"
 const TEST_LEAD_TIME = "Захиалсны дараа бид залгаж тохирно";
 const TEST_LEAD_NOTE = `Одоо юу ч төлөхгүй — бид ${ORDER_LINE.text}-оос залгаж хаяг, хүргэлтийг тань тохирно.`;
 const WAITLIST_TITLE = "Эхний ээлжийн жагсаалтад бүртгэгдлээ";
-const waitlistText = (days) =>
-  `Энэ бараа одоогоор агуулахад ирээгүй байна. Та эхний ээлжийн жагсаалтад бүртгэгдлээ — бараа ирмэгц${
-    days ? ` (ойролцоогоор ${Number(days)} хоногт)` : ""
-  } бид ${ORDER_LINE.text}-оос залгаж хүргэлтийг тохирно. Одоо юу ч төлөхгүй.`;
+/* A test product has no stock and no promised date: the owner's rule is that
+   a test never names a delivery time (consumer law 12.8), so the wait is never
+   given in days here, whatever ships_in_days holds. */
+const waitlistText = () =>
+  `Энэ бараа одоогоор агуулахад ирээгүй байна. Та эхний ээлжийн жагсаалтад бүртгэгдлээ — бараа ирмэгц бид ${ORDER_LINE.text}-оос залгаж хүргэлтийг тохирно. Одоо юу ч төлөхгүй.`;
 const preorderLabel = (p) =>
   `Урьдчилсан захиалга${p && p.shipsInDays ? ` · ~${p.shipsInDays} хоногт хүргэнэ` : ""}`;
 const PREORDER_NOTE =
@@ -1454,7 +1463,7 @@ function renderProduct(slug) {
              <span class="buy__label">УТСААР ЗАХИАЛНА</span>
            </div>
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
-           ${chatButton()}
+           ${chatButton(p.name)}
            <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>9550-5717 руу залгавал шууд бүртгэнэ.</p>`
         : `<a class="buy" href="#" id="buyBtn">
              <span class="buy__total" id="buyTotal"></span>
@@ -1464,7 +1473,7 @@ function renderProduct(slug) {
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
-           ${chatButton()}
+           ${chatButton(p.name)}
            <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 9550-5717</p>`
     }
 
@@ -1854,7 +1863,7 @@ async function renderOrder() {
         ${d.preorder && !d.test ? `<b>${esc(preorderLabel(d))}.</b> ` : ""}Одоо юу ч төлөхгүй. Бид ${ORDER_LINE.text}-оос залгаж
         хаяг, хүргэлтийг тань тохирно.${d.preorder && !d.test ? " " + esc(PREORDER_CANCEL) : ""}
       </p>
-      ${chatButton()}
+      ${chatButton(d.name)}
     </form>
 
     <!-- Step two: the order exists by now. The address makes delivery faster,
@@ -1949,7 +1958,7 @@ async function renderOrder() {
         <div class="field">
           <span class="field__label">ХҮРГЭЛТИЙН ХУГАЦАА</span>
           <div class="leadtime">
-            <b>${esc(d.test ? (d.shipsInDays ? `~${Number(d.shipsInDays)} хоногт` : "Бараа ирмэгц") : d.leadTime || DEFAULT_LEAD_TIME)}</b>
+            <b>${esc(d.test ? "Бараа ирмэгц" : d.leadTime || DEFAULT_LEAD_TIME)}</b>
             <span>${esc(d.test ? "Бараа агуулахад ирмэгц бид залгаж хүргэнэ. Одоо юу ч төлөхгүй." : d.leadNote || DEFAULT_LEAD_NOTE)}</span>
           </div>
         </div>
