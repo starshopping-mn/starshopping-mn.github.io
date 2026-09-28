@@ -78,6 +78,24 @@ def _loosen(s):
     return re.sub(r"-+", "-", t).strip("-")
 
 
+def photo_key(u):
+    s = str(u or "").strip()
+    m = re.search(r"/d/([\w-]{20,})|[?&]id=([\w-]{20,})", s)
+    return "drive:" + (m.group(1) or m.group(2)) if m else s.split("?")[0]
+
+
+def in_sheet_order(from_db, from_sheet):
+    """Mirror of `inSheetOrder()` in script.js: the sheet row may rearrange the
+    database's photos, never replace them."""
+    if len(from_db) < 2 or len(from_sheet) != len(from_db):
+        return from_db
+    by_key = dict((photo_key(u), u) for u in from_db)
+    if len(by_key) != len(from_db):
+        return from_db
+    out = [by_key.get(photo_key(u)) for u in from_sheet]
+    return out if all(out) and len(set(out)) == len(out) else from_db
+
+
 def from_supabase(rows, base):
     """Supabase rows → the catalogue shape every tool and the page already read.
 
@@ -102,7 +120,10 @@ def from_supabase(rows, base):
             continue
         was = old.get(_loosen(slug)) or {}
         p = dict(was)
-        images = url_list(r.get("images") if r.get("images") not in (None, "") else r.get("image_urls"))
+        images = in_sheet_order(
+            url_list(r.get("images") if r.get("images") not in (None, "") else r.get("image_urls")),
+            url_list(was.get("images")),
+        )
         cmp = _num(r.get("compare_at_mnt"))
         desc = r.get("description")
         status = r.get("status")

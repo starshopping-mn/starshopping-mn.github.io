@@ -3202,6 +3202,28 @@ const urlList = (v) =>
         .map((x) => x.trim())
         .filter(Boolean);
 
+/* Which photo leads is the owner's call, and the sheet is where the owner
+   reaches for it: on 2026-09-28 the first and fourth photos of a product were
+   swapped in its sheet row and the shop went on showing the old order, because
+   the photos themselves come from the database. So when the sheet row of the
+   same slug lists exactly the photos the database does — the same set, only
+   arranged differently — the sheet's arrangement is used. A row that names a
+   different photo, or a different number of them, changes nothing: what is
+   shown is still only what the database holds. `tools/catalog.py` does the
+   same, so the preview card leads with the same picture. */
+const photoKey = (u) => {
+  const s = String(u || "").trim();
+  const drive = /\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/.exec(s);
+  return drive ? "drive:" + (drive[1] || drive[2]) : s.split("?")[0];
+};
+function inSheetOrder(fromDb, fromSheet) {
+  if (fromDb.length < 2 || fromSheet.length !== fromDb.length) return fromDb;
+  const byKey = new Map(fromDb.map((u) => [photoKey(u), u]));
+  if (byKey.size !== fromDb.length) return fromDb;
+  const out = fromSheet.map((u) => byKey.get(photoKey(u)));
+  return out.every(Boolean) && new Set(out).size === out.length ? out : fromDb;
+}
+
 function fromSupabase(rows, base) {
   const src = base || {};
   /* matched loosely: the sheet row lends colours, sizes and lead time, and a
@@ -3216,7 +3238,10 @@ function fromSupabase(rows, base) {
     if (!slug || !(price > 0)) continue;
     const was = old.get(loosen(slug)) || {};
     const cmp = Number(r.compare_at_mnt);
-    const images = urlList(r.images != null && r.images !== "" ? r.images : r.image_urls);
+    const images = inSheetOrder(
+      urlList(r.images != null && r.images !== "" ? r.images : r.image_urls),
+      listOf(was.images)
+    );
     products.push({
       ...was, // colours, sizes and lead time still live in the sheet row of the same slug
       slug,
