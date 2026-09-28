@@ -377,6 +377,16 @@ const WEBP_ASSETS = {
   "assets/product-clock.png": "assets/product-clock.webp",
   "assets/product-turntable.png": "assets/product-turntable.webp",
   "assets/cat-huuhdiin-heregsel.png": "assets/cat-huuhdiin-heregsel.webp",
+  "assets/cat-huwtsas.png": "assets/cat-huwtsas.webp",
+};
+
+/* A category's picture is its product cut out of its backdrop, so it can sit
+   on the shop's own ground with a shadow of its own. The owner pastes a plain
+   photo into the sheet; the cutout made from it ships with the site and is
+   named here by the category's slug, so the sheet cell can stay as it is.
+   A category not listed falls back to whatever the sheet gives. */
+const CATEGORY_ART = {
+  huwtsas: "assets/cat-huwtsas.png",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -3046,7 +3056,7 @@ const writeCache = (data) => {
 function setDB(data) {
   DB = {
     shop: data.shop || {},
-    categories: data.categories || [],
+    categories: (data.categories || []).map((c) => (CATEGORY_ART[c.slug] ? { ...c, image: CATEGORY_ART[c.slug] } : c)),
     products: (data.products || []).map((p) => ({ ...p, images: listOf(p.images) })),
     bundles: data.bundles || [],
     reviews: data.reviews || [],
