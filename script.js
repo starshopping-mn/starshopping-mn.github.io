@@ -3106,12 +3106,37 @@ const hashTarget = () => {
   return [kind, want];
 };
 
+/* Everything the front door draws from the catalogue: which categories, under
+   what name and picture, in what order, and how many products each holds. */
+const homeSignature = () =>
+  JSON.stringify(
+    DB.categories
+      .filter((c) => c.active !== false)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((c) => [c.slug, c.name, c.image, productsIn(c.slug).length])
+  );
+
 function paint(data, { first }) {
   const [kindWas, slugWas] = hashTarget();
   const sigWas = !first && kindWas === "p" && slugWas ? productSignature(slugWas) : "";
+  /* The catalogue lands in pieces — the stored copy, the offline copy, the
+     database, then the sheet four or five seconds in — and each arrival used
+     to rebuild the front door whole: measured at four rebuilds in the first
+     five seconds, the last one well after the visitor had begun to look. Each
+     put the category ring back on its first name, swapped the very pictures
+     on screen and re-measured the pinned hero mid-scroll, which is the hitch
+     a returning visitor saw. The front door is now rebuilt only when what it
+     shows has actually changed, and then it stays on the category in view. */
+  const homeWas = first ? "" : homeSignature();
   setDB(data);
-  renderCategories();
-  showCat(0);
+  const homeChanged = first || homeSignature() !== homeWas;
+  if (homeChanged) {
+    const slugInView = first ? "" : (catsStage.querySelector(".cat.is-active .cat__cta") || { hash: "" }).hash;
+    renderCategories();
+    const cards = [...catsStage.querySelectorAll(".cat .cat__cta")];
+    const at = slugInView ? cards.findIndex((a) => a.hash === slugInView) : 0;
+    showCat(at > 0 ? at : 0);
+  }
   if (first) {
     window.scrollTo(0, 0);
     route();
@@ -3143,8 +3168,9 @@ function paint(data, { first }) {
       }
     }
   }
-  // fonts and images landing late can shift a pin's measurements
-  requestAnimationFrame(refreshMotion);
+  // fonts and images landing late can shift a pin's measurements — but only
+  // a front door that was rebuilt has anything new to measure
+  if (homeChanged) requestAnimationFrame(refreshMotion);
 }
 
 /* ---- Supabase rows → the shape every render function already reads ----

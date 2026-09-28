@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Starshopping</title>
+<!-- An address this site has no file for. Most of them are product links that
+     were typed by hand into a reel or a caption — a capital letter lost, a
+     product since renamed or retired — and the host's own "Page not found"
+     would leave that visitor at a dead end with nothing to tap.
+     The shop itself matches a slug loosely (capitals, aliases) and shows the
+     rest of the shelf when the product is gone, so the visitor is handed to
+     it. The query string rides along: ?ref=<creative> is how an order finds
+     its advert. Only the shape of the path is read; nothing from the address
+     is written into the page. -->
+<script>
+(function () {
+  var m = /^\/(p|c)\/([^\/]+)\/?$/.exec(location.pathname);
+  var slug = m ? m[2].replace(/[^A-Za-z0-9%._~-]/g, "") : "";
+  location.replace("https://starshopping.mn/" + location.search + (m && slug ? "#/" + m[1] + "/" + slug : "#/"));
+})();
+</script>
+<style>
+  body { margin:0; min-height:100vh; display:grid; place-items:center;
+         background:#fbf7f0; color:#45241a;
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  a { color:#45241a; font-weight:700; }
+</style>
+</head>
+<body>
+<p>Starshopping — <a href="https://starshopping.mn/">дэлгүүр рүү орох</a></p>
+</body>
+</html>
