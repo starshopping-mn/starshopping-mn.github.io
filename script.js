@@ -186,6 +186,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
    header pop-up in index.html names the same two numbers — change both. */
 const COURIER = { name: "Гялс хүргэлт", tel: "94944855", text: "9494-4855" };
 const ORDER_LINE = { tel: "95505717", text: "9550-5717" };
+/* Numbers whose orders are the owner testing the shop, never a customer. */
+const OWNER_TEST_PHONES = ["95505717"];
 
 /* The second half of the two-step order (W8, 2026-09-23). The first step goes
    to the intake with a phone and nothing else; the address, if the visitor
@@ -2369,7 +2371,11 @@ async function renderOrder() {
          goes to the courier), never for a duplicate. Sent in dollars — Meta
          refuses MNT (pixelValue). The order id as eventID lets a server-side
          event for the same order be recognised as the same one later. */
-      if (window.fbq && !out.is_duplicate)
+      /* The owner's own test orders must not reach Meta as a Purchase: in
+         test #1 three of them taught the optimiser the wrong buyer. The
+         owner's number, or ?test=1 in the link, keeps the pixel quiet. */
+      const ownerTest = OWNER_TEST_PHONES.includes(phone) || /[?&]test=1(\b|$)/.test(location.search + location.hash);
+      if (window.fbq && !out.is_duplicate && !ownerTest)
         fbq(
           "track",
           "Purchase",
