@@ -1476,10 +1476,27 @@ function renderProduct(slug) {
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
            ${chatButton(p.name)}
            <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>9550-5717 руу залгавал шууд бүртгэнэ.</p>`
-        : `<a class="buy" href="#" id="buyBtn">
+        : `<!-- STEP ONE ON THE PRODUCT PAGE (2026-09-29, owner's design). Measured
+                the day before: ~90 visitors reached this page from the advert and
+                6 pressed «Захиалах»; of those who went on, several left after the
+                phone step believing the order was done. The number and name are now
+                asked here, beside the price, and the button says there is a second
+                step, so neither the extra page nor a false «done» stands between
+                the advert and the address. -->
+           <div class="qform" id="qform">
+             <div class="qform__step">ЗАХИАЛГА · АЛХАМ 1/2</div>
+             <label class="field__label" for="qPhone">УТАСНЫ ДУГААР</label>
+             <input class="input input--big" id="qPhone" type="tel" inputmode="numeric" maxlength="14" placeholder="8 оронтой" autocomplete="tel">
+             <label class="field__label qform__gap" for="qName">НЭР <span class="field__opt">(заавал биш)</span></label>
+             <input class="input" id="qName" type="text" placeholder="Таныг юу гэж дуудах вэ" autocomplete="name">
+             <p class="qform__ship">${esc(deliveryIncluded(p) ? "🚚 Хүргэлт үнэгүй · Монгол даяар" : "🚚 Хүргэлт " + deliverySummary())}</p>
+             <p class="err" id="qErr"></p>
+           </div>
+           <a class="buy" href="#" id="buyBtn">
              <span class="buy__total" id="buyTotal"></span>
-             <span class="buy__label">ЗАХИАЛАХ</span>
+             <span class="buy__label">ЗАХИАЛАХ →</span>
            </a>
+           <p class="qform__next">Дараагийн алхамд хүргэлтийн хаягаа оруулна</p>
            <!-- The people this shop sells to are used to ordering by talking to
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
@@ -1502,6 +1519,8 @@ function renderProduct(slug) {
   pdp.appendChild(wrap);
 
   views.product.addEventListener("pointerdown", () => (pdpTouched = true), { once: true });
+  // typing in the order fields (keyboard, autofill) counts as touching the page too
+  views.product.addEventListener("focusin", () => (pdpTouched = true), { once: true });
 
   /* The button sat 1.8 screens down a phone, under the gallery, the description
      and the options, and the price went out of sight with it. This bar keeps
@@ -1532,6 +1551,12 @@ function renderProduct(slug) {
     stickyPrice = bar.querySelector(".stickybuy__price");
     bar.querySelector(".stickybuy__go").addEventListener("click", (e) => {
       e.preventDefault();
+      const qp = right.querySelector("#qPhone");
+      if (qp && qp.value.replace(/\D/g, "").length < 8) {
+        qp.scrollIntoView({ block: "center", behavior: "smooth" });
+        qp.focus({ preventScroll: true });
+        return;
+      }
       realBuy.click(); // one path to the order form, whichever button was pressed
     });
     views.product.appendChild(bar);
@@ -1677,9 +1702,53 @@ function renderProduct(slug) {
     })
   );
 
+  /* The number field on the product page takes digits only, as the one on the
+     order page does, and its first touch is the funnel's phone_focus. */
+  const qPhone = right.querySelector("#qPhone");
+  const qErr = right.querySelector("#qErr");
+  if (qPhone) {
+    qPhone.addEventListener("focus", () => { ckSlug = p.slug; ck("phone_focus"); });
+    qPhone.addEventListener("input", () => {
+      /* room for a country code or a leading 0 while it is being typed;
+         readQuickPhone() sets both aside before the number is checked */
+      const raw = qPhone.value.replace(/[^0-9]/g, "");
+      const room = raw.startsWith("976") ? 11 : raw.startsWith("0") ? 9 : 8;
+      const digits = raw.slice(0, room);
+      if (qPhone.value !== digits) qPhone.value = digits;
+      qPhone.classList.remove("is-invalid");
+      if (qErr) qErr.textContent = "";
+      if (readQuickPhone().length === 8) { ckSlug = p.slug; ck("phone_typed"); }
+    });
+    qPhone.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); right.querySelector("#buyBtn")?.click(); } });
+  }
+  const readQuickPhone = () => {
+    let ph = qPhone ? qPhone.value.replace(/\D/g, "") : "";
+    if (ph.length === 11 && ph.startsWith("976")) ph = ph.slice(3);
+    if (ph.length === 9 && ph.startsWith("0")) ph = ph.slice(1);
+    return ph;
+  };
+
   right.querySelector("#buyBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    /* «open» = pressed «Захиалах», counted before the number is checked, so the
+       funnel still shows how many wanted to order and how many then gave a number */
+    ckSlug = p.slug;
+    ck("open");
+    const quickPhone = readQuickPhone();
+    if (qPhone && !/^\d{8}$/.test(quickPhone)) {
+      ckSlug = p.slug;
+      ck("invalid", "inline:" + quickPhone.length);
+      qPhone.classList.add("is-invalid");
+      if (qErr) qErr.textContent = quickPhone.length ? "Утасны дугаар 8 оронтой тоо байх ёстой." : "Утасны дугаараа оруулна уу — бид залгаж баталгаажуулна.";
+      qPhone.scrollIntoView({ block: "center", behavior: "smooth" });
+      qPhone.focus({ preventScroll: true });
+      return;
+    }
     setDraft({
+      /* typed on the product page: the order page sends step one by itself */
+      phone: quickPhone || "",
+      custName: right.querySelector("#qName") ? right.querySelector("#qName").value.trim().replace(/\s+/g, " ").slice(0, 80) : "",
+      auto: !!quickPhone,
       slug: p.slug,
       /* what the order intake knows the product by: the Supabase UUID. Every
          source the shop paints from carries it now — the database itself and
@@ -1829,6 +1898,7 @@ async function renderOrder() {
          "next". novalidate — the browser's own warnings come in the wrong
          language and say less than ours. -->
     <form id="orderForm" class="step1" novalidate${placed ? " hidden" : ""}>
+      <div class="qform__step" style="margin-top:.4rem">АЛХАМ 1/2</div>
       <h1 class="page__title" style="font-size:clamp(1.8rem,9vw,3rem)">Захиалга</h1>
       <div class="sum" style="margin-top:1.4rem">
         <div class="sum__img"><img src="${photoSrc(d.image, 400).src}" data-fallback="${esc(photoSrc(d.image, 400).fallback)}" alt="${esc(d.name)}" decoding="async"></div>
@@ -1869,8 +1939,8 @@ async function renderOrder() {
       <p class="err" id="formErr"></p>
 
       <button class="buy" type="submit" id="submitBtn">
-        <span class="buy__total">Бид залгаж баталгаажуулна</span>
-        <span class="buy__label">УТСАА ҮЛДЭЭХ</span>
+        <span class="buy__total">Дараа нь хаягаа оруулна</span>
+        <span class="buy__label">ҮРГЭЛЖЛҮҮЛЭХ →</span>
       </button>
       <p class="note${d.preorder && !d.test ? " note--pre" : ""}">
         ${d.preorder && !d.test ? `<b>${esc(preorderLabel(d))}.</b> ` : ""}Одоо юу ч төлөхгүй. Бид ${ORDER_LINE.text}-оос залгаж
@@ -1882,17 +1952,14 @@ async function renderOrder() {
     <!-- Step two: the order exists by now. The address makes delivery faster,
          and that is all it is asked for — skipping it costs nothing. -->
     <form id="addrForm" novalidate${placed ? "" : " hidden"}>
+      <!-- Step two used to open under a large ✓ and «Захиалга бүртгэгдлээ»,
+           and people left there, believing they had finished (owner, 2026-09-29).
+           It now reads as the second of two steps; the ✓ comes on the done page. -->
       <div class="step2__head">
-        <div class="done__mark">✓</div>
-        ${
-          d.test
-            ? `<h1 class="step2__title">${esc(WAITLIST_TITLE)}</h1>
-        <p class="step2__lead">${esc(waitlistText(d.shipsInDays))}</p>
-        <p class="step2__ask">Хаягаа одоо үлдээвэл бараа ирмэгц шууд хүргэнэ</p>`
-            : `<h1 class="step2__title">Захиалга бүртгэгдлээ</h1>
-        <p class="step2__lead">Бид <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>-оос залгана. Хаягаа утсаар хэлж болно.</p>
-        <p class="step2__ask">Одоо хаягаа бөглөвөл хурдан хүргэнэ</p>`
-        }
+        <div class="qform__step">АЛХАМ 2/2 · ХҮРГЭЛТИЙН ХАЯГ</div>
+        <h1 class="step2__title">Хаягаа оруулаад захиалгаа батална уу</h1>
+        <p class="step2__lead">Утасны дугаар тань бүртгэгдсэн — бид <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>-оос залгана.</p>
+        <p class="step2__when"><b>${esc(shipIncluded ? "🚚 Хүргэлт үнэгүй" : "🚚 Хүргэлт")}</b> · ${esc(d.test ? "Бараа одоогоор агуулахад ирээгүй — ирмэгц бид залгаж хүргэнэ, хугацааг утсаар хэлнэ. Одоо юу ч төлөхгүй." : d.leadTime || DEFAULT_LEAD_TIME)}</p>
       </div>
     <div class="order-grid" style="margin-top:1.2rem">
       <div>
@@ -2010,7 +2077,7 @@ async function renderOrder() {
 
         <button class="buy" type="submit" id="addrBtn">
           <span class="buy__total" id="submitTotal"></span>
-          <span class="buy__label">ХАЯГАА ИЛГЭЭХ</span>
+          <span class="buy__label">ЗАХИАЛГА БАТЛАХ</span>
         </button>
         <a class="skip" href="#/done" id="addrSkip">Алгасах — хаягаа утсаар хэлье</a>
       </div>
@@ -2482,6 +2549,19 @@ async function renderOrder() {
       );
     }
   });
+
+  /* Typed on the product page (2026-09-29): the number came with the draft, so
+     step one sends itself and the visitor lands on the address. The flag is
+     cleared first, so a refresh never sends it twice (the intake would mark a
+     second one as a duplicate anyway). A refusal leaves step one on screen,
+     filled in, with the reason under the field. */
+  if (d.auto && d.phone && !placed) {
+    $("fPhone").value = String(d.phone).replace(/\D/g, "").slice(0, 8);
+    if (d.custName && $("fName")) $("fName").value = d.custName;
+    try { const dd = getDraft(); if (dd) { delete dd.auto; setDraft(dd); } } catch (e) { /* storage refused — the intake catches a repeat */ }
+    const f1 = $("orderForm");
+    setTimeout(() => (typeof f1.requestSubmit === "function" ? f1.requestSubmit() : btn.click()), 0);
+  }
 
   /* ---- step two: the address, if they will give it ---- */
   const finish = () => {
