@@ -27,6 +27,26 @@ function renderTests(DATA, QUERY) {
     ? '<a class="lb cn" href="' + url(c.cn_offer_url) + '" target="_blank" rel="noopener">🛒 1688 — авах бараа<small>¥' + esc(c.cn_price == null ? '?' : c.cn_price) + (has(c.cn_sold) ? ' · ' + n(c.cn_sold).toLocaleString('en-US') + 'ш зарагдсан' : '') + (c.weight_g ? ' · ' + n(c.weight_g) + 'г' : '') + '</small></a>'
     : '<span class="lb no">🛒 1688 offer алга<small>зургаар сонгох хэрэгтэй</small></span>';
   const day = (s) => (s ? String(s).slice(0, 10) : '—');
+  // AY: тестийн барааны карт — яг ямар бараа тестлэгдэж байгааг 100% харуулна
+  const MODE = { test: 'ТЕСТ горим', preorder: 'Урьдчилсан', live: 'Борлуулалт', stop: 'Зогссон' };
+  const rankTag = (r) => (has(r) ? '<span class="gt rk2" title="Судалгааны нэг ранк — тестэд орсон ч дугаараа хадгална">Ранк #' + n(r) + '</span>' : '<span class="gt mu">ранкаас гарсан</span>');
+  const pcard = (k) => {
+    if (!k || !k.name) return '<div class="tpc tpe">Бараа бүртгэгдээгүй — маягт 13-аар ТЕСТ горимд бүртгэмэгц энд зураг, үнэ, SKU, зарын нэр гарна.'
+      + (k && /1688\.com\/offer\//.test(String(k.cn_offer_url || '')) ? '<div class="lk"><a class="lb cn" href="' + url(k.cn_offer_url) + '" target="_blank" rel="noopener">🛒 1688 — авах бараа<small>¥' + esc(k.cn_price == null ? '?' : k.cn_price) + '</small></a></div>' : '') + '</div>';
+    const sk = A(k.skus), cr = A(k.creatives);
+    return '<div class="tpc">' + (url(k.image) ? '<img src="' + url(k.image) + '" alt="" loading="lazy">' : '<div class="tpi">зураг алга</div>')
+      + '<div class="tpb"><div class="tpn">' + esc(k.name) + '</div>'
+      + '<div class="tpm">' + mnt(k.price_mnt) + ' · <span class="gt ' + (k.mode === 'test' ? 'wr' : k.mode === 'live' ? 'ok' : 'mu') + '">' + esc(MODE[k.mode] || k.mode || '—') + '</span>'
+      + (has(k.cn_price) ? ' · өртөг ¥' + esc(k.cn_price) + (k.weight_g ? ' · ' + n(k.weight_g) + 'г' : '') : '') + '</div>'
+      + '<div class="tpm">SKU: ' + (sk.length ? sk.map((x) => esc([x.color, x.size].filter(Boolean).join(' ') || x.sku_id)).join(' · ') : '<b style="color:var(--warn)">алга</b>') + '</div>'
+      + '<div class="tpm">Креатив: ' + (cr.length ? cr.map((x) => '<code>' + esc(x.id) + '</code>' + (x.angle ? ' ' + esc(String(x.angle).slice(0, 24)) : '')).join(' · ') : '<b style="color:var(--warn)">алга</b>') + '</div>'
+      + '<div class="tpm">Дараагийн зарын нэр: <code>' + esc(k.ad_name_example || '—') + '</code> <span style="color:var(--mut)">— Meta-д ингэж нэрлэвэл автоматаар бүртгэгдэнэ</span></div>'
+      + '<div class="lk">' + (url(k.site_url) ? '<a class="lb tt" href="' + url(k.site_url) + '" target="_blank" rel="noopener">🌐 Сайт дээрх хуудас<small>' + esc(k.slug || '') + '</small></a>' : '')
+      + (/1688\.com\/offer\//.test(String(k.cn_offer_url || '')) ? '<a class="lb cn" href="' + url(k.cn_offer_url) + '" target="_blank" rel="noopener">🛒 1688 — авах бараа<small>¥' + esc(k.cn_price == null ? '?' : k.cn_price) + '</small></a>' : '<span class="lb no">🛒 1688 offer алга<small>зургаар сонгох хэрэгтэй</small></span>')
+      + '</div></div></div>';
+  };
+  const ntf = (x) => { x = x || {}; const q = n(x.queued), se = n(x.sent), fl = n(x.failed);
+    return q + se + fl ? '<span class="gt ' + (fl ? 'no' : q ? 'wr' : 'ok') + '">мессеж: илгээсэн ' + se + (q ? ' · хүлээгдэж ' + q : '') + (fl ? ' · алдаа ' + fl : '') + '</span>' : ''; };
   const ago = (s) => { if (!s) return ''; const h = Math.round((Date.now() - new Date(s).getTime()) / 36e5);
     return h < 1 ? 'саяхан' : h < 48 ? h + ' цагийн өмнө' : Math.round(h / 24) + ' хоногийн өмнө'; };
 
@@ -68,6 +88,9 @@ function renderTests(DATA, QUERY) {
    + 'table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:9px 10px;border-bottom:1px solid var(--ln3);text-align:left;vertical-align:top}th{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}.sc2{overflow:auto;background:var(--s1);border:1px solid var(--ln);border-radius:var(--r)}'
    + '.out{border:1px solid var(--ln);border-radius:var(--r-s);padding:12px;margin:10px 0;background:var(--s1);font-size:13px;line-height:1.5;display:none}.out.on{display:block}.out textarea{width:100%;min-height:70px;font:inherit;font-size:13px;margin-top:6px}'
    + '.ads{display:grid;gap:6px;margin:8px 0}.ad{border:1px solid var(--ln3);border-radius:var(--r-s);padding:9px 11px;background:var(--bg)}.adh{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.adh b{flex:1;min-width:110px;font-size:13px}.adm{font-size:12px;color:var(--ink2);margin-top:4px;line-height:1.45}.adl{font-size:12px;color:var(--warn);margin-top:3px}'
+   + '.tpc{display:flex;gap:14px;margin:12px 0 4px;padding:12px;border:1px solid var(--ln3);border-radius:var(--r-s);background:var(--bg)}.tpc img,.tpc .tpi{width:96px;height:96px;object-fit:cover;border-radius:10px;flex:none;background:var(--s2);font-size:11px;color:var(--mut);display:flex;align-items:center;justify-content:center}.tpb{flex:1;min-width:0}.tpn{font-weight:800;font-size:15px}.tpm{font-size:12px;color:var(--ink2);margin-top:4px;line-height:1.45;overflow-wrap:anywhere}.tpc code{font-size:11px;background:var(--s2);padding:1px 5px;border-radius:5px}.tpc.tpe{display:block;font-size:13px;color:var(--ink2)}'
+   + '.gt.rk2{background:var(--ink);color:var(--bg);font-size:12px}.ew{border-radius:var(--r-s);padding:12px 14px;margin:10px 0;background:var(--good-a);color:var(--good);font-size:13px;font-weight:600;line-height:1.5}'
+   + '@media(max-width:520px){.tpc{flex-direction:column}.tpc img,.tpc .tpi{width:100%;height:180px}}'
    + '.em{background:var(--s1);border:1px dashed var(--ln2);border-radius:var(--r);padding:16px;font-size:13px;color:var(--ink2)}'
    + 'footer{margin:26px 0 10px;font-size:12px;color:var(--mut)}'
    + '@media(max-width:640px){.hero h1{font-size:19px}.stp{grid-template-columns:26px 1fr}.stp .ac{grid-column:2}}');
@@ -85,7 +108,7 @@ function renderTests(DATA, QUERY) {
   // ── ОДООГИЙН БАЙДАЛ — нэг өгүүлбэр: юу хийх вэ
   let head, sub;
   if (EV.length) { const e = EV[0]; const k = (e.signal || {}).kind; const rd = e.read || null;
-    head = 'ҮНЭЛГЭЭ · ' + e.name + ' · ' + n(e.hours) + ' цаг';
+    head = 'ҮНЭЛГЭЭ · ' + e.name + ' · ' + n(e.hours) + ' цаг' + (rd && rd.early_win ? ' · ЭРТ WIN' : '');
     sub = rd ? rd.why + (rd.diag && rd.diag.leak ? ' Хамгийн сул шат: ' + rd.diag.leak + '.' : '')
         : k === 'win' ? 'Систем WIN санал болгож байна — доор баталгаажуул.' : k === 'lose' ? 'Систем LOSS санал болгож байна — доор баталгаажуул.'
         : n(e.hours) < 24 ? 'Эхний 24 цаг — дүгнэлт хийхгүй, зар өгөгдөл цуглуулж байна.' : 'Дүгнэлт гараагүй — зар/захиалгын өгөгдөл хүлээж байна.';
@@ -105,14 +128,15 @@ function renderTests(DATA, QUERY) {
     + '<span>Тестийн босго ' + n(TH.min_score) + ' оноо</span><span>' + esc(TH.why || '') + '</span></div></section>');
 
   // ── 1. TOP-5
-  o('<div class="sec"><b>1 · Top-' + C.length + ' нэр дэвшигч</b><span class="st">оноо + суралцсан тохируулга · нягтлалт 9 баримт · ▶ вирал reel ба 🛒 1688 товч · картыг дарж дэлгэрэнгүй</span></div>');
+  const TR = ACT.concat(EV).filter((t) => has(t.rank_now)).sort((a, b) => n(a.rank_now) - n(b.rank_now));
+  o('<div class="sec"><b>1 · Дараагийн нэр дэвшигч</b><span class="st">ранкийн дугаар нэг: ' + (TR.length ? TR.map((t) => '#' + n(t.rank_now) + ' ' + esc(t.name)).join(', ') + ' тестэд байгаа тул энд ' + (C.length ? '#' + n(C[0].rank) + '-аас' : '') + ' үргэлжилнэ' : 'тестэд бараа алга') + ' · нягтлалт 9 баримт · картыг дарж дэлгэрэнгүй</span></div>');
   const RS = d.research || {};
   if (has(RS.last_check_at)) o('<div style="font-size:12px;color:var(--mut);margin:-2px 0 10px">Сүүлийн судалгаа <b>' + esc(ago(RS.last_check_at)) + '</b> · 24 цагт ' + n(RS.checked_24h) + ' олдвор шалгасан · шинэ ТЕСТ ' + n(RS.new_test_24h) + (n(RS.queue) ? ' · шалгах дараалалд ' + n(RS.queue) : '') + ' · тестэд орсон бараа энд биш, 2-р хэсэгт</div>');
   if (!C.length) o('<div class="em">Нэр дэвшигч алга.</div>');
   o('<div class="cands">');
   C.forEach((c, i) => {
     const cf = c.confidence || {}; const chk = A(cf.checks); const busy = has(c.open_test);
-    o('<div class="cd' + (i === 0 ? ' r1' : '') + (busy ? ' busy' : '') + '" data-i="' + i + '" data-keep="f' + n(c.find_id) + '"><div class="rk">#' + n(c.rank) + '</div>');
+    o('<div class="cd' + (n(c.rank) === 1 ? ' r1' : '') + (busy ? ' busy' : '') + '" data-i="' + i + '" data-keep="f' + n(c.find_id) + '"><div class="rk">#' + n(c.rank) + '</div>');
     o('<div class="nm">' + esc(c.product) + '</div><div class="mt">' + esc(c.category || '—') + (c.ready ? ' · <span class="gt ok">БЭЛЭН</span>' : c.verdict === 'test' ? ' · <span class="gt wr">ТЕСТ · нягтлах</span>' : c.verdict === 'reject' ? ' · <span class="gt no">ТАТГАЛЗСАН</span>' : ' · <span class="gt wr">ХҮЛЭЭХ</span>') + (c.resurfaced ? ' · <span class="gt bl" title="' + esc(c.resurface_why || '') + '">↻ эргэн ирсэн</span>' : '') + (busy ? ' · <span class="gt bl">тестэд байна</span>' : '') + '</div>');
     o('<div class="sc"><b>' + n(c.score_adj) + '</b><i><u style="width:' + Math.min(100, n(c.score_adj)) + '%"></u></i>' + (n(c.adj) ? '<span class="gt mu">' + (n(c.adj) > 0 ? '+' : '') + n(c.adj) + ' сурсан</span>' : '') + '</div>');
     o('<div class="vf">' + chk.map((k) => '<span class="' + (k.ok ? 'ok' : 'no') + '" title="' + esc(k.label) + '"></span>').join('') + '</div>');
@@ -131,10 +155,11 @@ function renderTests(DATA, QUERY) {
   ACT.forEach((t) => {
     const steps = A(t.steps); const done = n(t.done); const cf = t.confidence || {};
     const nowStep = (steps.find((s) => s.status === 'todo') || {}).step;
-    o('<div class="tc"><div class="hd2"><h3>#' + n(t.rank) + ' ' + esc(t.name) + '</h3><span class="gt bl">' + esc(t.category || '—') + '</span>'
+    o('<div class="tc"><div class="hd2"><h3>' + esc(t.name) + '</h3>' + rankTag(t.rank_now) + '<span class="gt bl">' + esc(t.category || '—') + '</span>'
       + (cf.ok ? '<span class="gt ok">нягтлагдсан ' + n(cf.of) + '/' + n(cf.of) + '</span>' : '<span class="gt wr">нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '</span>')
       + (t.slug ? '<span class="gt ok">ТЕСТ горимд · ' + esc(t.slug) + '</span>' : '<span class="gt mu">бүртгээгүй</span>')
       + '<span class="gt mu">креатив ' + n(t.creatives) + '</span><span class="gt mu">' + esc(ago(t.selected_at)) + '</span></div>');
+    o(pcard(t.card));
     o('<div class="prog"><i style="width:' + Math.round(100 * done / 6) + '%"></i></div><div class="st" style="font-size:12px;color:var(--mut)">' + done + '/6 алхам</div>');
     o('<div class="steps">');
     steps.forEach((s) => {
@@ -158,7 +183,9 @@ function renderTests(DATA, QUERY) {
   if (!EV.length) o('<div class="em">Үнэлгээнд бараа алга.</div>');
   EV.forEach((e) => {
     const sg = e.signal || {}; const k = sg.kind; const cls = k === 'win' ? 'win' : k === 'lose' ? 'lose' : 'wait';
-    o('<div class="tc"><div class="hd2"><h3>' + esc(e.name) + '</h3><span class="gt bl">' + esc(e.category || '—') + '</span><span class="gt mu">AD ' + day(e.launched_at) + ' · ' + n(e.hours) + ' цаг</span></div>');
+    o('<div class="tc"><div class="hd2"><h3>' + esc(e.name) + '</h3>' + rankTag(e.rank_now) + '<span class="gt bl">' + esc(e.category || '—') + '</span><span class="gt mu">AD ' + day(e.launched_at) + ' · ' + n(e.hours) + ' цаг</span>' + ntf(e.notify) + '</div>');
+    o(pcard(e.card));
+    if (e.read && e.read.early_win) o('<div class="ew">🚀 ЭРТ WIN — ' + esc(e.read.early_rule || '') + '. Эхний багц ~' + n(e.read.suggest_first_qty) + ' ш-ийг 1688-аас яаралтай захиал (карго ~14 хоног). WIN-ийг доор 1 товчоор батал.</div>');
     if (!e.read) o('<div class="mx"><div><div class="l">Зар</div><div class="v">' + mnt(has(sg.spend_mnt) ? sg.spend_mnt : e.spend_mnt) + '</div></div>'
       + '<div><div class="l">Утсаа үлдээсэн</div><div class="v">' + n(has(sg.signups) ? sg.signups : e.orders) + '</div></div>'
       + '<div><div class="l">1 хүний өртөг</div><div class="v">' + (has(sg.cpa_mnt) ? mnt(sg.cpa_mnt) : '—') + '<small> босго ' + (has(sg.max_cpa_mnt) ? mnt(sg.max_cpa_mnt) : '—') + '</small></div></div>'
@@ -198,7 +225,7 @@ function renderTests(DATA, QUERY) {
       + (k === 'win' && has(sg.suggest_qty) ? ' Хятадаас захиалах: ' + n(sg.suggest_qty) + ' ш.' : '') + '</div>');
     o('<div class="launch"><button class="btn g res-b" data-t="' + n(e.test_id) + '" data-r="win" data-n="' + esc(e.name) + '">✓ WIN</button>'
       + '<button class="btn r res-b" data-t="' + n(e.test_id) + '" data-r="loss" data-n="' + esc(e.name) + '">✕ LOSS</button>'
-      + '<div class="why">WIN → Хятадаас захиал, ирмэгц ▶ Борлуулалт. LOSS → тест зогсож хүлээж буй хүмүүст уучлалтын жагсаалт гарна. Хоёулаа ранк руу суралцаж буцна.</div></div>');
+      + '<div class="why"><b>LOSS автомат</b> (≥1000 impr · ≥48 цаг · P(win) ≤20%) — систем өөрөө хааж, Telegram-аар «Meta дээр зарыг унтраа» гэж хэлнэ. <b>WIN = 1 товч</b> — Telegram-д WIN дохио ирмэгц энд дар. Хаагдмагц бүртгүүлсэн хүмүүст SMS (эсвэл 24ц дотор бичсэн бол чат) автоматаар очно — залгахгүй. Хоёулаа ранк руу суралцаж буцна.</div></div>');
     o('<div class="out" id="out-t' + n(e.test_id) + '"></div></div>');
   });
 
@@ -206,11 +233,11 @@ function renderTests(DATA, QUERY) {
   o('<div class="sec"><b>4 · Үр дүн</b><span class="st">ранк суралцана: категори WIN +5 · LOSS −8 · ижил бараа LOSS −30</span></div>');
   if (!HIS.length) o('<div class="em">Дууссан тест алга.</div>');
   else {
-    o('<div class="sc2"><table><tr><th>Бараа</th><th>Үр дүн</th><th>Зар</th><th>Захиалга</th><th>1 хүн</th><th>Хаасан</th><th></th></tr>');
+    o('<div class="sc2"><table><tr><th>Бараа</th><th>Үр дүн</th><th>Зар</th><th>Захиалга</th><th>1 хүн</th><th>Хаасан</th><th>Мессеж</th><th></th></tr>');
     HIS.forEach((h) => { const oc = h.outcome || {};
       const rs = h.result === 'win' ? '<span class="gt ok">WIN</span>' : h.result === 'loss' ? '<span class="gt no">LOSS</span>' : '<span class="gt mu">гаргасан</span>';
       const act = h.result === 'win' && h.slug && h.mode !== 'live' ? '<button class="btn s pm-b" data-slug="' + esc(h.slug) + '" data-name="' + esc(h.name) + '">▶ Борлуулалт</button>' : (h.mode === 'live' ? '<span class="gt ok">борлуулалтад · ' + n(h.stock_qty) + ' ш</span>' : '');
-      o('<tr><td><b>' + esc(h.name) + '</b><div style="font-size:11px;color:var(--mut)">' + esc(h.category || '') + (h.note ? ' · ' + esc(h.note) : '') + '</div></td><td>' + rs + '</td><td>' + mnt(oc.spend_mnt) + '</td><td>' + n(oc.orders) + '</td><td>' + (has(oc.cpa_mnt) ? mnt(oc.cpa_mnt) : '—') + '</td><td>' + day(h.closed_at) + '</td><td>' + act + '</td></tr>');
+      o('<tr><td><b>' + esc(h.name) + '</b><div style="font-size:11px;color:var(--mut)">' + esc(h.category || '') + (h.note ? ' · ' + esc(h.note) : '') + '</div></td><td>' + rs + '</td><td>' + mnt(oc.spend_mnt) + '</td><td>' + n(oc.orders) + '</td><td>' + (has(oc.cpa_mnt) ? mnt(oc.cpa_mnt) : '—') + '</td><td>' + day(h.closed_at) + '</td><td>' + (ntf(h.notify) || '—') + '</td><td>' + act + '</td></tr>');
     });
     o('</table></div>');
   }
@@ -261,11 +288,11 @@ function renderTests(DATA, QUERY) {
     // WIN / LOSS
     + 'document.querySelectorAll(".res-b").forEach(function(b){b.addEventListener("click",function(){var r=b.dataset.r,nt=prompt("«"+b.dataset.n+"» → "+(r==="win"?"WIN":"LOSS")+". Тэмдэглэл (заавал биш):");if(nt===null)return;var out=document.getElementById("out-t"+b.dataset.t);'
     + 'post({action:"result",test_id:+b.dataset.t,result:r,note:nt,by:"owner"},b,out).then(function(j){var h="<b>"+e(j.product)+" → "+(j.result==="win"?"WIN 🟢":"LOSS 🔴")+"</b> · зар "+m(j.spend_mnt)+" · захиалга "+(j.orders||0)+"<br>"+e(j.next||"");'
-    + 'var M=j.mode||{},L=M.call_list||M.sorry_list||[];if(L.length){h+="<br><br><b>"+(M.call_list?"Залгах":"Уучлалт хүсэх")+" ("+L.length+")</b><br>"+L.map(function(x){return e(x.phone)+(x.name?" · "+e(x.name):"")+" · "+x.qty+"ш"}).join("<br>")}if(M.script)h+="<br><b>Хэлэх үг:</b><textarea readonly>"+e(M.script)+"</textarea>";'
+    + 'var M=j.mode||{},L=M.call_list||M.sorry_list||[];h+="<br>📩 Бүртгүүлсэн хүмүүст "+(j.result==="win"?"«~14 хоногт хүргэнэ»":"уучлалтын")+" мессеж автоматаар дараалалд орлоо (SMS — Mac, чат — 24ц дотор). Залгах шаардлагагүй.";if(L.length){h+="<br><br><b>Мессеж очих хүмүүс ("+L.length+")</b><br>"+L.map(function(x){return e(x.phone)+(x.name?" · "+e(x.name):"")+" · "+e(x.qty)+"ш"}).join("<br>")}'
     + 'h+="<br><button class=\\"btn s\\" onclick=location.reload()>Шинэчлэх</button>";out.className="out on";out.innerHTML=h;b.textContent="✓"})})});'
     // ▶ Борлуулалт (WIN бараа ирмэгц)
     + 'document.querySelectorAll(".pm-b").forEach(function(b){b.addEventListener("click",function(){var q=prompt("«"+b.dataset.name+"» агуулахад хэдэн ширхэг тоолж авсан бэ?");if(q===null)return;q=parseInt(q,10);if(!(q>=0)){alert("Тоо оруулна уу");return}var out=document.getElementById("out-pm");'
-    + 'post({action:"mode",slug:b.dataset.slug,mode:"live",stock_qty:q,by:"owner"},b,out).then(function(j){var L=j.call_list||[];var h="<b>"+e(j.product)+" → борлуулалт</b><br>"+e(j.next||"");if(j.short>0)h+="<br>⚠️ "+j.short+" ш ДУТУУ — нэмж захиал!";if(L.length)h+="<br><br><b>Залгах ("+L.length+")</b><br>"+L.map(function(x){return e(x.phone)+(x.name?" · "+e(x.name):"")+" · "+x.qty+"ш"}).join("<br>");if(j.script)h+="<br><b>Хэлэх үг:</b><textarea readonly>"+e(j.script)+"</textarea>";h+="<br><button class=\\"btn s\\" onclick=location.reload()>Шинэчлэх</button>";out.className="out on";out.innerHTML=h;b.textContent="✓"})})});'
+    + 'post({action:"mode",slug:b.dataset.slug,mode:"live",stock_qty:q,by:"owner"},b,out).then(function(j){var L=j.call_list||[];var h="<b>"+e(j.product)+" → борлуулалт</b><br>"+e(j.next||"");if(j.short>0)h+="<br>⚠️ "+j.short+" ш ДУТУУ — нэмж захиал!";if(L.length)h+="<br><br><b>Залгах ("+L.length+")</b><br>"+L.map(function(x){return e(x.phone)+(x.name?" · "+e(x.name):"")+" · "+e(x.qty)+"ш"}).join("<br>");if(j.script)h+="<br><b>Хэлэх үг:</b><textarea readonly>"+e(j.script)+"</textarea>";h+="<br><button class=\\"btn s\\" onclick=location.reload()>Шинэчлэх</button>";out.className="out on";out.innerHTML=h;b.textContent="✓"})})});'
     + '})();</script></body></html>');
   return P.join('');
 }
