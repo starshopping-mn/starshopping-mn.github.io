@@ -167,6 +167,9 @@ function renderTests(DATA, QUERY) {
     if (RD) {
       const pct = (v) => (has(v) ? Math.round(n(v) * 100) + '%' : '—');
       const VL = { win: '🟢 WIN', loss: '🔴 LOSS', wait: '⏳ хүлээ', early: '⏳ эхний 24ц', starved: '⚪ Meta мөнгө өгөөгүй' };
+      /* Зар тус бүрийн дүгнэлт зөвхөн мэдээлэл: Meta төсвийг зар хооронд өөрөө хуваарилдаг
+         (breakdown effect) тул нэг зарыг дундаж өртгөөр нь унтрааж болохгүй — БАРААГ нийтээр нь дүгнэнэ. */
+      const VA = { win: '🟢 хүчтэй', loss: '🟠 сул', wait: '⏳ хүлээ', early: '⏳ эхний 24ц', starved: '⚪ Meta мөнгө өгөөгүй' };
       const vc = RD.verdict === 'win' ? 'win' : RD.verdict === 'loss' ? 'lose' : 'wait';
       const DG = RD.diag || {};
       o('<div class="sec" style="margin:14px 0 4px"><b style="font-size:14px">Зарын уншилт</b><span class="st">' + n(RD.hours) + ' цаг · Meta өгөгдөл ' + esc(RD.data_through || '—') + ' хүртэл · breakeven ' + mnt(RD.breakeven_mnt) + '/бүртгэл</span></div>');
@@ -180,12 +183,13 @@ function renderTests(DATA, QUERY) {
       const AD = A(RD.ads);
       if (AD.length) {
         o('<div class="ads">');
-        AD.forEach((a) => { const g = a.diag || {}; const vk = a.verdict === 'win' ? 'ok' : a.verdict === 'loss' ? 'no' : a.verdict === 'starved' ? 'mu' : 'wr';
-          o('<div class="ad"><div class="adh"><b>' + esc(a.creative_id || '—') + '</b><span class="gt ' + vk + '">' + esc(VL[a.verdict] || a.verdict) + '</span><span class="gt mu">P(win) ' + pct(a.p_win) + '</span></div>'
+        AD.forEach((a) => { const g = a.diag || {}; const vk = a.verdict === 'win' ? 'ok' : a.verdict === 'starved' ? 'mu' : 'wr';
+          o('<div class="ad"><div class="adh"><b>' + esc(a.creative_id || '—') + '</b><span class="gt ' + vk + '">' + esc(VA[a.verdict] || a.verdict) + '</span><span class="gt mu">P(win) ' + pct(a.p_win) + '</span></div>'
             + '<div class="adm">' + mnt(a.spend_mnt) + ' (' + n(a.share_pct) + '%) · ' + n(a.impressions).toLocaleString('en-US') + ' impr · hook ' + (has(g.hook_pct) ? g.hook_pct + '%' : '—') + ' · CTR ' + (has(g.ctr_pct) ? g.ctr_pct + '%' : '—') + ' · бүртгэл ' + n(a.signups) + (has(a.cps_mnt) ? ' · ' + mnt(a.cps_mnt) + '/бүртгэл' : '') + '</div>'
             + (g.leak ? '<div class="adl">' + esc(g.leak) + '</div>' : '') + '</div>');
         });
         o('</div>');
+        o('<p style="font-size:12px;color:var(--ink2);margin:4px 0 0">Зар тус бүрийн тэмдэг зөвхөн мэдээлэл — зарыг дангаар нь бүү унтраа (Meta төсвийг өөрөө хуваарилдаг). WIN/LOSS-ийг <b>бараагаар нийтэд нь</b> дээрх P(win)-ээр шийднэ.</p>');
       }
       o('<p style="font-size:11px;color:var(--mut);margin:6px 0 0">' + esc(RD.rule || '') + '</p>');
     }
