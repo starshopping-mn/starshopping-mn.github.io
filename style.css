@@ -1422,3 +1422,16 @@ select.input {
   color: #3f9a5c;
 }
 .fastline + .stockline { margin-top: -0.7rem; }
+
+/* ---- step one on the product page (2026-09-29) ---- */
+.qform { margin: 1.1rem 0 0.9rem; padding: 1rem 1rem 0.6rem; border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 14px; background: var(--bg-soft, rgba(0,0,0,.025)); }
+.qform .field__label { display: block; margin-bottom: 0.4rem; }
+.qform .qform__gap { margin-top: 0.85rem; }
+.qform .input { width: 100%; box-sizing: border-box; }
+.qform__step { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.14em; color: var(--fg-dim); margin-bottom: 0.7rem; }
+.step2__head .qform__step { margin: 0 auto 0.6rem; }
+.qform__ship { margin: 0.8rem 0 0.1rem; font-size: 0.86rem; font-weight: 700; }
+.qform .err:empty { display: none; }
+.qform__next { text-align: center; font-size: 0.78rem; color: var(--fg-dim); margin: 0.45rem 0 0.2rem; }
+.step2__when { margin: 0.55rem auto 0; font-size: 0.9rem; line-height: 1.55; }
+@media (min-width: 900px) { .qform, .qform__next { max-width: 420px; } }
