@@ -52,20 +52,87 @@
   var extras = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
   if (view === 'research' && q.tab === 'pack' && q.c) extras.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
 
-  /* ---- Амьд шинэчлэл (2026-09-28) ----
-     Хуудас нэг л удаа зурагддаг байсан. Одоо 20 сек тутамд board_version-ийг асууна:
-     Supabase-д юу ч өөрчлөгдвөл (захиалга, мессеж, эрүүл мэнд, тест) md5 өөрчлөгдөж,
-     хуудас өөрөө дахин ачаална. Хүн бичиж байх үед (input фокустай) хүлээнэ,
-     таб харагдахгүй үед асуухгүй. Эрүүл мэндийн тайл дээд буланд амьд байна. */
+  /* ---- Амьд шинэчлэл (2026-09-29, v2) ----
+     v1 хуудсыг бүхэлд нь location.reload() хийдэг байсан: сайтын үзэгч бүр
+     checkout_events-д мөр нэмж 20 сек тутам самбарыг дахин ачаалж, эзний нээсэн
+     карт «анивчаад алга» болдог байв. Одоо:
+       · өгөгдөл өөрчлөгдвөл зөвхөн өгөгдлийг татаж, <body>-г байранд нь солино
+         (хуудас цагаан болохгүй, гүйлгэсэн байрлал + нээсэн карт хадгалагдана);
+       · хүн хөдөлж байх үед (сүүлийн 15 сек дарсан/бичсэн, талбар фокустай,
+         хариуны самбар нээлттэй) хүлээж, чөлөөтэй болмогц шинэчилнэ;
+       · version өөрчлөгдөөгүй ч 10 минут тутам нэг удаа шинэчилнэ (судалгааны
+         хүснэгтүүд version-д ороогүй). */
+  var lastAct = Date.now(), pending = false, painting = false;
+  function busy() {
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return true;
+    if (Date.now() - lastAct < 15000) return true;
+    if (document.querySelector('.out.on')) return true;           // үйлдлийн хариу уншиж байна
+    return false;
+  }
+  function fetchAll() {
+    var ex = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
+    if (view === 'research' && q.tab === 'pack' && q.c) ex.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
+    return Promise.all([get(V.data)].concat(ex.map(function (x) { return x.p; }))).then(function (res) {
+      var d = res[0] || {};
+      ex.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
+      var html = window[V.render](d, q);
+      return html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
+    });
+  }
+  // Дараагийн зурагт нээлттэй байсныг сэргээх түлхүүрүүд (data-keep="..." бүхий элементүүд)
+  function snapshot() {
+    return {
+      y: window.scrollY,
+      open: Array.prototype.map.call(document.querySelectorAll('[data-keep].open, details[data-keep][open]'), function (el) { return el.getAttribute('data-keep'); })
+    };
+  }
+  function restore(st) {
+    (st.open || []).forEach(function (k) {
+      var el = document.querySelector('[data-keep="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+      if (!el) return;
+      if (el.tagName === 'DETAILS') el.open = true;
+      else el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    window.scrollTo(0, st.y);
+  }
+  function paint(html) {
+    var st = snapshot();
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var old = document.getElementById('ssHealth');
+    document.body.replaceWith(document.adoptNode(doc.body));
+    // DOMParser-ийн <script> идэвхгүй — шинээр үүсгэж ажиллуулна
+    document.body.querySelectorAll('script').forEach(function (sc) {
+      var n = document.createElement('script');
+      for (var i = 0; i < sc.attributes.length; i++) n.setAttribute(sc.attributes[i].name, sc.attributes[i].value);
+      n.textContent = sc.textContent;
+      sc.replaceWith(n);
+    });
+    if (old) document.body.appendChild(old);
+    var hs = doc.head.querySelectorAll('style'), cur = document.head.querySelectorAll('style');
+    if (hs.length && cur.length && hs[hs.length - 1].textContent !== cur[cur.length - 1].textContent) cur[cur.length - 1].textContent = hs[hs.length - 1].textContent;
+    restore(st);
+  }
+  function refresh(force) {
+    if (painting) return;
+    if (!force && busy()) { pending = true; return; }
+    painting = true; pending = false;
+    fetchAll().then(paint).catch(function () { /* дараагийн удаа */ }).then(function () { painting = false; });
+  }
   function live() {
-    var ver = null, T = 20000;
-    function busy() { var a = document.activeElement; return a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); }
+    var ver = null, T = 20000, lastPaint = Date.now();
+    // document.open() нь window-ийн listener-үүдийг арилгадаг тул зурсны ДАРАА бүртгэнэ
+    ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (ev) {
+      window.addEventListener(ev, function () { lastAct = Date.now(); }, { passive: true, capture: true });
+    });
     function tick() {
       if (document.visibilityState !== 'visible') return;
+      if (pending && !busy()) { refresh(); lastPaint = Date.now(); return; }
       get('version').then(function (r) {
         var v = r && r.v; if (!v) return;
         if (ver === null) { ver = v; return; }
-        if (v !== ver && !busy()) location.reload();
+        if (v !== ver) { ver = v; refresh(); lastPaint = Date.now(); }
+        else if (Date.now() - lastPaint > 600000) { refresh(); lastPaint = Date.now(); }
       }).catch(function () { /* сүлжээ түр тасарвал дараагийн удаа */ });
     }
     function health() {
@@ -73,7 +140,7 @@
         if (!h || !h.overall || h.overall === 'none') return;
         var el = document.getElementById('ssHealth');
         if (!el) {
-          el = document.createElement('a'); el.id = 'ssHealth'; el.href = '?view=tests#health';
+          el = document.createElement('a'); el.id = 'ssHealth'; el.href = '?view=board';
           el.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;font:12px/1 system-ui,sans-serif;padding:8px 12px;border-radius:999px;color:#fff;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.25)';
           document.body.appendChild(el);
         }
@@ -83,6 +150,13 @@
         el.title = (h.checks || []).filter(function (c) { return c.status !== 'ok'; }).map(function (c) { return c.status + ' ' + c.key; }).join('\n') || 'Бүх шалгалт OK';
       }).catch(function () {});
     }
+    // «Шинэчлэх» товч: хуудас дахин ачаалахгүйгээр
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a.rf[href=""]');   // зөвхөн «Шинэчлэх»; бусад .rf холбоос навигац хэвээр
+      if (!a) return;
+      e.preventDefault(); pending = false; refresh(true);
+    });
+    window.ssRefresh = function () { refresh(true); };
     tick(); health();
     setInterval(tick, T); setInterval(health, 60000);
   }
