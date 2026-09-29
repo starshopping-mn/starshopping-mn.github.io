@@ -148,10 +148,14 @@ function renderBoard(DATA, QUERY) {
   P('<div class="kpi">');
   kpi('Цэвэр ашиг 30х', mnt(net), E30.verdict || 'дата алга', net > 0 ? 'good' : (net < 0 ? 'crit' : ''));
   kpi('Зарын зардал', mnt(E30.ad_spend_mnt), 'хувь нэмэр ' + mnt(E30.gross_contribution_mnt));
-  kpi('CPA', mnt(E30.cpa_mnt), 'босго ' + mnt(E30.breakeven_cpa_mnt), has(E30.cpa_mnt) ? (cpaOk ? 'good' : 'crit') : '');
-  kpi('ROAS', num(E30.roas), '7х ' + num(E7.roas));
-  kpi('Хүргэлт', has(E30.delivered_pct) ? E30.delivered_pct + '%' : '—', n(E30.delivered) + ' / ' + n(E30.placed));
-  kpi('Хэмжилтийн гинж', chainPct !== null ? chainPct + '%' : '—', CH.verdict || '',
+  /* CPA, ROAS, Хүргэлт гурав зөвхөн ХҮРГЭГДСЭН захиалгаар тоологдоно. Тестийн
+     үед (урьдчилсан бүртгэл) хүргэлт байхгүй тул «0» биш «эхлээгүй» гэж хэлнэ —
+     тестийн 1 бүртгэлийн өртөг Даалгавар хуудасны «Зарын уншилт»-д бий. */
+  const noDeliv = n(E30.delivered) === 0;
+  kpi('CPA', mnt(E30.cpa_mnt), noDeliv ? 'хүргэлт эхлээгүй · тестийн өртөг → Даалгавар' : 'босго ' + mnt(E30.breakeven_cpa_mnt), has(E30.cpa_mnt) ? (cpaOk ? 'good' : 'crit') : '');
+  kpi('ROAS', noDeliv ? '—' : num(E30.roas), noDeliv ? 'хүргэлт эхлээгүй' : '7х ' + num(E7.roas));
+  kpi('Хүргэлт', has(E30.delivered_pct) && !noDeliv ? E30.delivered_pct + '%' : '—', n(E30.delivered) + ' / ' + n(E30.placed) + (n(CF.to_call) ? ' · ' + n(CF.to_call) + ' залгах хүлээж байна' : ''));
+  kpi('Хэмжилтийн гинж', chainPct !== null ? chainPct + '%' : '—', (CH.verdict || '') + (n(CH.no_creative) ? ' · ' + n(CH.no_creative) + '/' + n(CH.orders) + ' захиалга аль зараас ирсэн нь тодорхойгүй' : ''),
     chainPct === null ? '' : (chainBroken ? 'crit' : 'good'));
 
   const BAND = { far: '', act: 'good', late: 'warn', toolate: 'crit' };
