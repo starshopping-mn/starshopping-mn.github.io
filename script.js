@@ -94,10 +94,6 @@ const DATA_FALLBACK = "data/catalog.json";
 const PRODUCT_VIDEOS = {
   "Gar-halaagch": { src: "/assets/video/gar-halaagch-r2-720.mp4", poster: "/assets/video/gar-halaagch-r2-poster.jpg" },
 };
-/* Real orders in the last 30 days, per slug (web_order_counts — counts only, no
-   names). Shown from PROOF_MIN upwards and never invented or timed. */
-let ORDER_COUNTS = {};
-const PROOF_MIN = 5;
 /* Districts and khoroos for the address picker, spelled exactly as the courier
    (Гялс хүргэлт) spells them. Their system files a parcel by these very
    strings — "Хан уул 4-р хороо", not "Хан-Уул, 4" — so they are never typed or
@@ -1287,26 +1283,6 @@ function emojiBullets(line) {
   return parts;
 }
 
-/* «Сүүлийн 30 хоногт N захиалга» — the database's own count, nothing else.
-   Under PROOF_MIN the line stays empty rather than boast about three. Written
-   with a data-proof hook so the count can land after the page is drawn. */
-function proofLine(slug) {
-  const n = Number(ORDER_COUNTS[slug] || 0);
-  const show = n >= PROOF_MIN;
-  return `<p class="proofline" data-proof="${esc(slug)}"${show ? "" : " hidden"}>${show ? `🧾 Сүүлийн 30 хоногт ${n} захиалга` : ""}</p>`;
-}
-function applyProof() {
-  document.querySelectorAll("[data-proof]").forEach((el) => {
-    const n = Number(ORDER_COUNTS[el.dataset.proof] || 0);
-    if (n >= PROOF_MIN) {
-      el.textContent = `🧾 Сүүлийн 30 хоногт ${n} захиалга`;
-      el.hidden = false;
-    } else {
-      el.hidden = true;
-    }
-  });
-}
-
 function descBlock(desc) {
   let lines = String(desc || "")
     .split(/\r?\n/)
@@ -1555,7 +1531,6 @@ function renderProduct(slug) {
     ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
     <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
-    ${proofLine(p.slug)}
     ${showsWait(p) ? `<p class="preline">${esc(preorderLabel(p))}</p><p class="precancel">${esc(PREORDER_CANCEL)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 ? `<p class="fastline">${esc(FAST_LINE)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
@@ -3600,16 +3575,6 @@ fetch(rpcGet("web_products"), { signal: feedDeadline() })
     // the intake lives in the same database: show the shelf, take orders by phone
     if (booted) paint(extras || DB, { first: false });
   });
-
-/* 2b — real order counts for the proof line; a GET, no preflight, and a miss
-   only means the line stays hidden. */
-fetch(rpcGet("web_order_counts"), { signal: feedDeadline() })
-  .then((r) => (r.ok ? r.json() : {}))
-  .then((j) => {
-    ORDER_COUNTS = j && typeof j === "object" && !Array.isArray(j) ? j : {};
-    applyProof();
-  })
-  .catch(() => {});
 
 /* 3 — the sheet: shop details, categories, bundles, reviews — and, until a
    product is registered in Supabase, the products too. */
