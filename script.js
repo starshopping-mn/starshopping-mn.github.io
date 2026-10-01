@@ -85,6 +85,19 @@ const CATALOG_SOURCE = `${SUPABASE_URL}/rest/v1/rpc/web_products`;
 const DATA_SOURCE =
   "https://script.google.com/macros/s/AKfycbzZK-I4L3Cow5KAlLbW0pud0766XduXHzuTys9FIEwXWDTQL36VPywm7bNsk3E6NMqORQ/exec";
 const DATA_FALLBACK = "data/catalog.json";
+/* Block BE (2026-10-01). The advert that brings people here is a video; the page
+   met them with three still photos, and of 189 who arrived from it only 7 pressed
+   «Захиалах». The same video now leads the gallery, muted, looping, sound on a
+   tap. One file per slug, compressed to ~1.4MB (720×1280, h264), so it costs
+   less than one of the old Drive photos. Keyed by slug, not by catalogue field,
+   so nothing in the database has to change to add or drop one. */
+const PRODUCT_VIDEOS = {
+  "Gar-halaagch": { src: "/assets/video/gar-halaagch-r2-720.mp4", poster: "/assets/video/gar-halaagch-r2-poster.jpg" },
+};
+/* Real orders in the last 30 days, per slug (web_order_counts — counts only, no
+   names). Shown from PROOF_MIN upwards and never invented or timed. */
+let ORDER_COUNTS = {};
+const PROOF_MIN = 5;
 /* Districts and khoroos for the address picker, spelled exactly as the courier
    (Гялс хүргэлт) spells them. Their system files a parcel by these very
    strings — "Хан уул 4-р хороо", not "Хан-Уул, 4" — so they are never typed or
@@ -602,7 +615,7 @@ let frameTimers = [];
    phone it is the whole wait. So only the picture on screen and the one after
    it carry a `src`, and the rest wait in `data-src` until they are reached. */
 function hydrateFrame(track, idx) {
-  const imgs = track.querySelectorAll("img");
+  const imgs = track.children; // slides in order — a video first when there is one, then the photos
   [idx, idx + 1, idx - 1].forEach((n) => {
     const img = imgs[n];
     if (img && img.dataset.src) {
@@ -612,12 +625,33 @@ function hydrateFrame(track, idx) {
   });
 }
 
-function buildFrame(images, className = "frame", size = 1200, alt = "") {
+function buildFrame(images, className = "frame", size = 1200, alt = "", video = null) {
   const urls = images.map((u) => photoSrc(u, size)).filter((u) => u.src);
   const el = document.createElement("div");
   el.className = className;
   const track = document.createElement("div");
   track.className = "frame__track";
+  if (video && video.src) {
+    /* Muted and inline so phones start it on their own; the poster is the
+       first frame, so nothing flashes while it loads. People who asked their
+       system for less motion get the poster and a play control instead. */
+    const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const v = document.createElement("video");
+    v.src = video.src;
+    if (video.poster) v.poster = video.poster;
+    v.muted = true;
+    v.defaultMuted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.setAttribute("playsinline", "");
+    v.setAttribute("muted", "");
+    v.preload = still ? "none" : "auto";
+    if (still) v.controls = true;
+    else v.autoplay = true;
+    v.setAttribute("aria-label", alt ? alt + " — видео" : "видео");
+    track.appendChild(v);
+    el.dataset.video = "1";
+  }
   (urls.length ? urls : [{ src: "", fallback: "" }]).forEach((u, i) => {
     const img = document.createElement("img");
     if (u.fallback) img.dataset.fallback = u.fallback;
@@ -637,7 +671,7 @@ function buildFrame(images, className = "frame", size = 1200, alt = "") {
     track.appendChild(img);
   });
   el.appendChild(track);
-  el.dataset.count = String(urls.length || 1);
+  el.dataset.count = String((urls.length || 1) + (el.dataset.video === "1" ? 1 : 0));
   el.dataset.index = "0";
   return el;
 }
@@ -653,6 +687,11 @@ function showFrame(frame, idx) {
   hydrateFrame(track, n);
   track.style.transform = `translateX(-${n * 100}%)`;
   frame.dataset.index = String(n);
+  const vid = frame.dataset.video === "1" ? track.querySelector("video") : null;
+  if (vid) {
+    if (n === 0) vid.play().catch(() => {});
+    else vid.pause();
+  }
   frame.dispatchEvent(new CustomEvent("frame:index", { detail: n }));
 }
 
@@ -660,6 +699,7 @@ function startFrames(root) {
   stopFrames();
   root.querySelectorAll(".frame, .pdp__gallery").forEach((frame, i) => {
     if (frame.dataset.manual === "1") return; // handed over to the visitor
+    if (frame.dataset.video === "1") return; // a video leads: it plays, the visitor swipes
     if (Number(frame.dataset.count || 1) < 2) return;
     frameTimers.push(
       setInterval(() => {
@@ -1247,6 +1287,26 @@ function emojiBullets(line) {
   return parts;
 }
 
+/* «Сүүлийн 30 хоногт N захиалга» — the database's own count, nothing else.
+   Under PROOF_MIN the line stays empty rather than boast about three. Written
+   with a data-proof hook so the count can land after the page is drawn. */
+function proofLine(slug) {
+  const n = Number(ORDER_COUNTS[slug] || 0);
+  const show = n >= PROOF_MIN;
+  return `<p class="proofline" data-proof="${esc(slug)}"${show ? "" : " hidden"}>${show ? `🧾 Сүүлийн 30 хоногт ${n} захиалга` : ""}</p>`;
+}
+function applyProof() {
+  document.querySelectorAll("[data-proof]").forEach((el) => {
+    const n = Number(ORDER_COUNTS[el.dataset.proof] || 0);
+    if (n >= PROOF_MIN) {
+      el.textContent = `🧾 Сүүлийн 30 хоногт ${n} захиалга`;
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+    }
+  });
+}
+
 function descBlock(desc) {
   let lines = String(desc || "")
     .split(/\r?\n/)
@@ -1356,7 +1416,31 @@ function renderProduct(slug) {
   /* ---- gallery ---- */
   const left = document.createElement("div");
   left.className = "pdp__left";
-  const gallery = buildFrame(p.images, "pdp__gallery", 1200, p.name);
+  const gallery = buildFrame(p.images, "pdp__gallery", 1200, p.name, PRODUCT_VIDEOS[p.slug] || null);
+  /* Slide 0 is the video when there is one, so every index into the photos
+     below is shifted by this much. */
+  const vOff = gallery.dataset.video === "1" ? 1 : 0;
+  if (vOff) {
+    gallery.classList.add("pdp__gallery--video");
+    const vid = gallery.querySelector("video");
+    const snd = document.createElement("button");
+    snd.type = "button";
+    snd.className = "gsound";
+    snd.setAttribute("aria-label", "Дуу асаах");
+    snd.textContent = "🔇";
+    snd.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      vid.muted = !vid.muted;
+      snd.textContent = vid.muted ? "🔇" : "🔊";
+      snd.setAttribute("aria-label", vid.muted ? "Дуу асаах" : "Дуу хаах");
+      if (!vid.muted) vid.play().catch(() => {});
+    });
+    gallery.appendChild(snd);
+    /* iOS inside the Facebook app sometimes ignores autoplay until a layout
+       pass has happened; one nudge after paint covers it. */
+    requestAnimationFrame(() => vid.play().catch(() => {}));
+  }
   left.appendChild(gallery);
 
   const track = gallery.querySelector(".frame__track");
@@ -1450,7 +1534,7 @@ function renderProduct(slug) {
       track.appendChild(extra);
       rawImages.push(photo.raw || url);
       idx = imgs.length;
-      gallery.dataset.count = String(idx + 1);
+      gallery.dataset.count = String(idx + 1 + vOff);
       if (dots) {
         const d = document.createElement("span");
         d.className = "pdot";
@@ -1459,7 +1543,7 @@ function renderProduct(slug) {
     }
     gallery.dataset.manual = "1"; // stop the auto-rotation fighting the pick
     stopFrames();
-    showFrame(gallery, idx);
+    showFrame(gallery, idx + vOff);
   };
 
   wrap.appendChild(left);
@@ -1471,6 +1555,7 @@ function renderProduct(slug) {
     ${descBlock(p.desc)}
     <div class="pdp__prices" id="pdpPrices"></div>
     <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
+    ${proofLine(p.slug)}
     ${showsWait(p) ? `<p class="preline">${esc(preorderLabel(p))}</p><p class="precancel">${esc(PREORDER_CANCEL)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 ? `<p class="fastline">${esc(FAST_LINE)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
@@ -1795,7 +1880,7 @@ function renderProduct(slug) {
       /* Whatever is on screen — the colour they picked, the angle they
          stopped on. It used to be the sheet's first photo no matter what,
          which on this shop is often the supplier's advert. */
-      image: rawImages[Number(gallery.dataset.index || 0)] || p.images[0] || "",
+      image: rawImages[Number(gallery.dataset.index || 0) - vOff] || p.images[0] || "",
       unit: pack ? Math.round(pack.price / pack.qty) : pr.now,
       qty,
       goods: orderTotal(),
@@ -3515,6 +3600,16 @@ fetch(rpcGet("web_products"), { signal: feedDeadline() })
     // the intake lives in the same database: show the shelf, take orders by phone
     if (booted) paint(extras || DB, { first: false });
   });
+
+/* 2b — real order counts for the proof line; a GET, no preflight, and a miss
+   only means the line stays hidden. */
+fetch(rpcGet("web_order_counts"), { signal: feedDeadline() })
+  .then((r) => (r.ok ? r.json() : {}))
+  .then((j) => {
+    ORDER_COUNTS = j && typeof j === "object" && !Array.isArray(j) ? j : {};
+    applyProof();
+  })
+  .catch(() => {});
 
 /* 3 — the sheet: shop details, categories, bundles, reviews — and, until a
    product is registered in Supabase, the products too. */
