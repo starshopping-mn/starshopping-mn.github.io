@@ -152,10 +152,18 @@ function renderBoard(DATA, QUERY) {
      үед (урьдчилсан бүртгэл) хүргэлт байхгүй тул «0» биш «эхлээгүй» гэж хэлнэ —
      тестийн 1 бүртгэлийн өртөг Даалгавар хуудасны «Зарын уншилт»-д бий. */
   const noDeliv = n(E30.delivered) === 0;
-  kpi('CPA', mnt(E30.cpa_mnt), noDeliv ? 'хүргэлт эхлээгүй · тестийн өртөг → Даалгавар' : 'босго ' + mnt(E30.breakeven_cpa_mnt), has(E30.cpa_mnt) ? (cpaOk ? 'good' : 'crit') : '');
-  kpi('ROAS', noDeliv ? '—' : num(E30.roas), noDeliv ? 'хүргэлт эхлээгүй' : '7х ' + num(E7.roas));
+  /* Блок BC: хүргэлт эхлээгүй үед (тест/урьдчилсан) CPA-г бүртгэгдсэн захиалгаар түр харуулна (CPO).
+     Жинхэнэ CPA = хүргэгдсэн захиалгаар — бараа ирмэгц энэ тоо өөрөө солигдоно. */
+  const cpoNow = has(E30.cpo_mnt) && n(E30.placed) > 0;
+  kpi('CPA', noDeliv ? (cpoNow ? mnt(E30.cpo_mnt) : '—') : mnt(E30.cpa_mnt),
+    noDeliv ? (cpoNow ? 'захиалга тутамд (түр) · ' + n(E30.placed) + ' захиалга · хүргэлт эхлээгүй' : 'хүргэлт эхлээгүй · тестийн өртөг → Даалгавар') : 'босго ' + mnt(E30.breakeven_cpa_mnt),
+    noDeliv ? (cpoNow && has(E30.breakeven_cpa_mnt) ? (n(E30.cpo_mnt) <= n(E30.breakeven_cpa_mnt) ? 'good' : 'warn') : '') : (has(E30.cpa_mnt) ? (cpaOk ? 'good' : 'crit') : ''));
+  kpi('ROAS', noDeliv ? '—' : num(E30.roas), noDeliv ? 'хүргэлт эхлээгүй · орлого хүргэлтээр л тоологдоно' : '7х ' + num(E7.roas));
   kpi('Хүргэлт', has(E30.delivered_pct) && !noDeliv ? E30.delivered_pct + '%' : '—', n(E30.delivered) + ' / ' + n(E30.placed) + (n(CF.to_call) ? ' · ' + n(CF.to_call) + ' залгах хүлээж байна' : ''));
-  kpi('Хэмжилтийн гинж', chainPct !== null ? chainPct + '%' : '—', (CH.verdict || '') + (n(CH.no_creative) ? ' · ' + n(CH.no_creative) + '/' + n(CH.orders) + ' захиалга аль зараас ирсэн нь тодорхойгүй' : ''),
+  const SRCN = { chat: 'чат', msgr: 'Messenger', fb: 'FB ref-гүй', ig: 'IG ref-гүй', web: 'өөр сайт', direct: 'шууд', '?': 'хуучин' };
+  const bySrc = CH.no_creative_by_src && typeof CH.no_creative_by_src === 'object'
+    ? Object.keys(CH.no_creative_by_src).map((k) => (SRCN[k] || k) + ' ' + n(CH.no_creative_by_src[k])).join(', ') : '';
+  kpi('Хэмжилтийн гинж', chainPct !== null ? chainPct + '%' : '—', (CH.verdict || '') + (n(CH.no_creative) ? ' · ' + n(CH.no_creative) + '/' + n(CH.orders) + ' захиалга аль зараас ирсэн нь тодорхойгүй' + (bySrc ? ' (' + bySrc + ')' : '') : ''),
     chainPct === null ? '' : (chainBroken ? 'crit' : 'good'));
 
   const BAND = { far: '', act: 'good', late: 'warn', toolate: 'crit' };
@@ -217,13 +225,36 @@ function renderBoard(DATA, QUERY) {
   P('<div class="kl">Захиалгын маягт · 7х</div>');
   P('<div class="kv">' + (coOpen ? (has(CO.submit_pct) ? CO.submit_pct : 0) + '%' : '—') + '</div>');
   P('<div class="ks">' + (coOpen ? coOpen + ' нээж · ' + coOk + ' захиалга' : 'дата алга') + '</div>');
-  P('</summary><div class="sl">');
+  P('</summary><div class="sl" style="width:600px"><style>table.fa{font-size:11px;margin:0 0 6px}table.fa th,table.fa td{padding:4px 7px}table.fa tr.fa-src td{color:var(--mut)}table.fa td:first-child{white-space:normal}</style>');
   coSteps.forEach((st, i) => P('<div class="sr ' + (i && n(st.n) === 0 && coOpen ? 'crit' : '') + '"><span>' + esc(st.label) + '</span><b>' + n(st.n) + '</b></div>'));
   if (CO.leak) P('<div class="si"><b>Хамгийн их алдагдал:</b> ' + esc(CO.leak) + '</div>');
-  (Array.isArray(CO.by_app) ? CO.by_app : []).slice(0, 4).forEach((a) => P('<div class="si">' + esc(a.in_app === 'fb' ? 'FB апп' : a.in_app === 'ig' ? 'IG апп' : 'хөтөч')
+  (Array.isArray(CO.by_app) ? CO.by_app : []).slice(0, 4).forEach((a) => P('<div class="si">' + esc(a.in_app === 'fb' ? 'FB апп' : a.in_app === 'ig' ? 'IG апп' : a.in_app === 'msgr' ? 'Messenger' : 'хөтөч')
     + ' · ' + esc(a.device) + ': ' + n(a.opened) + ' нээж, ' + n(a.ok) + ' захиалга</div>'));
   (Array.isArray(CO.errors) ? CO.errors : []).slice(0, 3).forEach((e) => P('<div class="si">алдаа: ' + esc(e.detail) + ' ×' + n(e.n) + '</div>'));
   P('<div class="si sn">' + esc(CO.verdict || '') + ' · зар асаахаас өмнө энэ хувь 0 биш байх ёстой</div>');
+  // Блок BC (2026-10-01): бараа × зар / суваг тус бүрээр. Өгөгдөл view=funnel → funnel_by_ad(7).
+  const FA = d.funnel_ads || {};
+  const faProducts = Array.isArray(FA.products) ? FA.products : [];
+  const SRCL = { 'src:chat': 'Чат холбоос', 'src:msgr': 'Messenger (ref-гүй)', 'src:fb': 'FB ref-гүй', 'src:ig': 'IG ref-гүй',
+                 'src:web': 'Өөр сайт', 'src:direct': 'Шууд', 'src:?': 'Тодорхойгүй (хуучин)' };
+  if (faProducts.length) {
+    P('<div class="si"><b>Бараа · зар бүрээр (' + n(FA.days) + 'х)</b> — мөр = зар (ref) эсвэл суваг; CPO = зардал ÷ захиалга</div>');
+    faProducts.forEach((pr) => {
+      P('<div class="si" style="margin-top:.4rem"><b>' + esc(pr.name || pr.slug) + '</b> · ' + n(pr.opened) + ' нээж · ' + n(pr.ok) + ' маягт · ' + n(pr.orders) + ' захиалга'
+        + (has(pr.cpo_mnt) ? ' · CPO ' + mnt(pr.cpo_mnt) : '')
+        + (has(pr.attributed_pct) ? ' · эх үүсвэр мэдэгдсэн ' + n(pr.attributed_pct) + '%' : '') + '</div>');
+      P('<table class="fa"><tr><th></th><th>нээж</th><th>утас</th><th>маягт</th><th>захиалга</th><th>батлагд.</th><th>зардал</th><th>CPO</th></tr>');
+      (Array.isArray(pr.rows) ? pr.rows : []).forEach((r) => {
+        const label = r.kind === 'ad' ? r.key : (SRCL[r.key] || r.key);
+        P('<tr class="' + (r.kind === 'src' ? 'fa-src' : '') + '"><td>' + esc(label) + (n(r.orders_chat) ? ' <small>(' + n(r.orders_chat) + ' чатаар)</small>' : '') + '</td>'
+          + '<td class="nm">' + n(r.opened) + '</td><td class="nm">' + n(r.typed) + '</td><td class="nm">' + n(r.ok) + '</td>'
+          + '<td class="nm">' + n(r.orders) + '</td><td class="nm">' + n(r.confirmed) + '</td>'
+          + '<td class="nm">' + (has(r.spend_mnt) ? short(r.spend_mnt) : '—') + '</td><td class="nm">' + (has(r.cpo_mnt) ? short(r.cpo_mnt) : '—') + '</td></tr>');
+      });
+      P('</table>');
+    });
+    P('<div class="si sn">«Чат холбоос» = ботын өгсөн холбоосоор вэбээр захиалсан; ref байвал тэр зар дээр тоологдоно. «Тодорхойгүй (хуучин)» = 2026-10-01-ээс өмнөх тэмдэггүй мөр.</div>');
+  }
   P('</div></details>');
   P('</div>');
 
