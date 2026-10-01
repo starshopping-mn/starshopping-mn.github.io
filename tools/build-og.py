@@ -310,7 +310,7 @@ PAGE = """<!DOCTYPE html>
      the shop can then start that one file in its <head>, before its catalogue
      arrives, instead of drawing a grey box first. Same origin, so the note
      survives the hop; a refused storage just means no head start. -->
-<script>{first_note}location.replace({base} + location.search + {hash});</script>
+<script>{first_note}(function(){{var s=location.search,r="";try{{r=document.referrer?new URL(document.referrer).hostname:""}}catch(e){{}}if(r&&r!==location.hostname){{s+=(s?"&":"?")+"from="+encodeURIComponent(r)}}location.replace({base} + s + {hash});}})();</script>
 <style>
   body {{ margin:0; min-height:100vh; display:grid; place-items:center;
           background:#08080a; color:#fff;
