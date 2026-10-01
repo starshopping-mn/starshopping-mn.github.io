@@ -92,6 +92,27 @@
       "maxPerOrder": 5
     },
     {
+      "slug": "Gar-halaagch",
+      "product_id": "25776d61-c24d-40d9-8805-a15dadcfcb1a",
+      "category": "ger-ahui",
+      "name": "Соронзон салдаг цэнэглэдэг гар халаагч (2-т-1)",
+      "desc": "Нэг халаагч, хоёр гарт\r\nСоронзон 2-т-1 — соронзоороо хоёр салдаг: хоёр гартаа нэг нэг, эсвэл хоёр хүн хуваана\r\n3 шатлал — 45° · 55° · 60°, хоёр талаараа халаана\r\nType-C — утасны цэнэглэгчээр цэнэглэнэ\r\nЖижиг — 90 × 50 × 16 мм, халаасанд багтана\r\nХайрцагт — бэлгийн хайрцаг, цэнэглэх утас, заавар\r\nЗул сар, шинэ жилийн бэлэгт тохиромжтой\r\nҮнэгүй хүргэлт",
+      "price": 49900,
+      "discount": null,
+      "compareAt": null,
+      "images": [
+        "https://starshopping.mn/img/gar-halaagch-1-1200.webp",
+        "https://starshopping.mn/img/gar-halaagch-2-1200.webp",
+        "https://starshopping.mn/img/gar-halaagch-3-1200.webp"
+      ],
+      "featured": false,
+      "deliveryPaidBy": "included",
+      "fulfillment": "test",
+      "shipsInDays": 14,
+      "maxPerOrder": 5,
+      "active": true
+    },
+    {
       "slug": "Huwtsas-hadgalah-sags",
       "category": "ger-ahui",
       "name": "Хувцас хадгалах сагсны шийд",
