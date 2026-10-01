@@ -696,7 +696,7 @@ function renderResearch(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Судалгаа</div>');
   o('<div class="bs">зах зээл · hook · зохиомж · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="chip" target="_blank" rel="noopener" href="https://www.facebook.com/ads/library/?active_status=active&amp;ad_type=all&amp;country=MN&amp;media_type=all">Ad Library · MN ↗</a>');
-  o('<a class="rf" href="' + HOME + '">← Даалгавар</a> <a class="rf" href="/board/?view=board' + (themeQ ? '&theme=' + themeQ : '') + '">Систем</a></div></header>');
+  o('<a class="rf" href="' + HOME + '">← Даалгавар</a> <a class="rf" href="/board/?view=ops' + (themeQ ? '&theme=' + themeQ : '') + '">Захиалга</a> <a class="rf" href="/board/?view=board' + (themeQ ? '&theme=' + themeQ : '') + '">Систем</a></div></header>');
 
   // ── KPI
   const VP = n(R.viable_price_mnt);
