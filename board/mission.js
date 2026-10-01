@@ -84,6 +84,7 @@ function renderMission(DATA, QUERY) {
   o('<nav class="nav"><a href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">Даалгавар</a>'
     + '<a href="/board/?view=research&amp;tab=rank' + tq + '">Судалгаа</a>'
     + '<a class="on" href="/board/?view=category' + tq + '">Категори</a>'
+    + '<a href="/board/?view=ops' + tq + '">Захиалга</a>'
     + '<a href="/board/?view=board' + tq + '">Систем</a></nav>');
 
   const PLAY = { 'ХУУЛЖ ОР': 'copy', 'ЯЛГАРЧ ОР': 'diff', 'ХУВИЛБАР ОЛ': 'alt' };
