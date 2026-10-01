@@ -1437,14 +1437,6 @@ select.input {
   color: #3f9a5c;
 }
 .fastline + .stockline { margin-top: -0.7rem; }
-/* Block BE: the database's own order count for the last 30 days, shown only
-   from a handful upwards. */
-.proofline {
-  margin: -0.4rem 0 1rem;
-  font-size: 0.82rem; font-weight: 600;
-  color: var(--fg-dim);
-}
-.proofline[hidden] { display: none; }
 
 /* ---- step one on the product page (2026-09-29) ---- */
 .qform { margin: 1.1rem 0 0.9rem; padding: 1rem 1rem 0.6rem; border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 14px; background: var(--bg-soft, rgba(0,0,0,.025)); }
