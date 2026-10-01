@@ -106,6 +106,7 @@ function renderTests(DATA, QUERY) {
   o('<nav class="nav"><a class="on" href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">Даалгавар</a>'
     + '<a href="/board/?view=research&amp;tab=rank' + tq + '">Судалгаа</a>'
     + '<a href="/board/?view=category' + tq + '">Категори</a>'
+    + '<a href="/board/?view=ops' + tq + '">Захиалга</a>'
     + '<a href="/board/?view=board' + tq + '">Систем</a></nav>');
 
   // ── ОДООГИЙН БАЙДАЛ — нэг өгүүлбэр: юу хийх вэ
