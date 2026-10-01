@@ -156,8 +156,43 @@ const ORDER_INTAKE = "https://starshopping.app.n8n.cloud/webhook/order-intake";
 const CHECKOUT_LOG = `${SUPABASE_URL}/rest/v1/rpc/log_checkout`;
 const CK_SID = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 const CK_UA = navigator.userAgent || "";
-const CK_APP = /FBAN|FBAV|FB_IAB|FBIOS|FB4A/i.test(CK_UA) ? "fb" : /Instagram/i.test(CK_UA) ? "ig" : "none";
+const CK_APP = /Messenger|Orca-Android/i.test(CK_UA) ? "msgr" : /FBAN|FBAV|FB_IAB|FBIOS|FB4A/i.test(CK_UA) ? "fb" : /Instagram/i.test(CK_UA) ? "ig" : "none";
 const CK_DEV = /iPhone|iPad|iPod/i.test(CK_UA) ? "ios" : /Android/i.test(CK_UA) ? "android" : "desktop";
+/* Where the visitor came from (block BC, 2026-10-01). On 2026-10-01 half the
+   week's orders carried no advert code and nothing said why: the chatbot's
+   product link had no mark on it, so everyone who talked first and ordered on
+   the web looked like a stranger. Now every arrival is classed once, kept the
+   same way the ad code is (a person who looks today and orders next week keeps
+   the source), and sent with each form step and with the order itself:
+     ad     — the address carried ?ref=<creative>
+     chat   — the bot's link (?src=chat; the creative rides along as ref if the
+              conversation knew it)
+     msgr   — Messenger's own browser, no mark (an old bot link, a shared link)
+     fb/ig  — came from facebook/instagram without a mark (page button, post)
+     web    — some other site sent them · direct — nothing known at all
+   `entry` keeps the referrer host and the NAMES of the address parameters (never
+   their values) for diagnosis. The /p/<slug>/ hop forwards its own referrer as
+   ?from=, because a same-origin redirect would otherwise erase it. */
+try {
+  const q = new URLSearchParams(location.search);
+  const explicit = (q.get("src") || "").trim().toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
+  let host = "";
+  try { host = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, "") : ""; } catch (e) { /* opaque referrer */ }
+  if (host === location.hostname) host = "";
+  const origin = host || (q.get("from") || "").replace(/[^a-z0-9.-]/gi, "").slice(0, 60);
+  const src = explicit ? explicit
+    : q.get("ref") ? "ad"
+    : CK_APP === "msgr" ? "msgr"
+    : /facebook|fb\.com|fbcdn|messenger/i.test(origin) ? "fb"
+    : /instagram/i.test(origin) ? "ig"
+    : origin ? "web" : "";
+  if (src) localStorage.setItem("ss_src", src);
+  const keys = Array.from(new Set(Array.from(q.keys()).filter((k) => k !== "from"))).join(",");
+  const entry = [origin, keys ? "?" + keys : ""].filter(Boolean).join(" ").slice(0, 120);
+  if (entry) localStorage.setItem("ss_entry", entry);
+} catch (e) { /* unattributed is better than broken */ }
+const entrySrc = () => { try { return localStorage.getItem("ss_src") || "direct"; } catch (e) { return "direct"; } };
+const entryRaw = () => { try { return localStorage.getItem("ss_entry") || ""; } catch (e) { return ""; } };
 const ckSeen = new Set();
 let ckSlug = null;
 let ckDone = false;
@@ -172,7 +207,8 @@ function ck(step, detail) {
       keepalive: true,
       headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
       body: JSON.stringify({ p: { sid: CK_SID, slug: ckSlug, step, detail: detail ? String(detail).slice(0, 200) : null,
-                                  in_app: CK_APP, device: CK_DEV, creative: cr } }),
+                                  in_app: CK_APP, device: CK_DEV, creative: cr,
+                                  src: entrySrc(), entry: entryRaw() } }),
     }).catch(() => {});
   } catch (e) { /* telemetry must never break the shop */ }
 }
@@ -2452,6 +2488,8 @@ async function renderOrder() {
             quantity: qty,
             channel: "web",
             creative_id: creativeId(),
+            src: entrySrc(),
+            entry: entryRaw(),
             sku_id: d.skuId || skuFor(productBy(d.slug), d.color, d.size) || null,
             color: d.color || null,
             size: d.size || null,
