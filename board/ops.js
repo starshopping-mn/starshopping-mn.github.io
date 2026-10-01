@@ -20,7 +20,7 @@ function renderOps(DATA, QUERY) {
 
   const C = d.counts || {}, ST = d.stock || {}, CA = d.cash || {};
   const SP = A(ST.products), POS = A(ST.pos), O = A(d.orders);
-  const alerts = SP.filter((p) => p.alert);
+  const alerts = SP.filter((p) => p.alert && (n(p.committed) > 0 || n(p.rate7) > 0)); // эрэлтгүй хуучин бараа дуугарахгүй (BF.1)
 
   const out = [];
   const o = (s) => out.push(s);
@@ -30,11 +30,11 @@ function renderOps(DATA, QUERY) {
     + '.nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 6px}.nav a{padding:8px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
     + '.tabs{display:flex;gap:6px;margin:10px 0 16px;flex-wrap:wrap}.tabs a{padding:8px 14px;border:1px solid var(--ln2);border-radius:999px;text-decoration:none;color:var(--ink2);font-size:13px;font-weight:600;background:var(--s1)}.tabs a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
     + '.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0 14px}.kp div{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:10px 12px}.kp b{display:block;font-size:22px;line-height:1.1}.kp span{font-size:11.5px;color:var(--mut)}.kp .warn b{color:var(--warn,#b45309)}.kp .crit b{color:var(--crit,#b91c1c)}.kp .ok b{color:#2f7d4f}'
-    + '.al{background:#fff7e6;border:1px solid #f0d9a8;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px}.al b{display:block}'
-    + 'table.ot{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--s1);border:1px solid var(--ln);border-radius:12px;overflow:hidden}table.ot th{background:var(--s2);text-align:left;padding:8px 8px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}table.ot td{padding:8px;border-top:1px solid var(--ln3);vertical-align:top}table.ot tr.done td{color:var(--mut)}table.ot tr.inc td{background:#fff8f0}'
-    + '.pill{display:inline-block;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600;background:var(--s2);color:var(--ink2);margin:1px 2px 1px 0;white-space:nowrap}.pill.ok{background:#e3f3e8;color:#1f6b3a}.pill.warn{background:#fff1d6;color:#8a5a00}.pill.crit{background:#fde2e2;color:#9b1c1c}.pill.info{background:#e4edf9;color:#1f4d8a}'
-    + '.btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 2px 1px 0}.btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.stop{color:#9b1c1c;border-color:#e6b4b4}.btn:disabled{opacity:.5;cursor:default}'
-    + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}.act{white-space:normal;min-width:150px}.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select,.frm textarea{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}'
+    + '.al{background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;color:var(--ink)}.al b{display:block}'
+    + 'table.ot{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12.5px;background:var(--s1);border:1px solid var(--ln);border-radius:12px;overflow:hidden}table.ot th{background:var(--s2);text-align:left;padding:8px 8px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}table.ot td{padding:8px;border-top:1px solid var(--ln3);vertical-align:top;overflow-wrap:anywhere}table.ot tr.done td{color:var(--mut)}table.ot tr.inc td{background:rgba(245,158,11,.07)}'
+    + '.pill{display:inline-block;max-width:100%;white-space:normal;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600;background:var(--s2);color:var(--ink2);margin:1px 2px 1px 0}.pill.ok{background:rgba(34,197,94,.16);color:#2e9a5a}.pill.warn{background:rgba(245,158,11,.18);color:#c27a06}.pill.crit{background:rgba(239,68,68,.16);color:#d64b4b}.pill.info{background:rgba(59,130,246,.16);color:#4f8ddc}'
+    + '.btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 2px 1px 0}.btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.stop{color:#d64b4b;border-color:rgba(239,68,68,.45)}.btn:disabled{opacity:.5;cursor:default}'
+    + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}.act{white-space:normal}@media(max-width:820px){table.ot{table-layout:auto;min-width:860px}}.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select,.frm textarea{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}'
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px}h3{font-size:13.5px;margin:14px 0 6px}'
     + '.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:820px){.grid2{grid-template-columns:1fr}table.ot{font-size:12px}.kp b{font-size:18px}}'
@@ -73,7 +73,7 @@ function renderOps(DATA, QUERY) {
     if (BP.length) o('<p class="sm mut">' + BP.map((b) => esc(b.product.split(' · ')[0]) + ': ' + n(b.active) + ' идэвхтэй (бүрэн ' + n(b.complete) + ' · хаяггүй ' + n(b.phone_only) + ') · хүргэгдсэн ' + n(b.delivered)).join(' &nbsp;|&nbsp; ') + '</p>');
 
     o('<div class="out" id="out-o"></div>');
-    o('<div class="tw"><table class="ot"><thead><tr><th>Огноо</th><th>Хэн</th><th>Бараа</th><th>Хаяг</th><th>Төлөв</th><th>Үйлдэл</th></tr></thead><tbody>');
+    o('<div class="tw"><table class="ot"><colgroup><col style="width:9%"><col style="width:13%"><col style="width:19%"><col style="width:24%"><col style="width:17%"><col style="width:18%"></colgroup><thead><tr><th>Огноо</th><th>Хэн</th><th>Бараа</th><th>Хаяг</th><th>Төлөв</th><th>Үйлдэл</th></tr></thead><tbody>');
     O.forEach((r, i) => {
       const active = ['draft', 'confirmed', 'packed'].indexOf(r.status) >= 0;
       const cls = !active ? 'done' : (!r.complete ? 'inc' : '');
@@ -102,7 +102,7 @@ function renderOps(DATA, QUERY) {
         o('<button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="delivered" title="Хүргэгдэж төлбөр авсан">Хүргэсэн</button>');
         o('<button class="btn stop oa" data-id="' + esc(r.order_id) + '" data-do="decline" title="Татгалзсан / цуцалсан">Цуцлах</button>');
         o('<div class="frm" id="f-' + esc(r.order_id) + '"><input list="dl-d" id="d-' + esc(r.order_id) + '" placeholder="Дүүрэг N-р хороо" value="' + esc(r.district || '') + '" size="22"> '
-          + '<input id="a-' + esc(r.order_id) + '" placeholder="Байр, орц, тоот / тайлбар" value="' + esc(r.address || '') + '" size="34"> '
+          + '<input id="a-' + esc(r.order_id) + '" placeholder="Байр, орц, тоот / тайлбар" value="' + esc(r.address || '') + '" size="26"> '
           + '<button class="btn go osave" data-id="' + esc(r.order_id) + '">Хадгалах</button></div>');
       } else if (r.status === 'shipped') {
         o('<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="delivered">Хүргэсэн</button><button class="btn stop oa" data-id="' + esc(r.order_id) + '" data-do="cancel">Буцсан</button>');
@@ -127,7 +127,7 @@ function renderOps(DATA, QUERY) {
         + '<div><b>' + n(p.reorder_point) + '</b><span>дахин захиалах цэг (ш)</span></div>'
         + (n(p.committed_incomplete) ? '<div class="warn"><b>' + n(p.committed_incomplete) + '</b><span>хаяггүй захиалга (тооцоонд ороогүй)</span></div>' : '')
         + '</div>');
-      o('<div class="tw"><table class="ot"><thead><tr><th>Хувилбар</th><th>Агуулах</th><th>Замд</th><th>Амлагдсан</th><th>Чөлөөтэй</th><th>Хурд/хоног</th></tr></thead><tbody>');
+      o('<div class="tw"><table class="ot"><colgroup><col style="width:34%"><col><col><col><col><col></colgroup><thead><tr><th>Хувилбар</th><th>Агуулах</th><th>Замд</th><th>Амлагдсан</th><th>Чөлөөтэй</th><th>Хурд/хоног</th></tr></thead><tbody>');
       A(p.skus).forEach((s) => {
         const av = n(s.available);
         o('<tr><td><b>' + esc([s.color, s.size].filter(Boolean).join(' ')) + '</b> <span class="sm mut">' + esc(s.sku_id) + '</span></td><td>' + n(s.on_hand) + '</td><td>' + n(s.in_transit) + '</td><td>' + n(s.committed) + (n(s.incomplete) ? ' <span class="sm mut">(+' + n(s.incomplete) + ' хаяггүй)</span>' : '') + '</td>'
