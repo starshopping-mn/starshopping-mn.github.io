@@ -16,7 +16,7 @@
     tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // нүүр: тестийн урсгал (блок AR)
     category: { data: 'mission',  extra: { modes: 'modes', queue: 'queue' }, render: 'renderMission' }, // категорийн 7 хоногийн даалгавар (блок AD)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
-    board:    { data: 'board',    extra: {}, render: 'renderBoard' }
+    board:    { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' }   // блок BC: бараа × зар маягт
   };
   if (q.view === 'mission') q.view = 'category';           // хуучин холбоос
   var view = VIEWS[q.view] ? q.view : 'tests';
