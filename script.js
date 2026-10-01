@@ -345,8 +345,26 @@ const WAITLIST_TITLE = "Эхний ээлжийн жагсаалтад бүрт�
    given in days here, whatever ships_in_days holds. */
 const waitlistText = () =>
   `Энэ бараа одоогоор агуулахад ирээгүй байна. Та эхний ээлжийн жагсаалтад бүртгэгдлээ — бараа ирмэгц бид ${ORDER_LINE.text}-оос залгаж хүргэлтийг тохирно. Одоо юу ч төлөхгүй.`;
-const preorderLabel = (p) =>
-  `Урьдчилсан захиалга${p && p.shipsInDays ? ` · ~${p.shipsInDays} хоногт хүргэнэ` : ""}`;
+/* Block BF (2026-10-01): the wait is read from the stock position, not from a
+   fixed number of days. stock_public() gives, per slug, the pieces still free
+   (warehouse + in transit − complete orders) and the next arrival date. */
+let STOCK_PUBLIC = {};
+const mmdd = (iso) => (iso ? String(iso).slice(5, 10).replace("-", "/") : "");
+const preorderLabel = (p) => {
+  const st = p && STOCK_PUBLIC[p.slug];
+  if (st && st.mode === "preorder") {
+    // the free count is per product, sizes differ — so a date is only named when the whole lot is late
+    if (Number(st.available) <= 0) return `Урьдчилсан захиалга · дараагийн ачаанд багтана${st.eta ? ` (~${mmdd(st.eta)})` : ""}`;
+  }
+  return `Урьдчилсан захиалга${p && p.shipsInDays ? ` · ~${p.shipsInDays} хоногт хүргэнэ` : ""}`;
+};
+function applyStockLine() {
+  const el = document.querySelector(".preline");
+  const m = location.hash.match(/^#\/p\/([^/?#]+)/);
+  const p = m ? productBy(decodeURIComponent(m[1])) : null;
+  if (!el || !p) return;
+  el.textContent = preorderLabel(p);
+}
 const PREORDER_NOTE =
   "Бараа Хятадаас ирмэгц бид залгаж баталгаажуулаад хүргэнэ. Төлбөрийг хүлээн авахдаа төлнө.";
 /* Said right under the wait, where the wait is read (W8.4): the wait is the
@@ -3575,6 +3593,16 @@ fetch(rpcGet("web_products"), { signal: feedDeadline() })
     // the intake lives in the same database: show the shelf, take orders by phone
     if (booted) paint(extras || DB, { first: false });
   });
+
+/* 2b — stock position for the preorder line (block BF); a GET, no preflight,
+   and a miss only leaves the fixed-days wording in place. */
+fetch(rpcGet("stock_public"), { signal: feedDeadline() })
+  .then((r) => (r.ok ? r.json() : {}))
+  .then((j) => {
+    STOCK_PUBLIC = j && typeof j === "object" && !Array.isArray(j) ? j : {};
+    applyStockLine();
+  })
+  .catch(() => {});
 
 /* 3 — the sheet: shop details, categories, bundles, reviews — and, until a
    product is registered in Supabase, the products too. */
