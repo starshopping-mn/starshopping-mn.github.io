@@ -87,7 +87,7 @@
       "compareAt": null,
       "featured": true,
       "deliveryPaidBy": "included",
-      "fulfillment": "test",
+      "fulfillment": "preorder",
       "shipsInDays": 14,
       "maxPerOrder": 5
     },
