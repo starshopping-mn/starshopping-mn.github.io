@@ -335,16 +335,54 @@ const isPreorder = (p) => !!p && (p.fulfillment === "preorder" || p.fulfillment 
    plainly the moment the phone number is in, and nothing is ever paid for it.
    Only goods counted into the warehouse ("live" with stock) promise 24 hours. */
 const isTest = (p) => !!p && p.fulfillment === "test";
-const showsWait = (p) => isPreorder(p) && !isTest(p);
+/* Блок BJ: хүлээлтийг барааны хуудсан дээр хэлэхгүй (эзэн 10/01) — хуудас зөвхөн нэр, утас асууна.
+   Хугацааг 2-р алхамд (хаяг) тухайн барааны үнэнээр хэлнэ. */
+const showsWait = () => false;
 const FAST_LINE = "Улаанбаатар дотор 24 цагт хүргэнэ";
-const TEST_LEAD_TIME = "Захиалсны дараа бид залгаж тохирно";
-const TEST_LEAD_NOTE = `Одоо юу ч төлөхгүй — бид ${ORDER_LINE.text}-оос залгаж хаяг, хүргэлтийг тань тохирно.`;
+/* Блок BJ (2026-10-01, эзэн). Зочинд хэлэх зүйл нь тухайн бараа БОДИТ юу вэ, мөн хэр хол явсан бэ гэдгээс хамаарна:
+   · 1-р алхам (нэр, утас): хугацааны тухай юу ч үгүй — зөвхөн «Хүргэлт үнэгүй»;
+   · 2-р алхам (хаяг): ТЭР барааны үнэн —
+       test      бараа худалдан аваагүй: хугацаа, мөнгө амлахгүй; захиалагдсан/цуцлагдсан үед SMS;
+       preorder  бараа авсан, замд яваа: «7–14 хоногт», ирэхэд SMS;
+       live      хуучнаараа;
+   · Захиалгыг албан ёсны болгодог нь хаяг: хаяггүй бол зөвхөн бүртгэгдсэн утас. */
+const NEXT_STEP_WHEN = "Дараагийн алхамд";
+const NEXT_STEP_NOTE = "Одоо юу ч төлөхгүй. Дараагийн алхамд хаягаа оруулж захиалгаа баталгаажуулна.";
 const WAITLIST_TITLE = "Эхний ээлжийн жагсаалтад бүртгэгдлээ";
 /* A test product has no stock and no promised date: the owner's rule is that
    a test never names a delivery time (consumer law 12.8), so the wait is never
    given in days here, whatever ships_in_days holds. */
+const TEST_BANNER = "Бараа одоогоор нөөцөд ирээгүй — эхний ээлжийн жагсаалт хүлээн авч байна. Одоо юу ч төлөхгүй.";
+const TEST_WHEN_TITLE = "Бараа захиалагдсаны дараа";
+const TEST_WHEN_NOTE =
+  "Хангалттай захиалга цугларвал бид бараагаа захиална — тэр үед танд SMS-ээр мэдэгдэнэ. Захиалагдахгүй бол мөн SMS-ээр мэдэгдэж, уучлалт гуйна. Хаягаа оруулснаар таны бүртгэл албан ёсны болно.";
 const waitlistText = () =>
-  `Энэ бараа одоогоор агуулахад ирээгүй байна. Та эхний ээлжийн жагсаалтад бүртгэгдлээ — бараа ирмэгц бид ${ORDER_LINE.text}-оос залгаж хүргэлтийг тохирно. Одоо юу ч төлөхгүй.`;
+  "Бараа одоогоор нөөцөд ирээгүй. Хангалттай захиалга цугларвал бид бараагаа захиална — тэр үед танд SMS-ээр мэдэгдэнэ; захиалагдахгүй бол мөн SMS-ээр уучлалт гуйж мэдэгдэнэ. Одоо юу ч төлөхгүй.";
+/* preorder: бараа худалдан авсан, замд яваа. Хугацаа = «7–14 хоног» (ships_in_days = дээд хязгаар, анхдагч 14).
+   Агуулахын үлдэгдэл (stock_public) дуусаж, амлагдсан нь давсан бол тоо биш «дараагийн ачаанд» гэж хэлнэ. */
+const PRE_NOTE =
+  `Та одоо захиалгаа өгвөл бараа ирэхэд бид танд SMS-ээр мэдэгдэнэ. Төлбөрөө бараагаа авахдаа төлнө. Хүлээхгүй бол ${ORDER_LINE.text} руу бичвэл цуцална — урьдчилгаа байхгүй.`;
+const waitWindow = (p) => {
+  const n = Number(p && p.shipsInDays) || 14;
+  return `${Math.max(7, n - 7)}–${n} хоногт`;
+};
+const waitLate = (p) => {
+  const st = STOCK_PUBLIC[p && p.slug];
+  return !!(st && st.mode === "preorder" && Number(st.available) <= 0);
+};
+const waitSentence = (p) =>
+  waitLate(p)
+    ? `Нөөц дууссан тул таны захиалга дараагийн ачаанд багтана${STOCK_PUBLIC[p.slug].eta ? ` (~${mmdd(STOCK_PUBLIC[p.slug].eta)})` : ""}.`
+    : `Нөөц захиалга ${waitWindow(p)} ирнэ.`;
+const step2Banner = (d) =>
+  d.test
+    ? TEST_BANNER
+    : d.preorder
+    ? waitSentence(d)
+    : d.leadTime || DEFAULT_LEAD_TIME;
+const step2WhenTitle = (d) =>
+  d.test ? TEST_WHEN_TITLE : d.preorder ? (waitLate(d) ? "Дараагийн ачаанд" : waitWindow(d)) : d.leadTime || DEFAULT_LEAD_TIME;
+const step2WhenNote = (d) => (d.test ? TEST_WHEN_NOTE : d.preorder ? PRE_NOTE : d.leadNote || DEFAULT_LEAD_NOTE);
 /* Block BF (2026-10-01): the wait is read from the stock position, not from a
    fixed number of days. stock_public() gives, per slug, the pieces still free
    (warehouse + in transit − complete orders) and the next arrival date. */
@@ -373,13 +411,9 @@ const PREORDER_NOTE =
 const PREORDER_CANCEL =
   "Хүлээх хугацаа таалагдахгүй бол дуудлагаар цуцалж болно — урьдчилгаа байхгүй.";
 const leadTimeOf = (p) =>
-  isTest(p)
-    ? TEST_LEAD_TIME
-    : isPreorder(p) && p.shipsInDays
-    ? `~${p.shipsInDays} хоногт`
-    : String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
+  isPreorder(p) ? NEXT_STEP_WHEN : String((p && p.leadTime) || "").trim() || DEFAULT_LEAD_TIME;
 const leadNoteOf = (p) =>
-  isTest(p) ? TEST_LEAD_NOTE : isPreorder(p) ? PREORDER_NOTE : String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
+  isPreorder(p) ? NEXT_STEP_NOTE : String((p && p.leadNote) || "").trim() || DEFAULT_LEAD_NOTE;
 
 /* Delivery prices were written out in the markup of the product badge and
    again in the delivery policy, so a change in the sheet left two pages
@@ -1621,8 +1655,8 @@ function renderProduct(slug) {
 
     <div class="trust">
       <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэгүй · Монгол даяар" : deliverySummary() + " · тусдаа төлнө"}</div>
-      <div><b>Хугацаа</b>${esc(leadTime)}</div>
-      <div><b>Төлбөр</b>${isTest(p) ? "Бараа ирэхэд, хүргэлтээр" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
+      <div><b>${isPreorder(p) ? "Хаяг" : "Хугацаа"}</b>${esc(leadTime)}</div>
+      <div><b>Төлбөр</b>${isPreorder(p) ? "Бараа ирэхэд, хүргэлтээр" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
       <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
     </div>
     <!-- full width rather than inside the grid above: the explanation runs long
@@ -1853,7 +1887,7 @@ function renderProduct(slug) {
       ckSlug = p.slug;
       ck("invalid", "inline:" + quickPhone.length);
       qPhone.classList.add("is-invalid");
-      if (qErr) qErr.textContent = quickPhone.length ? "Утасны дугаар 8 оронтой тоо байх ёстой." : "Утасны дугаараа оруулна уу — бид залгаж баталгаажуулна.";
+      if (qErr) qErr.textContent = quickPhone.length ? "Утасны дугаар 8 оронтой тоо байх ёстой." : "Утасны дугаараа оруулна уу — захиалгын мэдээллийг SMS-ээр илгээнэ.";
       qPhone.scrollIntoView({ block: "center", behavior: "smooth" });
       qPhone.focus({ preventScroll: true });
       return;
@@ -2056,10 +2090,7 @@ async function renderOrder() {
         <span class="buy__total">Дараа нь хаягаа оруулна</span>
         <span class="buy__label">ҮРГЭЛЖЛҮҮЛЭХ →</span>
       </button>
-      <p class="note${d.preorder && !d.test ? " note--pre" : ""}">
-        ${d.preorder && !d.test ? `<b>${esc(preorderLabel(d))}.</b> ` : ""}Одоо юу ч төлөхгүй. Бид ${ORDER_LINE.text}-оос залгаж
-        хаяг, хүргэлтийг тань тохирно.${d.preorder && !d.test ? " " + esc(PREORDER_CANCEL) : ""}
-      </p>
+      <p class="note">${esc(NEXT_STEP_NOTE)}</p>
       ${chatButton(d.name)}
     </form>
 
@@ -2072,8 +2103,8 @@ async function renderOrder() {
       <div class="step2__head">
         <div class="qform__step">АЛХАМ 2/2 · ХҮРГЭЛТИЙН ХАЯГ</div>
         <h1 class="step2__title">Хаягаа оруулаад захиалгаа батална уу</h1>
-        <p class="step2__lead">Утасны дугаар тань бүртгэгдсэн — бид <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>-оос залгана.</p>
-        <p class="step2__when"><b>${esc(shipIncluded ? "🚚 Хүргэлт үнэгүй" : "🚚 Хүргэлт")}</b> · ${esc(d.test ? "Бараа одоогоор агуулахад ирээгүй — ирмэгц бид залгаж хүргэнэ, хугацааг утсаар хэлнэ. Одоо юу ч төлөхгүй." : d.leadTime || DEFAULT_LEAD_TIME)}</p>
+        <p class="step2__lead">Утасны дугаар тань бүртгэгдсэн. Хаягаа оруулснаар захиалга албан ёсоор бүртгэгдэнэ.</p>
+        <p class="step2__when"><b>${esc(shipIncluded ? "🚚 Хүргэлт үнэгүй" : "🚚 Хүргэлт")}</b> · ${esc(step2Banner(d))}</p>
       </div>
     <div class="order-grid" style="margin-top:1.2rem">
       <div>
@@ -2152,12 +2183,12 @@ async function renderOrder() {
         <div class="field">
           <span class="field__label">ХҮРГЭЛТИЙН ХУГАЦАА</span>
           <div class="leadtime">
-            <b>${esc(d.test ? "Бараа ирмэгц" : d.leadTime || DEFAULT_LEAD_TIME)}</b>
-            <span>${esc(d.test ? "Бараа агуулахад ирмэгц бид залгаж хүргэнэ. Одоо юу ч төлөхгүй." : d.leadNote || DEFAULT_LEAD_NOTE)}</span>
+            <b>${esc(step2WhenTitle(d))}</b>
+            <span>${esc(step2WhenNote(d))}</span>
           </div>
         </div>
 
-        <div class="field"${d.test ? " hidden" : ""}>
+        <div class="field"${d.test || d.preorder ? " hidden" : ""}>
           <span class="field__label">ТӨЛБӨРИЙН СОНГОЛТ</span>
           <div class="pick" id="payPick">
             <div class="pick__item is-active" data-pay="Хүргэлтээр төлөх">
@@ -2193,7 +2224,7 @@ async function renderOrder() {
           <span class="buy__total" id="submitTotal"></span>
           <span class="buy__label">ЗАХИАЛГА БАТЛАХ</span>
         </button>
-        <a class="skip" href="#/done" id="addrSkip">Алгасах — хаягаа утсаар хэлье</a>
+        <a class="skip" href="#/done" id="addrSkip">Хаягаа дараа оруулна (хаяггүй бол захиалга баталгаажихгүй)</a>
       </div>
     </div>
     </form>`;
@@ -2248,7 +2279,7 @@ async function renderOrder() {
      pick an option that cannot actually be honoured. */
   const applyPrepaid = (prepaid) => {
     // a product on trial is never paid for ahead — there is nothing to send yet
-    if (d.test) prepaid = false;
+    if (d.test || d.preorder) prepaid = false;
     cashItem.classList.toggle("is-locked", prepaid);
     payLock.hidden = !prepaid;
     if (prepaid) selectPayment(transferItem);
@@ -2631,6 +2662,7 @@ async function renderOrder() {
         preorder: !!d.preorder,
         test: !!d.test,
         shipsInDays: d.shipsInDays || null,
+        slug: d.slug || "",
       });
       /* The picks go on the order straight away, so they are not lost if the
          address step is skipped. Its failure costs nothing the phone call
@@ -2740,7 +2772,7 @@ async function renderOrder() {
          stands either way, so say that plainly and let them go on. */
       return fail(
         "",
-        "Хаягийг хадгалж чадсангүй — захиалга тань бүртгэгдсэн тул бид залгаж хаягаа асууна. Эсвэл «Алгасах»-ыг дарна уу."
+        "Хаягийг хадгалж чадсангүй — утасны дугаар тань бүртгэгдсэн. Дахин оролдоно уу, эсвэл хаягаа " + ORDER_LINE.text + " руу бичиж илгээнэ үү."
       );
     }
 
@@ -2791,7 +2823,7 @@ function renderDone() {
   setHead("Захиалга хүлээн авлаа", "/");
 
   const s = DB.shop || {};
-  const transfer = info.payment === "Шилжүүлгээр төлөх" && !info.test;
+  const transfer = info.payment === "Шилжүүлгээр төлөх" && !info.test && !info.preorder;
 
   const acct = String(s.account || "");
   const iban = "MN" + acct;
@@ -2814,20 +2846,31 @@ function renderDone() {
   const thanks = info.name ? `${esc(info.name)}, баярлалаа.` : "Баярлалаа.";
   /* Ordered by phone number alone: what happens next is a call, and the
      address can be given in it. Said first, because it is the whole plan. */
+  const waits = !!(info.test || info.preorder);
   const callNote = info.noAddress
     ? `<br><b>Бид ${ORDER_LINE.text}-оос залгана.</b> Хаягаа утсаар хэлж болно.`
     : "";
 
   document.getElementById("donePage").innerHTML = `
     <div class="done">
-      <div class="done__mark">✓</div>
-      <h1 class="done__title">${info.test ? esc(WAITLIST_TITLE) : info.preorder ? "Урьдчилсан захиалга хүлээн авлаа" : "Захиалга хүлээн авлаа"}</h1>
+      <div class="done__mark">${waits && info.noAddress ? "!" : "✓"}</div>
+      <h1 class="done__title">${
+        waits && info.noAddress
+          ? "Утасны дугаар бүртгэгдлээ"
+          : info.test
+          ? esc(WAITLIST_TITLE)
+          : info.preorder
+          ? "Захиалга баталгаажлаа"
+          : "Захиалга хүлээн авлаа"
+      }</h1>
       <p class="done__lead">
         ${
-          info.test
-            ? `${thanks} ${esc(waitlistText(info.shipsInDays))}`
+          waits && info.noAddress
+            ? `${thanks} Хаягаа оруулаагүй тул захиалга албан ёсоор баталгаажаагүй байна. Хаягаа (дүүрэг, хороо, байр/тоот) ${ORDER_LINE.text} руу бичиж илгээвэл баталгаажна.`
+            : info.test
+            ? `${thanks} ${esc(waitlistText())}`
             : info.preorder
-            ? `${thanks} ${info.shipsInDays ? `<b>~${Number(info.shipsInDays)} хоногт</b> хүргэнэ, ` : ""}ирэхээс өмнө бид залгана. Төлбөрийг хүлээн авахдаа төлнө.${callNote}`
+            ? `${thanks} ${esc(waitSentence(info))} Бараа ирэхэд бид танд SMS-ээр мэдэгдэнэ. Төлбөрөө бараагаа авахдаа төлнө. Хүлээхгүй бол ${ORDER_LINE.text} руу бичвэл цуцална.`
             : `${thanks} Бид удахгүй тантай холбогдоно.
         ${info.leadTime ? `<br>Хүргэлт: <b>${esc(info.leadTime)}</b>` : ""}${callNote}`
         }
@@ -2978,9 +3021,9 @@ const POLICIES = {
            brought in from abroad said "5-7 хоногт" on its own page. Both were
            true about different things and read as a contradiction. The wait
            belongs to the product; the window belongs to the drive. -->
-      <p>Бараа бүрийн ирэх хугацаа өөр өөр тул <b>тухайн барааны хуудсан дээр</b>
-      бичсэн хугацааг үзнэ үү — агуулахад байгаа бараа шууд, гадаадаас ирж буй
-      бараа заасан хоногийн дараа хүргэгдэнэ.</p>
+      <p>Бараа бүрийн ирэх хугацаа өөр өөр тул <b>захиалгын 2-р алхамд (хаяг оруулах үед)</b>
+      тухайн барааны хугацаа бичигдэнэ — агуулахад байгаа бараа шууд, гадаадаас ирж буй
+      бараа заасан хоногийн дараа хүргэгдэнэ. Бараа ирэхэд бид SMS-ээр мэдэгдэнэ.</p>
       <p>Бараа агуулахад ирсний дараа хүргэлт <b>өглөөний 08:00–12:00</b> цагийн
       хооронд явагдана. Хүргэлтийн ажилтан очихоосоо өмнө таны утсанд заавал
       холбогдоно.</p>
