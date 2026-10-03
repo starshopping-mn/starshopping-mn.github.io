@@ -103,11 +103,7 @@ function renderTests(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Starshopping</div>');
   o('<div class="bs">даалгавар · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
-  o('<nav class="nav"><a class="on" href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">Даалгавар</a>'
-    + '<a href="/board/?view=research&amp;tab=rank' + tq + '">Судалгаа</a>'
-    + '<a href="/board/?view=category' + tq + '">Категори</a>'
-    + '<a href="/board/?view=ops' + tq + '">Захиалга</a>'
-    + '<a href="/board/?view=board' + tq + '">Систем</a></nav>');
+  o(ssNav('tests', themeQ));
 
   // ── ОДООГИЙН БАЙДАЛ — нэг өгүүлбэр: юу хийх вэ
   let head, sub;
