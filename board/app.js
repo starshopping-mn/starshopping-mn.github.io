@@ -1,9 +1,10 @@
 /* Нэгдсэн навигаци (C3, 2026-10-03). Хуудас бүр ssNav('<key>', themeQ) дуудна — цэс нэг газар.
-   Нүүр · Тест / Захиалга / Мөнгө / Нөөц · PO / Судалгаа. «Систем» (?view=board) цэснээс гарсан: 🩺 товч + хаягаар нээгдэнэ. */
+   Нүүр (систем зураглал — бүх мэдээлэл нэг дор, 3D) / Тест / Захиалга / Мөнгө / Нөөц · PO / Судалгаа. Эзний шийдвэр 10-03: хуучин системийн нүүр = Нүүр. */
 function ssNav(on, themeQ) {
   var tq = themeQ ? '&theme=' + themeQ : '';
   var items = [
-    ['tests', '/board/' + (themeQ ? '?theme=' + themeQ : ''), 'Нүүр · Тест'],
+    ['home', '/board/' + (themeQ ? '?theme=' + themeQ : ''), 'Нүүр'],
+    ['tests', '/board/?view=tests' + tq, 'Тест'],
     ['orders', '/board/?view=orders' + tq, 'Захиалга'],
     ['money', '/board/?view=money' + tq, 'Мөнгө'],
     ['ops', '/board/?view=ops' + tq, 'Нөөц · PO'],
@@ -28,7 +29,8 @@ function ssNav(on, themeQ) {
   new URLSearchParams(location.search).forEach(function (v, k) { q[k] = v; });
 
   var VIEWS = {
-    tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // нүүр: тестийн урсгал (блок AR)
+    home:     { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // НҮҮР: системийн зураглал (3D, бүх мэдээлэл нэг дор) — эзний шийдвэр 10-03
+    tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // тестийн урсгал (блок AR)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
     board:    { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: {}, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
@@ -40,7 +42,7 @@ function ssNav(on, themeQ) {
   if (q.view === 'mission' || q.view === 'category') { location.replace('/board/' + (q.theme ? '?theme=' + q.theme : '')); return; }
   if (q.view === 'ops' && q.tab === 'orders') { location.replace('/board/?view=orders' + tqq); return; }
   if (q.view === 'ops' && q.tab === 'cash') { location.replace('/board/?view=money' + tqq); return; }
-  var view = VIEWS[q.view] ? q.view : 'tests';
+  var view = VIEWS[q.view] ? q.view : 'home';
   var V = VIEWS[view];
   // passQuery: хуудасны шүүлт (URL query) өгөгдлийн дуудлагад бүхэлдээ дамжина (view/theme/k-гүй)
   var PQ = '';
@@ -164,7 +166,7 @@ function ssNav(on, themeQ) {
         if (!h || !h.overall || h.overall === 'none') return;
         var el = document.getElementById('ssHealth');
         if (!el) {
-          el = document.createElement('a'); el.id = 'ssHealth'; el.href = '?view=board';
+          el = document.createElement('a'); el.id = 'ssHealth'; el.href = '/board/';
           el.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;font:12px/1 system-ui,sans-serif;padding:8px 12px;border-radius:999px;color:#fff;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.25)';
           document.body.appendChild(el);
         }
