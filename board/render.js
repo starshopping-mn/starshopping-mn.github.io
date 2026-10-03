@@ -114,14 +114,14 @@ function renderBoard(DATA, QUERY) {
   if (!themeQ) P('<script>(function(){try{var t=localStorage.getItem("ss_board_theme");'
     + 'if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>');
   P('<style>');
-  P('');
+  P('.nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 6px}.nav a{padding:8px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}');
   P('</style></head><body><div class="w">');
 
   const gen = String(d.generated_at || '').replace('T', ' ').slice(0, 16);
   P('<header><div class="hd"><div class="bm">S</div><div>');
   P('<div class="bt">Starshopping</div><div class="bs">Систем зураглал · ' + esc(gen) + ' UTC</div></div>');
   P('<div class="sp"></div>');
-  P('<a class="chip gold" href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">▶ Даалгавар</a>');
+  P('<a class="chip gold" href="/board/?view=tests' + (themeQ ? '&theme=' + themeQ : '') + '">▶ Тест</a>');
   const alive = n(PU.msg_in) > 0 || n(PU.orders) > 0;
   P('<span class="chip"><span class="dot' + (alive ? '' : ' off') + '"></span>' + (alive ? 'LIVE' : 'ЧИМЭЭГҮЙ') + '</span>');
   const SCN = d.scan || {};
@@ -137,6 +137,7 @@ function renderBoard(DATA, QUERY) {
   P('<a class="rf" href="">Шинэчлэх</a>');
   P('<button class="tb" id="tb" type="button" aria-label="Горим">◐ Авто</button>');
   P('</div></header>');
+  P(typeof ssNav === 'function' ? ssNav('home', themeQ) : '');
 
   function kpi(l, v, s, cls) {
     P('<div class="k ' + (cls || '') + '"><div class="kl">' + esc(l) + '</div><div class="kv">' + esc(v) + '</div>');
@@ -610,7 +611,7 @@ function renderBoard(DATA, QUERY) {
     + 'b.textContent=L[t];b.setAttribute("aria-label","Горим: "+L[t])}'
     + 'apply(get());b.addEventListener("click",function(){var o=["auto","dark","light"],t=o[(o.indexOf(get())+1)%3];'
     + 'try{localStorage.setItem(K,t)}catch(e){}apply(t);'
-    + 'var u=location.pathname+"?view=board"+(t==="auto"?"":"&theme="+t);'
+    + 'var u=location.pathname+(t==="auto"?"":"?theme="+t);'
     + 'try{history.replaceState(null,"",u)}catch(e){location.replace(u)}})})();</script>');
   P('</body></html>');
 
