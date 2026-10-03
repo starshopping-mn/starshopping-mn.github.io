@@ -657,6 +657,7 @@ function renderResearch(DATA, QUERY) {
   o('<!doctype html><html lang="mn"' + (themeQ ? ' data-theme="' + themeQ + '"' : '') + '><head><meta charset="utf-8">');
   o('<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark">');
   o('<title>Starshopping · Судалгаа</title><style>');
+  o('.nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 6px}.nav a{padding:8px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}');
   o('');
   // Энэ хуудсанд л хэрэгтэй нэмэлт — бүгд Загварын токен
   o('.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 4px}'
@@ -696,7 +697,8 @@ function renderResearch(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Судалгаа</div>');
   o('<div class="bs">зах зээл · hook · зохиомж · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="chip" target="_blank" rel="noopener" href="https://www.facebook.com/ads/library/?active_status=active&amp;ad_type=all&amp;country=MN&amp;media_type=all">Ad Library · MN ↗</a>');
-  o('<a class="rf" href="' + HOME + '">← Даалгавар</a> <a class="rf" href="/board/?view=ops' + (themeQ ? '&theme=' + themeQ : '') + '">Захиалга</a> <a class="rf" href="/board/?view=board' + (themeQ ? '&theme=' + themeQ : '') + '">Систем</a></div></header>');
+  o('<a class="rf" href="">Шинэчлэх</a></div></header>');
+  o(ssNav('research', themeQ));
 
   // ── KPI
   const VP = n(R.viable_price_mnt);
