@@ -56,11 +56,7 @@ function renderMoney(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Starshopping</div>');
   o('<div class="bs">мөнгө · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
-  o('<nav class="nav"><a href="/board/' + (themeQ ? '?theme=' + themeQ : '') + '">Нүүр · Тест</a>'
-    + '<a href="/board/?view=orders' + tq + '">Захиалга</a>'
-    + '<a class="on" href="/board/?view=money' + tq + '">Мөнгө</a>'
-    + '<a href="/board/?view=ops&amp;tab=stock' + tq + '">Нөөц · PO</a>'
-    + '<a href="/board/?view=research&amp;tab=rank' + tq + '">Судалгаа</a></nav>');
+  o(ssNav('money', themeQ));
 
   // ── хугацаа
   o('<form class="per" method="get" action="/board/"><input type="hidden" name="view" value="money">' + (themeQ ? '<input type="hidden" name="theme" value="' + themeQ + '">' : ''));
