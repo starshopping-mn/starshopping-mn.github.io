@@ -17,11 +17,15 @@
     category: { data: 'mission',  extra: { modes: 'modes', queue: 'queue' }, render: 'renderMission' }, // категорийн 7 хоногийн даалгавар (блок AD)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
     board:    { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
-    ops:      { data: 'orders',   extra: { stock: 'stock', cash: 'cash' }, render: 'renderOps' } // блок BF: захиалга · нөөц · мөнгө
+    ops:      { data: 'orders',   extra: { stock: 'stock', cash: 'cash' }, render: 'renderOps' }, // блок BF: захиалга · нөөц · мөнгө
+    orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true } // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
   };
   if (q.view === 'mission') q.view = 'category';           // хуучин холбоос
   var view = VIEWS[q.view] ? q.view : 'tests';
   var V = VIEWS[view];
+  // passQuery: хуудасны шүүлт (URL query) өгөгдлийн дуудлагад бүхэлдээ дамжина (view/theme/k-гүй)
+  var PQ = '';
+  if (V.passQuery) { var ps = new URLSearchParams(); Object.keys(q).forEach(function (k) { if (k !== 'view' && k !== 'theme' && k !== 'k' && q[k] !== '') ps.append(k, q[k]); }); PQ = ps.toString() ? '&' + ps.toString() : ''; }
 
   function store(k) { try { if (k) localStorage.setItem(KEY_NAME, k); else localStorage.removeItem(KEY_NAME); } catch (e) { /* private window */ } }
   function load() { try { return localStorage.getItem(KEY_NAME) || ''; } catch (e) { return ''; } }
@@ -74,7 +78,7 @@
   function fetchAll() {
     var ex = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
     if (view === 'research' && q.tab === 'pack' && q.c) ex.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
-    return Promise.all([get(V.data)].concat(ex.map(function (x) { return x.p; }))).then(function (res) {
+    return Promise.all([get(V.data, PQ)].concat(ex.map(function (x) { return x.p; }))).then(function (res) {
       var d = res[0] || {};
       ex.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
       var html = window[V.render](d, q);
@@ -162,7 +166,7 @@
     setInterval(tick, T); setInterval(health, 60000);
   }
 
-  Promise.all([get(V.data)].concat(extras.map(function (x) { return x.p; })))
+  Promise.all([get(V.data, PQ)].concat(extras.map(function (x) { return x.p; })))
     .then(function (res) {
       var d = res[0] || {};
       extras.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
