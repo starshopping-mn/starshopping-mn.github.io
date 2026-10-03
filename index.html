@@ -154,6 +154,13 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
 
   <!-- ============================ HOME ============================ -->
   <div class="view" id="viewHome">
+    <!-- The door: the camera, the black of its lens and the categories are
+         three layers on one stage that stays put while the visitor scrolls a
+         track three screens long. script.js (buildHomeMotion) plays the dive
+         along that track; without it the layers simply stack, hero then
+         categories, as ordinary sections. -->
+    <div class="door" id="door">
+    <div class="door__stage">
     <section class="hero" id="hero">
       <div class="hero__inner">
         <span class="hero__word hero__word--back" style="--chars:4">STAR</span>
@@ -187,6 +194,7 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
       <span class="hero__cue">доош гүйлгэнэ үү</span>
     </section>
 
+    <div class="door__lens" aria-hidden="true"></div>
     <section class="cats" id="cats">
       <div class="cats__emerge">
         <span class="cats__eyebrow">КАТЕГОРИ · <span id="catIndex">01</span> / <span id="catTotal">01</span></span>
@@ -209,6 +217,8 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
         </div>
       </div>
     </section>
+    </div>
+    </div>
   </div>
 
   <!-- ========================== CATEGORY ========================== -->
