@@ -193,26 +193,35 @@ function renderTests(DATA, QUERY) {
     const RD = e.read;
     if (RD) {
       const pct = (v) => (has(v) ? Math.round(n(v) * 100) + '%' : '—');
-      const VL = { win: '🟢 WIN', loss: '🔴 LOSS', wait: '⏳ хүлээ', early: '⏳ эхний 24ц', starved: '⚪ Meta мөнгө өгөөгүй' };
+      const VL = { win: '🟢 WIN', loss: '🔴 LOSS', wait: '⏳ хүлээ', early: '⏳ эхний 24ц', starved: '⚪ Meta мөнгө өгөөгүй', inconclusive: '🟡 ДҮГНЭХГҮЙ' };
       /* Зар тус бүрийн дүгнэлт зөвхөн мэдээлэл: Meta төсвийг зар хооронд өөрөө хуваарилдаг
          (breakdown effect) тул нэг зарыг дундаж өртгөөр нь унтрааж болохгүй — БАРААГ нийтээр нь дүгнэнэ. */
-      const VA = { win: '🟢 хүчтэй', loss: '🟠 сул', wait: '⏳ хүлээ', early: '⏳ эхний 24ц', starved: '⚪ Meta мөнгө өгөөгүй' };
+      const VA = { win: '🟢 хүчтэй', loss: '🟠 сул', wait: '⏳ хүлээ', early: '⏳ эхний 24ц', starved: '⚪ Meta мөнгө өгөөгүй', junk: '🟡 хог трафик', underfunded_winner: '💰 ялагч — төсөв нэм' };
+      const GT = RD.gates || {}, GL = GT.limits || {}, IN = RD.interest || {}, PX = RD.pixel || {};
+      const gk = (ok) => (ok === null ? '—' : ok ? '✓' : '✗');
       const vc = RD.verdict === 'win' ? 'win' : RD.verdict === 'loss' ? 'lose' : 'wait';
       const DG = RD.diag || {};
-      o('<div class="sec" style="margin:14px 0 4px"><b style="font-size:14px">Зарын уншилт</b><span class="st">' + n(RD.hours) + ' цаг · Meta өгөгдөл ' + esc(RD.data_through || '—') + ' хүртэл · breakeven ' + mnt(RD.breakeven_mnt) + '/бүртгэл</span></div>');
+      o('<div class="sec" style="margin:14px 0 4px"><b style="font-size:14px">Зарын уншилт v4</b><span class="st">' + n(RD.hours) + ' цаг · Meta өгөгдөл ' + esc(RD.data_through || '—') + ' хүртэл · breakeven ' + mnt(RD.breakeven_mnt) + '/хаягтай (' + esc(RD.breakeven_src || '') + ')</span></div>');
       o('<div class="mx"><div><div class="l">Зардал</div><div class="v">' + mnt(RD.spend_mnt) + '</div></div>'
         + '<div><div class="l">Impression</div><div class="v">' + n(RD.impressions).toLocaleString('en-US') + '</div></div>'
-        + '<div><div class="l">Бүртгэл</div><div class="v">' + n(RD.signups) + '<small> DB ' + n(RD.signups_db) + ' · Meta ' + n(RD.purchases_meta) + '</small></div></div>'
-        + '<div><div class="l">1 бүртгэл</div><div class="v">' + (has(RD.cps_mnt) ? mnt(RD.cps_mnt) : '—') + '<small> ≤ ' + mnt(RD.breakeven_mnt) + '</small></div></div>'
+        + '<div><div class="l">Хаягтай захиалга</div><div class="v">' + n(RD.signups) + '<small> сонирхол ' + n(RD.leads) + ' · pixel ' + n(RD.purchases_meta) + '</small></div></div>'
+        + '<div><div class="l">1 хаягтай</div><div class="v">' + (has(RD.cps_mnt) ? mnt(RD.cps_mnt) : '—') + '<small> ≤ ' + mnt(RD.breakeven_mnt) + (has(RD.cpl_mnt) ? ' · 1 бүртгэл ' + mnt(RD.cpl_mnt) : '') + '</small></div></div>'
         + '<div><div class="l">P(win)</div><div class="v">' + pct(RD.p_win) + '<small> ' + esc(VL[RD.verdict] || RD.verdict) + '</small></div></div></div>');
+      if (RD.gate) o('<div class="mx" style="font-size:12px">'
+        + '<div><div class="l">Хаалт</div><div class="v">' + esc(RD.gate === 'ok' ? '✓ цэвэр' : RD.gate) + '</div></div>'
+        + '<div><div class="l">Link CTR ≤' + n(GL.junk_ctr_pct) + '%</div><div class="v">' + (has(GT.link_ctr_pct) ? GT.link_ctr_pct + '% ' + gk(n(GT.link_ctr_pct) <= n(GL.junk_ctr_pct)) : '—') + '</div></div>'
+        + '<div><div class="l">LPV/клик ≥' + n(GL.junk_lpv_pct) + '%</div><div class="v">' + (has(GT.lpv_per_click_pct) ? GT.lpv_per_click_pct + '% ' + gk(n(GT.lpv_per_click_pct) >= n(GL.junk_lpv_pct)) : '—') + '</div></div>'
+        + '<div><div class="l">«Захиалах»/LPV</div><div class="v">' + (has(GT.open_per_lpv_pct) ? GT.open_per_lpv_pct + '%' : '—') + '<small> WIN 4.5 · LOSS 2.6 (өөрийн)</small></div></div>'
+        + '<div><div class="l">Маягт ok ≥' + n(GL.form_ok_min_pct) + '%</div><div class="v">' + (has(GT.ok_per_open_pct) ? GT.ok_per_open_pct + '% ' + gk(n(GT.ok_per_open_pct) >= n(GL.form_ok_min_pct)) : '—') + '</div></div>'
+        + '<div><div class="l">Хаягтай хувь</div><div class="v">' + (has(IN.addr_share_pct) ? IN.addr_share_pct + '%' : '—') + '<small> ' + n(IN.addressed) + '/' + (n(IN.addressed) + n(IN.leads)) + '</small></div></div></div>');
       o('<div class="sug ' + vc + '">' + esc(RD.why) + (DG.leak ? '<br><b>Хамгийн сул шат:</b> ' + esc(DG.leak) : '')
         + '<br><span style="font-size:12px">Hook ' + (has(DG.hook_pct) ? DG.hook_pct + '%' : '—') + ' · CTR ' + (has(DG.ctr_pct) ? DG.ctr_pct + '%' : '—') + ' · хуудас ачаалсан ' + (has(DG.lpv_pct) ? DG.lpv_pct + '%' : '—') + ' · «Захиалах» дарсан ' + (has(DG.open_pct) ? DG.open_pct + '%' : '—') + ' (' + n(RD.open) + ' хүн)' + (n(RD.unattributed) ? ' · ' + n(RD.unattributed) + ' захиалга аль зараас ирсэн нь тодорхойгүй' : '') + '</span></div>');
       const AD = A(RD.ads);
       if (AD.length) {
         o('<div class="ads">');
-        AD.forEach((a) => { const g = a.diag || {}; const vk = a.verdict === 'win' ? 'ok' : a.verdict === 'starved' ? 'mu' : 'wr';
+        AD.forEach((a) => { const g = a.diag || {}; const vk = a.verdict === 'win' || a.verdict === 'underfunded_winner' ? 'ok' : a.verdict === 'starved' || a.verdict === 'wait' ? 'mu' : 'wr';
           o('<div class="ad"><div class="adh"><b>' + esc(a.creative_id || '—') + '</b><span class="gt ' + vk + '">' + esc(VA[a.verdict] || a.verdict) + '</span><span class="gt mu">P(win) ' + pct(a.p_win) + '</span></div>'
-            + '<div class="adm">' + mnt(a.spend_mnt) + ' (' + n(a.share_pct) + '%) · ' + n(a.impressions).toLocaleString('en-US') + ' impr · hook ' + (has(g.hook_pct) ? g.hook_pct + '%' : '—') + ' · CTR ' + (has(g.ctr_pct) ? g.ctr_pct + '%' : '—') + ' · бүртгэл ' + n(a.signups) + (has(a.cps_mnt) ? ' · ' + mnt(a.cps_mnt) + '/бүртгэл' : '') + '</div>'
+            + '<div class="adm">' + mnt(a.spend_mnt) + ' (' + n(a.share_pct) + '%) · ' + n(a.impressions).toLocaleString('en-US') + ' impr · hook ' + (has(g.hook_pct) ? g.hook_pct + '%' : '—') + ' · CTR ' + (has(g.ctr_pct) ? g.ctr_pct + '%' : '—') + ' · LPV ' + n(a.lpv) + ' · «Захиалах» ' + n(a.open) + ' · ok ' + n(a.ok) + ' · <b>хаягтай ' + n(a.signups) + '</b> · сонирхол ' + n(a.leads) + (has(a.cps_mnt) ? ' · ' + mnt(a.cps_mnt) + '/хаягтай' : '') + (has(a.addr_share_pct) ? ' · хаягтай ' + n(a.addr_share_pct) + '%' : '') + '</div>'
             + (g.leak ? '<div class="adl">' + esc(g.leak) + '</div>' : '') + '</div>');
         });
         o('</div>');
@@ -225,7 +234,7 @@ function renderTests(DATA, QUERY) {
       + (k === 'win' && has(sg.suggest_qty) ? ' Хятадаас захиалах: ' + n(sg.suggest_qty) + ' ш.' : '') + '</div>');
     o('<div class="launch"><button class="btn g res-b" data-t="' + n(e.test_id) + '" data-r="win" data-n="' + esc(e.name) + '">✓ WIN</button>'
       + '<button class="btn r res-b" data-t="' + n(e.test_id) + '" data-r="loss" data-n="' + esc(e.name) + '">✕ LOSS</button>'
-      + '<div class="why"><b>LOSS автомат</b> (≥1000 impr · ≥48 цаг · P(win) ≤20%) — систем өөрөө хааж, Telegram-аар «Meta дээр зарыг унтраа» гэж хэлнэ. <b>WIN = 1 товч</b> — Telegram-д WIN дохио ирмэгц энд дар. Хаагдмагц бүртгүүлсэн хүмүүст SMS (эсвэл 24ц дотор бичсэн бол чат) автоматаар очно — залгахгүй. Хоёулаа ранк руу суралцаж буцна.</div></div>');
+      + '<div class="why"><b>LOSS автомат</b> (хаалт цэвэр · ≥1000 impr · ≥48 цаг · P(win) ≤20%; хог трафик/эвдэрсэн маягт = ДҮГНЭХГҮЙ, LOSS биш) — систем өөрөө хааж, Telegram-аар «Meta дээр зарыг унтраа» гэж хэлнэ. <b>WIN = 1 товч</b> — Telegram-д WIN дохио ирмэгц энд дар. Хаагдмагц бүртгүүлсэн хүмүүст SMS (эсвэл 24ц дотор бичсэн бол чат) автоматаар очно — залгахгүй. Хоёулаа ранк руу суралцаж буцна.</div></div>');
     o('<div class="out" id="out-t' + n(e.test_id) + '"></div></div>');
   });
 
