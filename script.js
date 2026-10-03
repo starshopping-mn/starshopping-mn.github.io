@@ -2624,10 +2624,13 @@ async function renderOrder() {
          test #1 three of them taught the optimiser the wrong buyer. The
          owner's number, or ?test=1 in the link, keeps the pixel quiet. */
       const ownerTest = OWNER_TEST_PHONES.includes(phone) || /[?&]test=1(\b|$)/.test(location.search + location.hash);
+      /* BR: Lead at step one. A phone without an address is interest, not an
+         order (B1, 2026-10-03): Purchase moved to the address step below, so
+         Meta optimises for people who finish, not for people who type a number. */
       if (window.fbq && !out.is_duplicate && !ownerTest)
         fbq(
           "track",
-          "Purchase",
+          "Lead",
           {
             content_ids: [d.slug],
             content_type: "product",
@@ -2635,7 +2638,7 @@ async function renderOrder() {
             num_items: Number(out.quantity) || qty,
             ...pixelValue(total),
           },
-          { eventID: String(out.order_id || "") }
+          { eventID: "lead:" + String(out.order_id || "") }
         );
 
       ckDone = true;
@@ -2644,7 +2647,7 @@ async function renderOrder() {
       /* A repeat inside a day comes back as a duplicate row pointing at the
          first; the address belongs on the first, the one the operator works. */
       const target = String((out.is_duplicate && out.duplicate_of) || out.order_id || "");
-      placed = { slug: d.slug, orderId: target, qty: Number(out.quantity) || qty, goods: total };
+      placed = { slug: d.slug, orderId: target, qty: Number(out.quantity) || qty, goods: total, ownerTest, dup: !!out.is_duplicate };
       try { sessionStorage.setItem(STEP2_KEY, JSON.stringify(placed)); } catch (e2) { /* refresh returns to step one */ }
       saveDone({
         code: String(out.order_id || ""),
@@ -2776,6 +2779,23 @@ async function renderOrder() {
       );
     }
 
+    /* BR: Purchase only now — an address makes it an order (B1). Same eventID
+       as the order id, so a server-side event for the same order dedups. */
+    if (window.fbq && !placed.ownerTest && !placed.dup && !placed.purchased) {
+      placed.purchased = true;
+      fbq(
+        "track",
+        "Purchase",
+        {
+          content_ids: [placed.slug],
+          content_type: "product",
+          content_name: d.name,
+          num_items: Number(placed.qty) || 1,
+          ...pixelValue(Number(placed.goods) || goodsNow()),
+        },
+        { eventID: String(placed.orderId || "") }
+      );
+    }
     saveDone({ ship: shipPrice, shipName, payment, total: (Number(placed.goods) || goodsNow()) + shipPrice, noAddress: false });
     finish();
     location.hash = "#/done";
