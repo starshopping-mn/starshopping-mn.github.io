@@ -1,3 +1,18 @@
+/* Нэгдсэн навигаци (C3, 2026-10-03). Хуудас бүр ssNav('<key>', themeQ) дуудна — цэс нэг газар.
+   Нүүр · Тест / Захиалга / Мөнгө / Нөөц · PO / Судалгаа. «Систем» (?view=board) цэснээс гарсан: 🩺 товч + хаягаар нээгдэнэ. */
+function ssNav(on, themeQ) {
+  var tq = themeQ ? '&theme=' + themeQ : '';
+  var items = [
+    ['tests', '/board/' + (themeQ ? '?theme=' + themeQ : ''), 'Нүүр · Тест'],
+    ['orders', '/board/?view=orders' + tq, 'Захиалга'],
+    ['money', '/board/?view=money' + tq, 'Мөнгө'],
+    ['ops', '/board/?view=ops' + tq, 'Нөөц · PO'],
+    ['research', '/board/?view=research&tab=rank' + tq, 'Судалгаа']
+  ];
+  return '<nav class="nav">' + items.map(function (it) {
+    return '<a' + (it[0] === on ? ' class="on"' : '') + ' href="' + it[1].replace(/&/g, '&amp;') + '">' + it[2] + '</a>';
+  }).join('') + '</nav>';
+}
 /* Самбарын ачаалагч (чиглүүлэгч). Хуудсыг энд зурна, n8n зөвхөн өгөгдөл өгнө.
    Түлхүүр: анх удаа /board/#k=... холбоосоор орход энэ төхөөрөмжид хадгалагдана
    (hash сервер рүү явдаггүй). Дараа нь /board/ гэж л орно.
@@ -14,14 +29,17 @@
 
   var VIEWS = {
     tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // нүүр: тестийн урсгал (блок AR)
-    category: { data: 'mission',  extra: { modes: 'modes', queue: 'queue' }, render: 'renderMission' }, // категорийн 7 хоногийн даалгавар (блок AD)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
     board:    { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
-    ops:      { data: 'orders',   extra: { stock: 'stock', cash: 'cash' }, render: 'renderOps' }, // блок BF: захиалга · нөөц · мөнгө
+    ops:      { data: 'stock',    extra: {}, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
     money:    { data: 'money',    extra: {}, render: 'renderMoney', passQuery: true } // блок C2: мөнгө — зардал vs орлого, дэвтэр
   };
-  if (q.view === 'mission') q.view = 'category';           // хуучин холбоос
+  // C3: хуучин хаягууд → шинэ хуудас (хуучин холбоос, Telegram мессеж ажилласаар)
+  var tqq = q.theme ? '&theme=' + q.theme : '';
+  if (q.view === 'mission' || q.view === 'category') { location.replace('/board/' + (q.theme ? '?theme=' + q.theme : '')); return; }
+  if (q.view === 'ops' && q.tab === 'orders') { location.replace('/board/?view=orders' + tqq); return; }
+  if (q.view === 'ops' && q.tab === 'cash') { location.replace('/board/?view=money' + tqq); return; }
   var view = VIEWS[q.view] ? q.view : 'tests';
   var V = VIEWS[view];
   // passQuery: хуудасны шүүлт (URL query) өгөгдлийн дуудлагад бүхэлдээ дамжина (view/theme/k-гүй)
