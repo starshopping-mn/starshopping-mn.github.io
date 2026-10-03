@@ -20,7 +20,7 @@ function renderOrders(DATA, QUERY) {
 
   const C = d.counts || {}, F = d.facets || {}, FL = d.filters || {};
   const O = A(d.orders), CALL = A(d.call_list);
-  const DIST = A(Array.isArray(d.districts) ? d.districts : (d.districts && d.districts.body) || []);
+  const DIST = A(Array.isArray(d.districts) ? d.districts : d.districts && (d.districts.districts || d.districts.body) || []); // C1b: district_list() → {districts:[…]}
   const addressed = O.filter((r) => ['order', 'confirmed', 'delivered', 'paid'].indexOf(r.stage) >= 0);
   const leads = O.filter((r) => r.stage === 'lead');
   const others = O.filter((r) => ['cancelled', 'test', 'duplicate'].indexOf(r.stage) >= 0);
