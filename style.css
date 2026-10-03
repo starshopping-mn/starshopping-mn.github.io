@@ -57,8 +57,10 @@
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   /* centre of the camera lens inside hero-camera.png, measured from the
      trimmed asset — the whole zoom transition pivots on this point */
-  --lens-x: 52.1%;
-  --lens-y: 87.5%;
+  /* measured on the photograph itself (2026-10-04): the dark glass of the
+     lens is a clean circle, 32% of the picture's width, centred here */
+  --lens-x: 59.8%;
+  --lens-y: 89.5%;
   /* The lens sits 87.5% down the image and is what the scroll zooms into, so
      the offset is chosen to land it around 72% of the viewport — high enough
      to stay visible once an in-app browser's chrome takes its cut. */
@@ -273,13 +275,50 @@ a { color: inherit; text-decoration: none; }
 .cats {
   position: relative;
   z-index: 2;
-  margin-top: -100vh;
-  margin-top: -100svh;
   min-height: 100vh; min-height: 100svh;
   display: flex;
   padding: 5rem 1.1rem 2rem;
   background: linear-gradient(100deg, var(--bg) 52%, var(--bg-tint) 100%);
 }
+
+/* ====================== the door: one stage, three layers ======================
+   Without motion (no script, no library, reduced motion) nothing here applies
+   and the hero and the categories are two ordinary sections, one after the
+   other. With motion, `.door--motion` is set and the track is three screens
+   long: the stage sticks to the top of the viewport for all of it and the
+   layers play out on it — camera, then the black of the lens, then the
+   categories. Sticky is the browser's own and needs no measuring, which is
+   what the earlier pin + spacer arrangement kept getting wrong on phones. The
+   stage is sized in dvh so it always fills whatever the toolbar leaves. */
+.door { position: relative; }
+.door__lens { display: none; }
+.door--motion { height: 300vh; height: 300svh; }
+.door--motion .door__stage {
+  position: sticky; top: 0;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+.door--motion .hero,
+.door--motion .cats { position: absolute; inset: 0; height: auto; min-height: 0; margin: 0; }
+.door--motion .hero { z-index: 1; }
+/* The black of the lens, as its own disc: scaled up by the GPU it costs
+   nothing, where the photograph scaled far enough to fill the screen tore on
+   an iPhone. It starts the size of the pupil and grows past the corners. */
+.door--motion .door__lens {
+  display: block;
+  position: absolute; left: 50%; top: 50%;
+  width: 40vmin; height: 40vmin; margin: -20vmin 0 0 -20vmin;
+  border-radius: 50%;
+  background: #0b0a09;
+  z-index: 2;
+  opacity: 0; transform: scale(0);
+  will-change: transform;
+  pointer-events: none;
+}
+.door--motion .cats { z-index: 3; opacity: 0; pointer-events: none; will-change: transform, opacity; }
+.door--motion.is-in .cats { pointer-events: auto; }
+.door--motion.is-in .hero { pointer-events: none; }
 
 /* `margin: auto` rather than centred alignment: in short viewports — an
    in-app browser with its own chrome, say — centring pushes the top of the
