@@ -312,11 +312,30 @@ a { color: inherit; text-decoration: none; }
   border-radius: 50%;
   background: #0b0a09;
   z-index: 2;
-  opacity: 0; transform: scale(0);
+  opacity: var(--door-lo, 0);
+  transform: scale(var(--door-ds, 0));
   will-change: transform;
   pointer-events: none;
 }
-.door--motion .cats { z-index: 3; opacity: 0; pointer-events: none; will-change: transform, opacity; }
+.door--motion .cats {
+  z-index: 3;
+  opacity: var(--door-k, 0);
+  transform: scale(calc(0.78 + 0.22 * var(--door-k, 0)));
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* The frame-by-frame values come from the driver in index.html as custom
+   properties on #door; only transforms and opacity change, so each frame is
+   composited and nothing is laid out again. --door-lx/ly is how far the lens
+   must travel to the middle of the stage; the camera scales about the lens
+   (transform-origin above) so that point simply moves there. */
+.door--motion .hero__cam img {
+  transform: translate(calc(var(--door-lx, 0px) * var(--door-c, 0)), calc(var(--door-ly, 0px) * var(--door-c, 0)))
+             scale(calc(1 + 1.4 * var(--door-c, 0)));
+  visibility: var(--door-cv, visible);
+}
+.door--motion .hero__word { opacity: calc(1 - var(--door-w, 0)); }
+.door--motion .hero__cue { opacity: calc(1 - var(--door-q, 0)); }
 .door--motion.is-in .cats { pointer-events: auto; }
 .door--motion.is-in .hero { pointer-events: none; }
 

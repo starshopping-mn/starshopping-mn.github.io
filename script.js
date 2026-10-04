@@ -1,48 +1,17 @@
-/* The motion library is fetched only when the front door is actually shown.
-   Every route used to load GSAP + ScrollTrigger (116KB) before this file could
-   run — and the visitor an advert sends lands on a product page that never
-   scrolls into anything. The front door preloads the two files from its
-   <head> (index.html), so for that visitor this is a cache hit; the scripts
-   are inserted with `async = false` so they still execute in order. Until they
-   are here, every ScrollTrigger call goes through `refreshMotion`, a no-op. */
-const MOTION_SRC = ["vendor/gsap.min.js", "vendor/ScrollTrigger.min.js"];
-let motionReady = null;
-function loadMotion() {
-  if (!motionReady) {
-    motionReady =
-      window.gsap && window.ScrollTrigger
-        ? Promise.resolve()
-        : new Promise((ok, no) => {
-            MOTION_SRC.forEach((src, i) => {
-              const s = document.createElement("script");
-              s.src = src;
-              s.async = false;
-              if (i === MOTION_SRC.length - 1) s.onload = ok;
-              s.onerror = () => no(new Error("motion: " + src));
-              document.head.appendChild(s);
-            });
-          });
-    motionReady = motionReady.then(() => gsap.registerPlugin(ScrollTrigger));
-  }
-  return motionReady;
-}
+/* No motion library. The dive into the lens is driven by a small script in
+   index.html, beside the door itself (window.ssDoor), with nothing to download
+   first — a first visit used to scroll an ordinary long page while GSAP was
+   still on its way, and the page then rebuilt itself under the visitor's
+   thumb. This file only asks the driver to measure again when the front door
+   is shown, and listens to it to know when the categories are in. */
 const refreshMotion = () => {
-  if (window.ScrollTrigger) ScrollTrigger.refresh();
+  if (window.ssDoor) ssDoor.refresh();
 };
 
-/* ScrollTrigger is deliberately left to refresh when a phone's viewport height
-   changes. `ignoreMobileResize: true` was tried here and caused the opposite of
-   what it promised: the hero is sized in svh — the height with the toolbar
-   showing — and measured at load, so when the toolbar slides away and the
-   viewport grows, the pin has to be measured again or the section no longer
-   reaches the bottom of the screen. Suppressing that left a band of bare
-   background under the camera part-way through the zoom, on a real phone, where
-   no amount of desktop emulation reproduced it. */
-
-/* A reload normally restores the previous scroll position. The hero is a
-   pinned, scrubbed section, so being measured from a half-scrolled start
-   leaves it stuck mid-zoom — the camera blown up and the type gone. Opting
-   out of scroll restoration makes every load begin from a known state. */
+/* A reload normally restores the previous scroll position. The front door
+   would then open half-way into the dive — the camera blown up and the type
+   gone — before the visitor has touched anything. Opting out of scroll
+   restoration makes every load begin from a known state. */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 /* An ad link ends in ?ref=<creative id>, and that id is the only thing tying an
@@ -1014,9 +983,7 @@ function ensureHero() {
   if (tpl) tpl.parentNode.insertBefore(tpl.content.cloneNode(true), tpl);
   camImg = document.querySelector(".hero__cam img");
 }
-let homeTriggers = [];
-let heroTl = null;
-let doorStatic = false; // set once a browser proved it will not hold the stage (see buildHomeMotion)
+let doorHooked = false; // the driver's "categories are in" signal is wired once
 
 /* Reached only with ?diag on the address, and never by a customer. A band of
    bare background appears under the camera part-way through the zoom on a real
@@ -1034,11 +1001,11 @@ if (/(^|[?&])diag/.test(location.search)) {
   addEventListener("DOMContentLoaded", () => document.body.appendChild(box));
   let worst = 0;
   const report = () => {
-    if (!camImg || !window.ScrollTrigger) return; // the front door has not been built yet
+    if (!camImg) return; // the front door has not been built yet
     const vh = window.visualViewport ? window.visualViewport.height : innerHeight;
     const h = heroEl.getBoundingClientRect();
     const c = camImg.getBoundingClientRect();
-    const pin = heroTl && heroTl.scrollTrigger;
+    const pin = window.ssDoor ? { progress: ssDoor.progress } : null;
     const bare = Math.round(vh - c.bottom);
     if (bare > worst) worst = bare;
     box.textContent =
@@ -1054,134 +1021,31 @@ if (/(^|[?&])diag/.test(location.search)) {
   setInterval(report, 120);
 }
 
-const lensOffset = (axis) => () => {
-  const hero = heroEl.getBoundingClientRect();
-  const img = camImg.getBoundingClientRect();
-  // the same point as --lens-x / --lens-y in style.css: the centre of the lens glass
-  const lensX = img.left - hero.left + img.width * 0.598;
-  const lensY = img.top - hero.top + img.height * 0.895;
-  return axis === "x" ? hero.width / 2 - lensX : hero.height / 2 - lensY;
-};
-
+/* The front door is shown: make sure the camera is in the page, let the
+   driver measure it, and follow its word on whether the categories are in
+   (the side rail and the category rotation hang on that). Without the driver
+   — no sticky, reduced motion — the sections simply stack and there is
+   nothing to drive. */
 function buildHomeMotion() {
-  if (heroTl) return;
   ensureHero();
-  /* The library arrives on its own schedule (see `loadMotion`): the first
-     time through it is usually not here yet, so come back once it is — and
-     only if the visitor is still on the front door by then. The hero is laid
-     out by CSS alone in the meantime, so nothing is blank while it loads. */
-  if (!window.gsap || !window.ScrollTrigger) {
-    loadMotion()
-      .then(() => {
-        if (views.home.hidden || heroTl) return;
-        buildHomeMotion();
-        // the same late measurements `load` gets: fonts and images still landing
-        refreshMotion();
-        setTimeout(refreshMotion, 250);
-        setTimeout(refreshMotion, 1200);
-      })
-      .catch((err) => console.warn("Хөдөлгөөний сан ирсэнгүй — нүүр хөдөлгөөнгүй харагдана:", err));
-    return;
+  if (!window.ssDoor) return;
+  if (!doorHooked) {
+    doorHooked = true;
+    ssDoor.onInside((inside) => {
+      setRail(inside ? "cats" : "hero");
+      if (inside) startCycle();
+      else stopCycle();
+    });
   }
-
-  /* The visitor is still — the user chose their own words for it — to be
-     flown into the lens and come out on the next page. The old way scaled the
-     photograph to eleven and let a veil close over it; on a phone the picture
-     tore before the veil arrived and the veil was the page colour, so the
-     dive ended on a bare cream screen. Now three layers on one sticky stage:
-
-       0 – 0.55  the camera grows (to 2.4, never more: the picture stays whole
-                 on an iPhone at that size) while its lens travels to the
-                 middle of the screen;
-       0.38–0.70 a black disc the size of the pupil opens from that point and
-                 grows past the corners — the dive;
-       0.64–0.94 the categories come up out of the black, smaller then full;
-       to 1      a beat of stillness, then the stage lets go and the page
-                 scrolls on.
-
-     Nothing here is pinned by script: the stage is `position: sticky` and the
-     track is three screens tall, so the browser does the holding and there is
-     no spacer to measure wrong when a phone's toolbar comes and goes. The
-     timeline only follows the track's progress. */
-  if (doorStatic || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const door = document.getElementById("door");
-  const lensDisc = door.querySelector(".door__lens");
-  if (!door || !lensDisc) return;
-  door.classList.add("door--motion");
-
-  const CAM_SCALE = 2.4;
-  const PUPIL = 0.29; // the dark glass of the lens, as a share of the photograph's width (measured: 0.32 to its rim)
-  /* Layout sizes (offsetWidth), never the transformed rectangle: the disc is
-     measured again on every refresh, when the tweens are at their start. */
-  const pupilScale = () => (camImg.offsetWidth * PUPIL * CAM_SCALE) / lensDisc.offsetWidth;
-  const coverScale = () => (Math.hypot(innerWidth, innerHeight) * 1.08) / lensDisc.offsetWidth;
-
-  let inside = false;
-  heroTl = gsap
-    .timeline({
-      scrollTrigger: {
-        trigger: door,
-        start: "top top",
-        end: "bottom bottom",
-        scrub: 0.6,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          /* The one thing this depends on is the stage staying put. Should a
-             browser not hold it — some in-app views have surprised before —
-             the layers would scroll past as a heap, so the first sign of the
-             stage leaving the top of the screen mid-track turns the motion
-             off and leaves the two sections stacked plainly, as without it. */
-          if (self.progress > 0.08 && self.progress < 0.92) {
-            const top = door.firstElementChild.getBoundingClientRect().top;
-            if (top < -4 || top > 4) {
-              doorStatic = true;
-              destroyHomeMotion();
-              return;
-            }
-          }
-          const now = self.progress > 0.62;
-          if (now === inside) return;
-          inside = now;
-          door.classList.toggle("is-in", now);
-          setRail(now ? "cats" : "hero");
-          if (now) startCycle();
-          else stopCycle();
-        },
-      },
-    })
-    .to(".hero__cue", { opacity: 0, duration: 0.1 }, 0)
-    .to(".hero__word", { opacity: 0, duration: 0.3, ease: "power1.in" }, 0.03)
-    .fromTo(camImg, { scale: 1, x: 0, y: 0 },
-      { scale: CAM_SCALE, x: lensOffset("x"), y: lensOffset("y"), duration: 0.5, ease: "power2.inOut" }, 0)
-    /* the disc opens only once the lens has arrived in the middle, so it is
-       born inside the glass and not beside it */
-    .fromTo(lensDisc, { opacity: 0 }, { opacity: 1, duration: 0.02, immediateRender: false }, 0.49)
-    .fromTo(lensDisc, { scale: pupilScale }, { scale: coverScale, duration: 0.27, ease: "power2.in", immediateRender: false }, 0.5)
-    // once the black has the whole screen the photograph has nothing left to show, and a 2.4× surface is better released
-    .set(camImg, { visibility: "visible" }, 0.769)
-    .set(camImg, { visibility: "hidden" }, 0.77)
-    .fromTo("#cats", { opacity: 0, scale: 0.78 },
-      { opacity: 1, scale: 1, duration: 0.28, ease: "power2.out", immediateRender: false }, 0.7);
+  ssDoor.refresh();
+  setRail(ssDoor.inside ? "cats" : "hero");
+  if (ssDoor.inside) startCycle();
 }
 
+/* Leaving the front door. The driver notices the hidden stage by itself and
+   draws nothing until the door is shown again; only the rotation is ours. */
 function destroyHomeMotion() {
   stopCycle();
-  if (!window.gsap || !camImg) return; // nothing was ever built, nothing to clear
-  if (heroTl) {
-    heroTl.scrollTrigger && heroTl.scrollTrigger.kill();
-    heroTl.kill();
-    heroTl = null;
-  }
-  homeTriggers.forEach((t) => t && t.kill());
-  homeTriggers = [];
-  const door = document.getElementById("door");
-  if (door) door.classList.remove("door--motion", "is-in");
-  gsap.set([camImg, ".hero__veil", ".hero__cue", ".cats__emerge", ".door__lens", "#cats"], { clearProps: "all" });
-  // The words carry --chars inline, and that is what their font-size calc is
-  // built on. clearProps:"all" would wipe it along with the tween, leaving an
-  // invalid calc and type that collapses to the browser default — so only the
-  // property actually animated gets cleared here.
-  gsap.set(".hero__word", { clearProps: "opacity" });
 }
 
 const railEl = document.getElementById("rail");
@@ -3297,9 +3161,9 @@ if (window.visualViewport) {
   let seen = Math.round(visualViewport.height);
   visualViewport.addEventListener("resize", () => {
     const now = Math.round(visualViewport.height);
-    /* A toolbar sliding away moves this by a few dozen pixels and is handled by
-       ScrollTrigger already. A jump this large means the window itself changed
-       and the whole layout was measured against the wrong one. */
+    /* A toolbar sliding away moves this by a few dozen pixels, which the door's
+       driver re-measures on its own. A jump this large means the window itself
+       changed and the whole layout was measured against the wrong one. */
     if (Math.abs(now - seen) > 120) {
       seen = now;
       setTimeout(settle, 120);
