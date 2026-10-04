@@ -84,6 +84,7 @@ function renderTests(DATA, QUERY) {
    + '.steps{display:grid;gap:6px;margin-top:10px}.stp{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--ln3);border-radius:var(--r-s);background:var(--bg)}'
    + '.stp .no{width:26px;height:26px;border-radius:50%;background:var(--s2);color:var(--mut);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}.stp.done .no{background:var(--good);color:#fff}.stp.now .no{background:var(--blue);color:#fff}.stp.now{border-color:var(--blue)}'
    + '.stp .tt{font-weight:700;font-size:14px}.stp.done .tt{text-decoration:line-through;color:var(--mut)}.stp .dt{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.45}.stp .ow{font-size:11px;margin-top:4px;color:var(--mut)}.stp .ow.me{color:var(--gold);font-weight:700}'
+   + '.ckp{margin-top:14px;border:1px solid var(--ln3);border-radius:var(--r-s);padding:10px 12px;background:var(--bg)}.ckh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:14px}.ckr{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:start;padding:8px 0;border-top:1px solid var(--ln3)}.ckr .cki{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:var(--s2);color:var(--mut)}.ckr.ok .cki{background:var(--good);color:#fff}.ckr.fail .cki{background:var(--crit);color:#fff}.ckr .tt{font-weight:700;font-size:13px;white-space:normal}.ckr .dt{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.45;white-space:normal}.ckr .hw{color:var(--warn)}.h24{margin:10px 0;border:1px solid var(--ln3);border-radius:var(--r-s);padding:10px 12px;background:var(--bg);font-size:13px;line-height:1.5}.h24.bad{border-color:var(--crit)}.h24 .ckr{border-top:1px solid var(--ln3)}'
    + '.launch{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--ln3)}.launch .why{font-size:12px;color:var(--mut);flex:1;min-width:200px}'
    + '.mx{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:12px 0}.mx>div{background:var(--bg);border:1px solid var(--ln3);border-radius:var(--r-s);padding:10px}.mx .l{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}.mx .v{font-size:18px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}.mx .v small{font-size:11px;color:var(--mut);font-weight:400}'
    + '.sug{border-radius:var(--r-s);padding:12px 14px;font-size:13px;line-height:1.5;margin:8px 0}.sug.win{background:var(--good-a);color:var(--good)}.sug.lose{background:var(--crit-a);color:var(--crit)}.sug.wait{background:var(--s2);color:var(--ink2)}'
@@ -171,9 +172,21 @@ function renderTests(DATA, QUERY) {
       o('</div><div class="ac">' + (s.done_by === 'систем' && isDone ? '' : '<button class="btn s stp-b" data-t="' + n(t.test_id) + '" data-s="' + s.step + '" data-st="' + (isDone ? 'todo' : 'done') + '">' + (isDone ? '↺ буцаах' : 'Хийсэн') + '</button>') + '</div></div>');
     });
     o('</div>');
+    const pt = t.pretest || {};
+    if (A(pt.checks).length) {
+      o('<div class="ckp"><div class="ckh"><b>Бэлтгэлийн шалгалт</b><span class="gt ' + (pt.ready ? 'ok' : 'wr') + '">' + n(pt.ok_count) + '/' + n(pt.total) + '</span>'
+        + (pt.breakeven_mnt ? '<span class="gt mu">breakeven ' + mnt(pt.breakeven_mnt) + ' / хаягтай захиалга</span>' : '') + '</div>');
+      A(pt.checks).forEach((c) => {
+        const ic = c.status === 'ok' ? '✓' : c.status === 'fail' ? '✗' : '○';
+        o('<div class="ckr ' + esc(c.status) + '"><div class="cki">' + ic + '</div><div><div class="tt">' + esc(c.label) + (c.kind === 'manual' ? ' <span class="gt mu">гараар</span>' : '') + '</div>'
+          + '<div class="dt">' + esc(c.detail || '') + '</div>' + (c.status !== 'ok' && c.how ? '<div class="dt hw">Яаж: ' + esc(c.how) + '</div>' : '') + '</div>'
+          + '<div class="ckb">' + (c.kind === 'manual' ? '<button class="btn s pt-b" data-t="' + n(t.test_id) + '" data-k="' + esc(c.key) + '" data-d="' + (c.status === 'ok' ? 'todo' : 'done') + '">' + (c.status === 'ok' ? '↺ буцаах' : 'Шалгасан') + '</button>' : '') + '</div></div>');
+      });
+      o('</div>');
+    }
     o('<div class="launch"><button class="btn p lau-b" data-t="' + n(t.test_id) + '" data-n="' + esc(t.name) + '"' + (t.can_launch ? '' : ' disabled') + '>🚀 AD явуулсан</button>'
       + '<div class="why">' + (t.can_launch ? 'Бэлэн. Дарахад бараа Тестээс хасагдаж Үнэлгээ (AD) хэсэгт шилжинэ, систем WIN/LOSS хүлээнэ.'
-        : 'Идэвхжих нөхцөл: 6/6 алхам · нягтлалт ' + n(cf.of) + '/' + n(cf.of) + ' · ТЕСТ горимд бүртгэлтэй.' + (done < 6 ? ' Дутуу алхам ' + (6 - done) + '.' : '') + (!cf.ok ? ' Нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '.' : '') + (!t.slug ? ' Бүртгэлгүй.' : '')) + '</div>'
+        : 'Идэвхжих нөхцөл: 6/6 алхам · нягтлалт ' + n(cf.of) + '/' + n(cf.of) + ' · ТЕСТ горимд бүртгэлтэй.' + (done < 6 ? ' Дутуу алхам ' + (6 - done) + '.' : '') + (!cf.ok ? ' Нягтлалт ' + n(cf.passed) + '/' + n(cf.of) + '.' : '') + (!t.slug ? ' Бүртгэлгүй.' : '') + (pt.checks && !pt.ready ? ' Бэлтгэл ' + n(pt.ok_count) + '/' + n(pt.total) + '.' : '')) + '</div>'
       + '<button class="btn s drop-b" data-t="' + n(t.test_id) + '" data-n="' + esc(t.name) + '">Тестээс гаргах</button></div>');
     o('<div class="out" id="out-t' + n(t.test_id) + '"></div></div>');
   });
@@ -201,6 +214,14 @@ function renderTests(DATA, QUERY) {
       const gk = (ok) => (ok === null ? '—' : ok ? '✓' : '✗');
       const vc = RD.verdict === 'win' ? 'win' : RD.verdict === 'loss' ? 'lose' : 'wait';
       const DG = RD.diag || {};
+      const H = e.health24;
+      if (H && A(H.checks).length) {
+        o('<div class="h24' + (H.ok ? '' : ' bad') + '"><b>' + (H.ok ? '✅ 24 цагийн шалгалт — цэвэр' : '⚠️ 24 цагийн шалгалт — анхаарах зүйл байна') + '</b> <span class="st" style="color:var(--mut);font-size:12px">' + esc(ago(H.at)) + '</span>');
+        A(H.checks).forEach((c) => o('<div class="ckr ' + (c.status === 'ok' ? 'ok' : c.status === 'fail' ? 'fail' : '') + '"><div class="cki">' + (c.status === 'ok' ? '✓' : c.status === 'fail' ? '✗' : '!') + '</div><div><div class="tt">' + esc(c.label) + '</div><div class="dt">' + esc(c.detail || '') + '</div></div><div></div></div>'));
+        if (A(H.actions).length) o('<div class="dt hw" style="margin-top:6px">👉 ' + A(H.actions).map(esc).join('<br>👉 ') + '</div>');
+        o('</div>');
+      } else if (n(e.hours) < 24) o('<div class="h24"><span class="st">24 цагийн автомат шалгалт ' + (24 - n(e.hours)) + ' цагийн дараа (байршил + хаалт → Telegram)</span></div>');
+      else o('<div class="h24"><span class="st">24 цагийн шалгалт хийгдэж байна (3 цаг тутам шалгана)…</span></div>');
       o('<div class="sec" style="margin:14px 0 4px"><b style="font-size:14px">Зарын уншилт v4</b><span class="st">' + n(RD.hours) + ' цаг · Meta өгөгдөл ' + esc(RD.data_through || '—') + ' хүртэл · breakeven ' + mnt(RD.breakeven_mnt) + '/хаягтай (' + esc(RD.breakeven_src || '') + ')</span></div>');
       o('<div class="mx"><div><div class="l">Зардал</div><div class="v">' + mnt(RD.spend_mnt) + '</div></div>'
         + '<div><div class="l">Impression</div><div class="v">' + n(RD.impressions).toLocaleString('en-US') + '</div></div>'
@@ -291,6 +312,7 @@ function renderTests(DATA, QUERY) {
     // алхам
     + 'document.querySelectorAll(".stp-b").forEach(function(b){b.addEventListener("click",function(){post({action:"step",test_id:+b.dataset.t,step:+b.dataset.s,status:b.dataset.st,by:"owner"},b,document.getElementById("out-t"+b.dataset.t)).then(function(){b.textContent="✓";reload(250)})})});'
     // AD явуулсан
+    + 'document.querySelectorAll(".pt-b").forEach(function(b){b.addEventListener("click",function(){post({action:"step",test_id:+b.dataset.t,key:b.dataset.k,status:b.dataset.d,by:"owner"},b,document.getElementById("out-t"+b.dataset.t)).then(function(){b.textContent="✓";reload(250)})})});'
     + 'document.querySelectorAll(".lau-b").forEach(function(b){b.addEventListener("click",function(){if(!confirm("«"+b.dataset.n+"» — зар явуулсан уу? Бараа Тестээс Үнэлгээ рүү шилжинэ."))return;var out=document.getElementById("out-t"+b.dataset.t);post({action:"launch",test_id:+b.dataset.t,by:"owner"},b,out).then(function(j){out.className="out on";out.innerHTML="🚀 "+e(j.next||"")+"<br><button class=\\"btn s\\" onclick=location.reload()>Шинэчлэх</button>";b.textContent="✓ Үнэлгээнд"})})});'
     // тестээс гаргах
     + 'document.querySelectorAll(".drop-b").forEach(function(b){b.addEventListener("click",function(){var nt=prompt("«"+b.dataset.n+"»-ийг тестээс гаргах шалтгаан?");if(nt===null)return;post({action:"drop",test_id:+b.dataset.t,note:nt,by:"owner"},b,document.getElementById("out-t"+b.dataset.t)).then(function(){reload()})})});'
