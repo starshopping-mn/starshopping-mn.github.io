@@ -66,13 +66,29 @@ function ssNav(on, themeQ) {
   }
   if (!key) return ask('');
 
-  function get(v, extra) {
+  /* S2 (2026-10-04): УНШИХ дуудлага n8n-ээр БИШ, Supabase RPC board_read-ээр (n8n ажиллагаа зарцуулахгүй).
+     Түлхүүр DB талд sha256 hash-аар шалгагдана. Сүлжээ/сервер унавал л n8n руу буцна (нөөц зам). */
+  var SB_RPC = 'https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/board_read';
+  var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkbmpucWZ0eHNjaGJsaXVtd3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNzExNTgsImV4cCI6MjEwNDk0NzE1OH0.lND_YBbjyCNT-yIa27OZ3V-1_fn76i9JUYrOfrXbC1w';
+  function viaN8n(v, extra) {
     return fetch(DATA_URL + '?view=' + v + '&k=' + encodeURIComponent(key) + (extra || ''), { cache: 'no-store' })
       .then(function (r) {
         if (r.status === 401 || r.status === 403) { store(''); throw new Error('key'); }
         if (!r.ok) throw new Error('http ' + r.status);
         return r.json();
       });
+  }
+  function get(v, extra) {
+    var p = { view: v, k: key };
+    new URLSearchParams((extra || '').replace(/^&/, '')).forEach(function (val, name) { if (name !== 'k' && name !== 'view') p[name] = val; });
+    return fetch(SB_RPC, { method: 'POST', cache: 'no-store',
+      headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p: p }) })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 403) { store(''); throw new Error('key'); }
+        if (!r.ok) return viaN8n(v, extra);
+        return r.json();
+      }, function () { return viaN8n(v, extra); });
   }
   // «Орох багц» өөр категорит: судалгааны өгөгдөл + тухайн категорийн багц
   var extras = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
