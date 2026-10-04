@@ -146,13 +146,17 @@ function ssNav(on, themeQ) {
     fetchAll().then(paint).catch(function () { /* дараагийн удаа */ }).then(function () { painting = false; });
   }
   function live() {
-    var ver = null, T = 20000, lastPaint = Date.now();
+    var ver = null, T = 120000, IDLE = 600000, lastPaint = Date.now();   // n8n квот: 20с→120с, 10 мин идэвхгүй бол зогсоно
     // document.open() нь window-ийн listener-үүдийг арилгадаг тул зурсны ДАРАА бүртгэнэ
     ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (ev) {
-      window.addEventListener(ev, function () { lastAct = Date.now(); }, { passive: true, capture: true });
+      window.addEventListener(ev, function () {
+        var wasIdle = Date.now() - lastAct > IDLE; lastAct = Date.now();
+        if (wasIdle) tick();   // удаан зогссоны дараа буцаж ирвэл шууд шалгана
+      }, { passive: true, capture: true });
     });
     function tick() {
       if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastAct > IDLE) return;   // 10 мин хөдлөөгүй бол n8n дуудахгүй
       if (pending && !busy()) { refresh(); lastPaint = Date.now(); return; }
       get('version').then(function (r) {
         var v = r && r.v; if (!v) return;
@@ -162,6 +166,7 @@ function ssNav(on, themeQ) {
       }).catch(function () { /* сүлжээ түр тасарвал дараагийн удаа */ });
     }
     function health() {
+      if (document.visibilityState !== 'visible' || Date.now() - lastAct > IDLE) return;
       get('health').then(function (h) {
         if (!h || !h.overall || h.overall === 'none') return;
         var el = document.getElementById('ssHealth');
@@ -184,7 +189,7 @@ function ssNav(on, themeQ) {
     });
     window.ssRefresh = function () { refresh(true); };
     tick(); health();
-    setInterval(tick, T); setInterval(health, 60000);
+    setInterval(tick, T); setInterval(health, 600000);
   }
 
   Promise.all([get(V.data, PQ)].concat(extras.map(function (x) { return x.p; })))
