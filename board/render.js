@@ -51,6 +51,47 @@ function renderBoard(DATA, QUERY) {
   const H = [];
   const P = (s) => H.push(s);
 
+  const REP_JS = `<script>(function(){
+var el=document.getElementById('repData');if(!el)return;
+var D;try{D=JSON.parse(el.textContent)}catch(e){return}
+var body=document.getElementById('repBody'),dt=document.getElementById('repDate'),seg=document.getElementById('repSeg'),tok=0;
+function nf(v){v=+v||0;return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('en-US')+'₮'}
+function row(l,v,c){return '<div class="row"><span>'+l+'</span><b class="'+(c||'')+'">'+v+'</b></div>'}
+function hd(t){return '<div class="row hd2"><span>'+t+'</span></div>'}
+function show(R,label){
+  if(!R||!R.orders){body.innerHTML='<div class="note">Тайлан ачаалагдсангүй.</div>';return}
+  var o=R.orders,rv=R.revenue||{},cs=R.costs||{},nt=R.net||{},oth=+cs.other||0;
+  var h=hd(label);
+  h+=row('Захиалсан',(+o.placed_n||0)+' · '+nf(o.placed_mnt));
+  h+=row('Хүргэгдсэн',(+o.delivered_n||0)+' · '+nf(o.delivered_mnt));
+  h+=row('Цуцлагдсан',+o.cancelled_n||0);
+  h+=hd('Мөнгө');
+  h+=row('Орлого (төлөгдсөн)',nf(rv.paid),'good');
+  h+=row('Барааны өртөг',nf(cs.goods&&cs.goods.total));
+  h+=row('Хүргэлт, буцаалт',nf(cs.delivery));
+  if(oth)h+=row('Бусад',nf(oth));
+  h+=row('Зарын зардал',nf(cs.ads&&cs.ads.total));
+  h+=row('Системийн зардал',nf(cs.tools&&cs.tools.total));
+  h+=row('Нийт зардал',nf(cs.total));
+  h+=row('Цэвэр',nf(nt.real),nt.real>0?'good':nt.real<0?'crit':'');
+  h+='<div class="note">Орлого = мөнгө нь орж ирсэн захиалга. Системийн зардал хугацаанд хувааж тооцогдоно.</div>';
+  body.innerHTML=h;
+}
+function mark(m){Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){b.className='pt'+(b.getAttribute('data-m')===m?' on':'')})}
+function load(from,to,label,m){
+  var t=++tok;body.innerHTML='<div class="note">Ачаалж байна…</div>';
+  window.ssGet('report','&from='+from+'&to='+to).then(function(R){if(t===tok)show(R,label)}).catch(function(){if(t===tok)body.innerHTML='<div class="note">Ачаалж чадсангүй.</div>'});
+}
+var today=window.ssToday?window.ssToday():'';
+if(dt&&today)dt.max=today;
+show(D,'Энэ сар · '+String(D.from).slice(5)+' → '+String(D.to).slice(5));
+seg.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var m=b.getAttribute('data-m');dt.value='';mark(m);
+  if(m==='m')show(D,'Энэ сар · '+String(D.from).slice(5)+' → '+String(D.to).slice(5));
+  else load('2026-01-01',today||D.to,'Нийт · эхнээс','a')});
+dt.addEventListener('change',function(){if(!dt.value){mark('m');show(D,'Энэ сар · '+String(D.from).slice(5)+' → '+String(D.to).slice(5));return}
+  mark('');load(dt.value,dt.value,'Өдөр · '+dt.value,'d')});
+})();</script>`;
+
   const META_JS = `<script>(function(){
 var el=document.getElementById('metaData');if(!el)return;
 var D;try{D=JSON.parse(el.textContent)}catch(e){return}
@@ -650,7 +691,15 @@ draw();
   P('</div>');
 
   P('<div class="side">');
+  const REP = d.rep_m && d.rep_m.orders ? d.rep_m : null;
   P('<div class="sh"><b>Эцсийн тайлан</b></div>');
+  if (REP) {
+    P('<div class="repf"><span class="seg" id="repSeg"><button type="button" class="pt on" data-m="m">Энэ сар</button><button type="button" class="pt" data-m="a">Нийт</button></span>'
+      + '<input type="date" id="repDate" min="2026-01-01" aria-label="Өдөр сонгох"></div>');
+    P('<div id="repBody"></div>');
+    P('<script type="application/json" id="repData">' + JSON.stringify(REP).replace(/</g, '\\u003c') + '</script>');
+    P(REP_JS);
+  } else {
   const Pl = R.placed || {}, Dl = R.delivered || {}, Ec = R.economics || {};
   P('<div class="row hd2"><span>Өчигдөр · ' + esc(R.date || '') + '</span></div>');
   [['Өгөгдсөн захиалга', n(Pl.total)],
@@ -669,9 +718,10 @@ draw();
   P('<div class="row"><span>зарын зардал</span><b>' + mnt(Ec.ad_spend_mnt) + '</b></div>');
   P('<div class="row"><span>Цэвэр</span><b class="' + (n(Ec.net_mnt) > 0 ? 'good' : (n(Ec.net_mnt) < 0 ? 'crit' : '')) + '">' + mnt(Ec.net_mnt) + '</b></div>');
   P('<div class="row"><span>системийн зардал</span><b>' + mnt(R.system_cost_mnt) + '</b></div>');
+  }
   const wns = Array.isArray(E30.warnings) ? E30.warnings : [];
   if (wns.length) P('<div class="note">⚠️ ' + wns.map(esc).join('<br>⚠️ ') + '</div>');
-  P('<div class="note">Тоонууд нь хүргэгдсэн захиалга дээр тооцогдоно. Сүүлийн мессеж '
+  P('<div class="note">Сүүлийн мессеж '
     + esc(ago(PU.last_inbound)) + ' · захиалга ' + esc(ago(PU.last_order)) + ' өмнө.</div>');
   P('</div></div>');
 
