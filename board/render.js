@@ -135,7 +135,6 @@ function renderBoard(DATA, QUERY) {
   }
   P('<span class="chip">Meta · Supabase · Claude · Telegram</span>');
   P('<a class="rf" href="">Шинэчлэх</a>');
-  P('<button class="tb" id="tb" type="button" aria-label="Горим">◐ Авто</button>');
   P('</div></header>');
   P(typeof ssNav === 'function' ? ssNav('home', themeQ) : '');
 
@@ -600,19 +599,7 @@ function renderBoard(DATA, QUERY) {
   P('<span>Хүргэлт бодит ' + (has(DR.pct) ? DR.pct + '%' : 'дата алга') + '</span>');
   P('</footer></div>');
 
-  // The theme button: auto → dark → light → auto. The page switches at once, and
-  // then reloads itself at ?theme=… so the choice survives «Шинэчлэх» (its empty
-  // href keeps the query) and can be bookmarked. Storage is written too where it
-  // exists.
-  P('<script>(function(){var b=document.getElementById("tb");if(!b)return;'
-    + 'var L={auto:"◐ Авто",dark:"☾ Харанхуй",light:"☀ Цайвар"},K="ss_board_theme";'
-    + 'function get(){var t=document.documentElement.getAttribute("data-theme");return L[t]?t:"auto"}'
-    + 'function apply(t){var r=document.documentElement;if(t==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",t);'
-    + 'b.textContent=L[t];b.setAttribute("aria-label","Горим: "+L[t])}'
-    + 'apply(get());b.addEventListener("click",function(){var o=["auto","dark","light"],t=o[(o.indexOf(get())+1)%3];'
-    + 'try{localStorage.setItem(K,t)}catch(e){}apply(t);'
-    + 'var u=location.pathname+(t==="auto"?"":"?theme="+t);'
-    + 'try{history.replaceState(null,"",u)}catch(e){location.replace(u)}})})();</script>');
+  // theme товч: app.js (бүх хуудсанд нэг)
   P('</body></html>');
 
   return H.join('');
