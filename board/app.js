@@ -29,10 +29,10 @@ function ssNav(on, themeQ) {
   new URLSearchParams(location.search).forEach(function (v, k) { q[k] = v; });
 
   var VIEWS = {
-    home:     { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // НҮҮР: системийн зураглал (3D, бүх мэдээлэл нэг дор) — эзний шийдвэр 10-03
+    home:     { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all' } }, render: 'renderBoard' },  // НҮҮР: системийн зураглал (3D, бүх мэдээлэл нэг дор) — эзний шийдвэр 10-03
     tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // тестийн урсгал (блок AR)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
-    board:    { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
+    board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all' } }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: { waitlist: 'waitlist' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
     money:    { data: 'money',    extra: {}, render: 'renderMoney', passQuery: true } // блок C2: мөнгө — зардал vs орлого, дэвтэр
@@ -121,8 +121,15 @@ function ssNav(on, themeQ) {
         return r.json();
       }, function () { return viaN8n(v, extra); });
   }
+  // extra: 'view' эсвэл { view, range:'month'|'all' } (мөнгөний хугацаа УБ цагаар)
+  function ubToday() { var t = new Date(Date.now() + 8 * 3600000); return t.toISOString().slice(0, 10); }
+  function xget(spec) {
+    if (typeof spec === 'string') return get(spec);
+    var to = ubToday(), from = spec.range === 'month' ? to.slice(0, 8) + '01' : '2026-01-01';
+    return get(spec.view, '&from=' + from + '&to=' + to);
+  }
   // «Орох багц» өөр категорит: судалгааны өгөгдөл + тухайн категорийн багц
-  var extras = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
+  var extras = Object.keys(V.extra).map(function (name) { return { name: name, p: xget(V.extra[name]).catch(function () { return null; }) }; });
   if (view === 'research' && q.tab === 'pack' && q.c) extras.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
 
   /* ---- Амьд шинэчлэл (2026-09-29, v2) ----
@@ -144,13 +151,13 @@ function ssNav(on, themeQ) {
     return false;
   }
   function fetchAll() {
-    var ex = Object.keys(V.extra).map(function (name) { return { name: name, p: get(V.extra[name]).catch(function () { return null; }) }; });
+    var ex = Object.keys(V.extra).map(function (name) { return { name: name, p: xget(V.extra[name]).catch(function () { return null; }) }; });
     if (view === 'research' && q.tab === 'pack' && q.c) ex.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
     return Promise.all([get(V.data, PQ)].concat(ex.map(function (x) { return x.p; }))).then(function (res) {
       var d = res[0] || {};
       ex.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
       var html = window[V.render](d, q);
-      return stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?v=20261005a"><style>'));
+      return stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?v=20261005b"><style>'));
     });
   }
   // Дараагийн зурагт нээлттэй байсныг сэргээх түлхүүрүүд (data-keep="..." бүхий элементүүд)
@@ -253,7 +260,7 @@ function ssNav(on, themeQ) {
       var d = res[0] || {};
       extras.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
       var html = window[V.render](d, q);
-      html = stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?v=20261005a"><style>'));
+      html = stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?v=20261005b"><style>'));
       document.open(); document.write(html); document.close();
       live(); themeBtn();
     })
