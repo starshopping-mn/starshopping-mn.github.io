@@ -10,3 +10,4 @@ select{background-color:var(--s2);color:var(--ink)}select option{background:var(
 .k.mt .kv{font-size:27px}.k.mt .sl{width:380px}
 a.k.cnt{display:block;transition:border-color .15s}a.k.cnt:hover{border-color:var(--gold)}a.k.cnt.zero .kv{color:var(--mut)}a.k.cnt.crit .kv{color:var(--crit)}a.k.cnt.warn .kv{color:var(--warn)}
 #metaw details.ads{margin-top:4px}#metaw details.ads>summary{cursor:pointer;color:var(--ink2);font-size:12.5px;padding:6px 2px}#metaw .sc{margin-top:6px}#metaw .dh{color:var(--mut);font-size:11px;margin-top:3px;line-height:1.4}
+.repf{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--ln)}.repf input[type=date]{font:inherit;font-size:12px;padding:4px 7px;border:1px solid var(--ln2);border-radius:var(--r-s);background:var(--s2);color:var(--ink);flex:1;min-width:120px}
