@@ -33,7 +33,7 @@ function ssNav(on, themeQ) {
     tests:    { data: 'tests',    extra: {}, render: 'renderTests' },                           // тестийн урсгал (блок AR)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
     board:    { data: 'board',    extra: { funnel_ads: 'funnel' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
-    ops:      { data: 'stock',    extra: {}, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
+    ops:      { data: 'stock',    extra: { waitlist: 'waitlist' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
     money:    { data: 'money',    extra: {}, render: 'renderMoney', passQuery: true } // блок C2: мөнгө — зардал vs орлого, дэвтэр
   };
