@@ -339,10 +339,28 @@ const waitLate = (p) => {
   const st = STOCK_PUBLIC[p && p.slug];
   return !!(st && st.mode === "preorder" && Number(st.available) <= 0);
 };
+/* S1 (2026-10-05): the stock is counted per colour + size, so a size that is
+   already spoken for says so before the order, not after. A free count of 0 or
+   less means every piece on the way is taken; the order is still accepted and
+   joins the list for the next shipment, with no date promised. */
+const skuAvail = (slug, color, size) => {
+  const st = STOCK_PUBLIC[slug];
+  if (!st || st.mode !== "preorder" || !Array.isArray(st.skus)) return null;
+  const eq = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  const hit = st.skus.find((k) => (!k.color || eq(k.color, color)) && (!k.size || eq(k.size, size)));
+  return hit && Number.isFinite(Number(hit.available)) ? Number(hit.available) : null;
+};
+const skuWaitSentence = (slug, color, size) => {
+  const a = skuAvail(slug, color, size);
+  if (a === null || a > 0) return "";
+  const label = [color, size].filter(Boolean).join(" · ");
+  return `${label ? `«${label}» ` : ""}одоогийн ачаанд дууссан. Захиалбал дараагийн ачааны жагсаалтад орно — бараа ирэх хугацааг бид залгаж мэдэгдэнэ. Хүлээхгүй бол өөр хувилбар сонгоорой.`;
+};
 const waitSentence = (p) =>
-  waitLate(p)
+  (p && skuWaitSentence(p.slug, p.color, p.size)) ||
+  (waitLate(p)
     ? `Нөөц дууссан тул таны захиалга дараагийн ачаанд багтана${STOCK_PUBLIC[p.slug].eta ? ` (~${mmdd(STOCK_PUBLIC[p.slug].eta)})` : ""}.`
-    : `Нөөц захиалга ${waitWindow(p)} ирнэ.`;
+    : `Нөөц захиалга ${waitWindow(p)} ирнэ.`);
 const step2Banner = (d) =>
   d.test
     ? TEST_BANNER
@@ -350,7 +368,15 @@ const step2Banner = (d) =>
     ? waitSentence(d)
     : d.leadTime || DEFAULT_LEAD_TIME;
 const step2WhenTitle = (d) =>
-  d.test ? TEST_WHEN_TITLE : d.preorder ? (waitLate(d) ? "Дараагийн ачаанд" : waitWindow(d)) : d.leadTime || DEFAULT_LEAD_TIME;
+  d.test
+    ? TEST_WHEN_TITLE
+    : d.preorder
+    ? skuWaitSentence(d.slug, d.color, d.size)
+      ? "Дараагийн ачааны жагсаалт"
+      : waitLate(d)
+      ? "Дараагийн ачаанд"
+      : waitWindow(d)
+    : d.leadTime || DEFAULT_LEAD_TIME;
 const step2WhenNote = (d) => (d.test ? TEST_WHEN_NOTE : d.preorder ? PRE_NOTE : d.leadNote || DEFAULT_LEAD_NOTE);
 /* Block BF (2026-10-01): the wait is read from the stock position, not from a
    fixed number of days. stock_public() gives, per slug, the pieces still free
@@ -369,8 +395,23 @@ function applyStockLine() {
   const el = document.querySelector(".preline");
   const m = location.hash.match(/^#\/p\/([^/?#]+)/);
   const p = m ? productBy(decodeURIComponent(m[1])) : null;
+  paintSkuWait();
   if (!el || !p) return;
   el.textContent = preorderLabel(p);
+}
+/* The size picker's own warning, under the chips (S1). */
+function paintSkuWait() {
+  const el = document.getElementById("skuWait");
+  if (!el) return;
+  const m = location.hash.match(/^#\/p\/([^/?#]+)/);
+  const p = m ? productBy(decodeURIComponent(m[1])) : null;
+  const act = (k) => {
+    const c = document.querySelector(`.opt__row[data-opt="${k}"] .chip.is-active`);
+    return c ? c.textContent.trim() : "";
+  };
+  const msg = p && isPreorder(p) ? skuWaitSentence(p.slug, act("color"), act("size")) : "";
+  el.textContent = msg;
+  el.hidden = !msg;
 }
 const PREORDER_NOTE =
   "Бараа Хятадаас ирмэгц бид залгаж баталгаажуулаад хүргэнэ. Төлбөрийг хүлээн авахдаа төлнө.";
@@ -1465,6 +1506,7 @@ function renderProduct(slug) {
       <div class="opt__row" data-opt="size">
         ${sizes.map((s, i) => `<button class="chip${i === 0 ? " is-active" : ""}" data-i="${i}">${esc(s)}</button>`).join("")}
       </div></div>` : ""}
+    <p class="skuwait" id="skuWait" hidden></p>
 
     ${
       bundles.length
@@ -1691,6 +1733,7 @@ function renderProduct(slug) {
     refreshTotalLine();
   };
   refreshPrice();
+  paintSkuWait();
 
   right.querySelectorAll(".opt__row").forEach((row) =>
     row.addEventListener("click", (e) => {
@@ -1707,6 +1750,7 @@ function renderProduct(slug) {
         showVariantImage(sizeImgs[i]);
         refreshPrice(); // a bigger size is a different price
       }
+      paintSkuWait();
     })
   );
 
@@ -2535,6 +2579,8 @@ async function renderOrder() {
         test: !!d.test,
         shipsInDays: d.shipsInDays || null,
         slug: d.slug || "",
+        color: d.color || "",
+        size: d.size || "",
       });
       /* The picks go on the order straight away, so they are not lost if the
          address step is skipped. Its failure costs nothing the phone call
