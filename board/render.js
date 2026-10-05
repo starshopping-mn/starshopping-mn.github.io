@@ -51,6 +51,66 @@ function renderBoard(DATA, QUERY) {
   const H = [];
   const P = (s) => H.push(s);
 
+  const META_JS = `<script>(function(){
+var el=document.getElementById('metaData');if(!el)return;
+var D;try{D=JSON.parse(el.textContent)}catch(e){return}
+var K='ss_home_meta',st={page:'',ad:'',days:'30'};
+try{var s0=JSON.parse(localStorage.getItem(K)||'{}');if(s0.days)st.days=String(s0.days);if(s0.page)st.page=s0.page;if(s0.ad)st.ad=s0.ad}catch(e){}
+var selP=document.getElementById('mp'),selA=document.getElementById('ma'),selD=document.getElementById('md');
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function nf(v){return Math.round(v).toLocaleString('en-US')}
+function key(a){return a.ad_id||('c:'+(a.creative_id||''))}
+function nm(a){return a.ad_name||a.creative_id||a.ad_id||'зар'}
+function all(){return (D.periods&&D.periods[st.days])||[]}
+function pname(id){var p=(D.pages||[]).filter(function(x){return x.page_id===id})[0];return p?p.name:(id||'page тодорхойгүй')}
+function fill(){
+  var rs=all(),ids={},pg=[];
+  rs.forEach(function(a){var id=a.page_id||'';if(!ids[id]){ids[id]=1;pg.push(id)}});
+  if(st.page&&pg.indexOf(st.page)<0)st.page='';
+  var h='<option value="">Бүх page ('+pg.length+')</option>';
+  pg.forEach(function(id){h+='<option value="'+esc(id)+'">'+esc(pname(id))+'</option>'});
+  selP.innerHTML=h;selP.value=st.page;
+  var ads=rs.filter(function(a){return !st.page||(a.page_id||'')===st.page}),found=false;
+  var h2='<option value="">Бүх зар ('+ads.length+')</option>';
+  ads.forEach(function(a){if(key(a)===st.ad)found=true;h2+='<option value="'+esc(key(a))+'">'+esc(nm(a))+'</option>'});
+  if(!found)st.ad='';
+  selA.innerHTML=h2;selA.value=st.ad;selD.value=st.days;
+}
+function pick(){return all().filter(function(a){return(!st.page||(a.page_id||'')===st.page)&&(!st.ad||key(a)===st.ad)})}
+function tile(l,v,s,c){return '<div class="k '+(c||'')+'"><div class="kl">'+esc(l)+'</div><div class="kv">'+esc(v)+'</div>'+(s?'<div class="ks">'+esc(s)+'</div>':'')+'</div>'}
+function draw(){
+  fill();
+  var rs=pick(),T={sp:0,im:0,lc:0,lpv:0,ic:0,or:0,hk:0,hkw:0,hd:0,hdw:0,fq:0,fqw:0};
+  rs.forEach(function(a){var f=a.funnel||{},im=+a.impressions||0;
+    T.sp+=+a.spend_mnt||0;T.im+=im;T.lc+=+f.link_clicks||0;T.lpv+=+f.landing_views||0;T.ic+=+f.initiate_checkout||0;T.or+=+f.our_orders||0;
+    if(a.hook_pct!=null){T.hk+=a.hook_pct*im;T.hkw+=im;if(a.hold_pct!=null){var v3=a.hook_pct*im/100;T.hd+=a.hold_pct*v3;T.hdw+=v3}}
+    if(a.frequency!=null){T.fq+=a.frequency*im;T.fqw+=im}});
+  var D0='—',tl=document.getElementById('mtiles'),ls=document.getElementById('mlist');
+  if(!rs.length){tl.innerHTML='<div class="em" style="grid-column:1/-1">Энэ шүүлтүүрээр зар алга.</div>';ls.innerHTML='';return}
+  var ctrN=T.im>0?100*T.lc/T.im:null,hook=T.hkw>0?T.hk/T.hkw:null,hold=T.hdw>0?T.hd/T.hdw:null,fq=T.fqw>0?T.fq/T.fqw:null;
+  var h='';
+  h+=tile('Зарцуулсан',nf(T.sp)+'₮',nf(T.im)+' үзүүлэлт');
+  h+=tile('Link CTR',ctrN==null?D0:ctrN.toFixed(2)+'%','линк даралт ÷ үзүүлэлт'+(ctrN>8?' · сэжигтэй өндөр':''),ctrN>8?'warn':'');
+  h+=tile('CPC',T.lc>0?nf(T.sp/T.lc)+'₮':D0,nf(T.lc)+' линк дарсан');
+  var lpvPct=T.lc>0?Math.round(100*T.lpv/T.lc):null;
+  h+=tile('Хуудас үзсэн',nf(T.lpv),lpvPct==null?'':lpvPct+'% нь дарсан хүнээс',T.lc>=20&&lpvPct<50?'warn':'');
+  h+=tile('«Захиалах» дарсан',nf(T.ic),T.lpv>0?Math.round(100*T.ic/T.lpv)+'% нь хуудас үзсэнээс':'');
+  h+=tile('Захиалга',nf(T.or),T.or>0?'нэг захиалга '+nf(T.sp/T.or)+'₮':(T.sp>0?'захиалгагүй':''),T.or===0&&T.ic>=3?'warn':'');
+  h+=tile('Hook rate',hook==null?D0:hook.toFixed(1)+'%','эхний 3 сек'+(hold==null?'':' · hold '+hold.toFixed(0)+'%'),hook!=null&&hook<25?'warn':'');
+  h+=tile('Давтамж',fq==null?D0:fq.toFixed(2),rs.length>1?'дундаж (impr-ээр жигнэсэн)':'нэг хүнд үзүүлсэн дундаж',fq!=null&&fq>2.5?'warn':'');
+  tl.innerHTML=h;
+  var t='<details class="ads"><summary>Зар бүрээр ('+rs.length+')</summary><div class="sc"><table><tr><th>Зар</th><th>Page</th><th>Зарцуулсан</th><th>CTR</th><th>Hook</th><th>Захиалга</th><th>Дүгнэлт</th></tr>';
+  rs.forEach(function(a){var f=a.funnel||{};
+    t+='<tr><td>'+esc(nm(a))+'</td><td>'+esc(pname(a.page_id||''))+'</td><td class="nm">'+nf(+a.spend_mnt||0)+'₮</td><td class="nm">'+(a.ctr_link_pct!=null?a.ctr_link_pct+'%':D0)+'</td><td class="nm">'+(a.hook_pct!=null?a.hook_pct+'%':D0)+'</td><td class="nm">'+(+f.our_orders||0)+'</td><td style="white-space:normal">'+esc(a.verdict||'')+((a.leaks&&a.leaks.length)?'<div class="dh">'+a.leaks.map(esc).join(' · ')+'</div>':'')+'</td></tr>'});
+  ls.innerHTML=t+'</table></div></details>';
+}
+function save(){try{localStorage.setItem(K,JSON.stringify(st))}catch(e){}}
+selP.addEventListener('change',function(){st.page=selP.value;st.ad='';save();draw()});
+selA.addEventListener('change',function(){st.ad=selA.value;save();draw()});
+selD.addEventListener('change',function(){st.days=selD.value;save();draw()});
+draw();
+})();</script>`;
+
   const testAction = tests.length ? String(tests[0].ACTION || '') : '';
   const chainPct = has(CH.chain_pct) ? n(CH.chain_pct) : null;
   const chainBroken = chainPct !== null && chainPct < 70;
@@ -143,22 +203,77 @@ function renderBoard(DATA, QUERY) {
     if (s) P('<div class="ks">' + esc(s) + '</div>');
     P('</div>');
   }
-  const net = n(E30.net_profit_mnt);
   const cpaOk = has(E30.cpa_mnt) && has(E30.breakeven_cpa_mnt) && n(E30.cpa_mnt) <= n(E30.breakeven_cpa_mnt);
-  P('<div class="kpi">');
-  kpi('Цэвэр ашиг 30х', mnt(net), E30.verdict || 'дата алга', net > 0 ? 'good' : (net < 0 ? 'crit' : ''));
-  kpi('Зарын зардал', mnt(E30.ad_spend_mnt), 'хувь нэмэр ' + mnt(E30.gross_contribution_mnt));
-  /* CPA, ROAS, Хүргэлт гурав зөвхөн ХҮРГЭГДСЭН захиалгаар тоологдоно. Тестийн
-     үед (урьдчилсан бүртгэл) хүргэлт байхгүй тул «0» биш «эхлээгүй» гэж хэлнэ —
-     тестийн 1 бүртгэлийн өртөг Даалгавар хуудасны «Зарын уншилт»-д бий. */
   const noDeliv = n(E30.delivered) === 0;
-  /* Блок BC: хүргэлт эхлээгүй үед (тест/урьдчилсан) CPA-г бүртгэгдсэн захиалгаар түр харуулна (CPO).
-     Жинхэнэ CPA = хүргэгдсэн захиалгаар — бараа ирмэгц энэ тоо өөрөө солигдоно. */
-  const cpoNow = has(E30.cpo_mnt) && n(E30.placed) > 0;
-  kpi('CPA', noDeliv ? (cpoNow ? mnt(E30.cpo_mnt) : '—') : mnt(E30.cpa_mnt),
-    noDeliv ? (cpoNow ? 'захиалга тутамд (түр) · ' + n(E30.placed) + ' захиалга · хүргэлт эхлээгүй' : 'хүргэлт эхлээгүй · тестийн өртөг → Даалгавар') : 'босго ' + mnt(E30.breakeven_cpa_mnt),
-    noDeliv ? (cpoNow && has(E30.breakeven_cpa_mnt) ? (n(E30.cpo_mnt) <= n(E30.breakeven_cpa_mnt) ? 'good' : 'warn') : '') : (has(E30.cpa_mnt) ? (cpaOk ? 'good' : 'crit') : ''));
-  kpi('ROAS', noDeliv ? '—' : num(E30.roas), noDeliv ? 'хүргэлт эхлээгүй · орлого хүргэлтээр л тоологдоно' : '7х ' + num(E7.roas));
+
+  // ── МӨНГӨ: «Мөнгө» хуудасны pnl-тэй ЯГ ИЖИЛ өгөгдөл (view=money). Үндсэн орлого = ТӨЛӨГДСӨН (хүргэгдэж мөнгө авсан).
+  // «Захиалсан» нь баталгаагүй тул зөвхөн тайлбар. Хугацаа: Энэ сар (анхдагч) | Нийт.
+  const MM = d.money_m && d.money_m.revenue ? d.money_m : null;
+  const MA = d.money_a && d.money_a.revenue ? d.money_a : null;
+  const MSG = (v) => (n(v) < 0 ? '−' : '') + Math.abs(n(v)).toLocaleString('en-US') + '₮';
+  function moneyPer(kind, M, cls) {
+    if (!M) return { s: '<div class="per ' + cls + '"><div class="kv">—</div><div class="ks">дата ачаалагдсангүй</div></div>', p: '<div class="per ' + cls + '"><div class="sr"><span>Мөнгөний өгөгдөл ирсэнгүй</span></div></div>' };
+    const rv = M.revenue || {}, cs = M.costs || {}, nt = M.net || {};
+    const tools = (cs.tools && cs.tools.items) || [];
+    const bp = Array.isArray(M.by_product) ? M.by_product : [];
+    const row = (l, v, c) => '<div class="sr ' + (c || '') + '"><span>' + esc(l) + '</span><b>' + esc(v) + '</b></div>';
+    let s = '', p = '';
+    if (kind === 'inc') {
+      s = '<div class="kv">' + mnt(rv.paid) + '</div><div class="ks">' + n(rv.paid_n) + ' захиалга төлөгдсөн'
+        + (n(rv.delivered_unpaid) ? ' · хүргэгдсэн, төлөгдөөгүй ' + mnt(rv.delivered_unpaid) : '')
+        + (n(rv.pipeline_n) ? ' · захиалсан ' + n(rv.pipeline_n) + ' (' + mnt(rv.pipeline_gross) + ')' : '') + '</div>';
+      p = row('Төлөгдсөн (бодит орлого)', mnt(rv.paid) + ' · ' + n(rv.paid_n) + ' захиалга', 'good')
+        + row('Хүргэгдсэн, төлөгдөөгүй', mnt(rv.delivered_unpaid))
+        + row('Захиалсан, хүргэгдээгүй', mnt(rv.pipeline_gross) + ' · ' + n(rv.pipeline_n))
+        + row('Хүлээгдэх (хувь ' + (n(M.ratio) * 100) + '%)', mnt(rv.pipeline_expected));
+      bp.filter((x) => n(x.paid) > 0 || n(x.pipeline_gross) > 0).forEach((x) =>
+        p += row('· ' + (x.name || x.slug), mnt(x.paid) + (n(x.pipeline_gross) ? ' (+' + short(x.pipeline_gross) + ' захиалсан)' : '')));
+      p += '<div class="si sn">Үндсэн орлого = мөнгө нь орж ирсэн захиалга. «Захиалсан» нь хүргэлт баталгаажаагүй тул орлогод тооцогдоогүй.</div>';
+    } else if (kind === 'exp') {
+      s = '<div class="kv">' + mnt(cs.total) + '</div><div class="ks">зар ' + short(cs.ads && cs.ads.total) + ' · бараа ' + short(cs.goods && cs.goods.total)
+        + ' · хүргэлт ' + short(cs.delivery) + ' · систем ' + short(cs.tools && cs.tools.total) + '</div>';
+      p = row('Зар (Meta)', mnt(cs.ads && cs.ads.total))
+        + row('Бараа + карго (Эрээн/PO)', mnt(cs.goods && cs.goods.total))
+        + row('Хүргэлт + буцаалт', mnt(cs.delivery))
+        + row('Бусад', mnt(cs.other))
+        + row('Систем / хэрэгсэл', mnt(cs.tools && cs.tools.total));
+      tools.forEach((t) => p += '<div class="si">· ' + esc(t.vendor) + ' ' + mnt(t.mnt) + '</div>');
+      p += row('Нийт зардал', mnt(cs.total), 'warn')
+        + '<div class="si sn">Бараа = дэвтэрт төлсөн мөнгө; дэвтэрт байхгүй PO-г ¥-ээс тооцсон. Систем = дэвтэрт бичсэн хэрэгслийн төлбөр (n8n, SendPulse, Anthropic г.м.).</div>';
+    } else {
+      const real = n(nt.real);
+      s = '<div class="kv" style="color:' + (real > 0 ? 'var(--good)' : real < 0 ? 'var(--crit)' : 'inherit') + '">' + MSG(real) + '</div><div class="ks">бодит (төлөгдсөн − зардал)'
+        + (has(nt.expected) ? ' · хүлээгдэж буйтай ' + MSG(nt.expected) : '') + '</div>';
+      p = row('Төлөгдсөн орлого', mnt(rv.paid)) + row('Нийт зардал', mnt(cs.total))
+        + row('Бодит цэвэр', MSG(real), real >= 0 ? 'good' : 'crit')
+        + row('+ хүргэгдсэн, төлөгдөөгүй', mnt(rv.delivered_unpaid))
+        + row('+ хүлээгдэх захиалга', mnt(rv.pipeline_expected))
+        + row('Хүлээгдэж буйтай цэвэр', MSG(nt.expected))
+        + '<div class="si sn">Одоогоор бараа замдаа тул зардал түрүүлж, орлого дараа орно. Бодит цэвэр хүргэлт эхэлмэгц засарна.</div>';
+    }
+    return { s: '<div class="per ' + cls + '">' + s + '</div>', p: '<div class="per ' + cls + '">' + p + '</div>' };
+  }
+  function moneyTile(kind, label, extraCls) {
+    const a = moneyPer(kind, MM, 'm'), b = moneyPer(kind, MA, 'a');
+    P('<details class="k sea mt ' + (extraCls || '') + '" data-keep="mt-' + kind + '"><summary><div class="kl">' + esc(label) + '</div>' + a.s + b.s + '</summary>');
+    P('<div class="sl">' + a.p + b.p + '</div></details>');
+  }
+  const mRange = (M) => (M ? esc(String(M.from || '').slice(5) + ' → ' + String(M.to || '').slice(5)) : '');
+  P('<div id="mrow" data-per="m"><div class="sec"><b>Мөнгө</b>'
+    + '<span class="sd per m">' + mRange(MM) + '</span><span class="sd per a">' + mRange(MA) + ' · эхнээс</span><span class="sp"></span>'
+    + '<span class="seg" id="perSeg"><button type="button" class="pt on" data-p="m">Энэ сар</button><button type="button" class="pt" data-p="a">Нийт</button></span></div>');
+  P('<div class="krow krow3">');
+  moneyTile('inc', 'Орлого');
+  moneyTile('exp', 'Зардал');
+  moneyTile('net', 'Цэвэр');
+  P('</div></div>');
+  P('<script>(function(){var r=document.getElementById("mrow");if(!r)return;var K="ss_home_per";'
+    + 'function set(p){r.setAttribute("data-per",p);var s=document.getElementById("perSeg");if(s)Array.prototype.forEach.call(s.querySelectorAll("button"),function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
+    + 'var p="m";try{p=localStorage.getItem(K)==="a"?"a":"m"}catch(e){}set(p);'
+    + 'var s=document.getElementById("perSeg");if(s)s.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var q=b.getAttribute("data-p");try{localStorage.setItem(K,q)}catch(x){}set(q)})})();</script>');
+
+  P('<div class="sec"><b>Үйл ажиллагаа</b></div>');
+  P('<div class="krow krow5">');
   kpi('Хүргэлт', has(E30.delivered_pct) && !noDeliv ? E30.delivered_pct + '%' : '—', n(E30.delivered) + ' / ' + n(E30.placed) + (n(CF.to_call) ? ' · ' + n(CF.to_call) + ' залгах хүлээж байна' : ''));
   const SRCN = { chat: 'чат', msgr: 'Messenger', fb: 'FB ref-гүй', ig: 'IG ref-гүй', web: 'өөр сайт', direct: 'шууд', '?': 'хуучин' };
   const bySrc = CH.no_creative_by_src && typeof CH.no_creative_by_src === 'object'
@@ -257,6 +372,33 @@ function renderBoard(DATA, QUERY) {
   }
   P('</div></details>');
   P('</div>');
+
+  // Тоон нүднүүд — «Анхаарах» жагсаалтын оронд. Дарвал холбогдох хуудас руу.
+  const tq0 = themeQ ? '&theme=' + themeQ : '';
+  const CNT = [
+    ['Утсаар залгах', toCall.length, 'crit', '/board/?view=orders&stage=order' + tq0],
+    ['Гацсан хүргэлт', stalled.length, 'crit', '/board/?view=orders&stage=confirmed' + tq0],
+    ['Шалгах захиалга', n(C.needs_review), 'warn', '/board/?view=orders' + tq0],
+    ['Баталгаажуулалт хүлээж буй', n(C.awaiting_confirm), 'warn', '/board/?view=orders&stage=order' + tq0],
+    ['Операторын дараалал', n(C.operator_queue), 'crit', '/board/?view=orders' + tq0],
+    ['Нөөц бага', lowStock.length, 'warn', '/board/?view=ops' + tq0]
+  ];
+  P('<div class="krow krow6">');
+  CNT.forEach((c) => P('<a class="k cnt ' + (c[1] > 0 ? c[2] : 'zero') + '" href="' + c[3].replace(/&/g, '&amp;') + '"><div class="kl">' + esc(c[0]) + '</div><div class="kv">' + c[1] + '</div></a>'));
+  P('</div>');
+
+  // ── META ADS: page / зар / хугацаа шүүлтүүртэй. Өгөгдөл = board_meta_ads (S4), шүүлт браузерт.
+  const MT = d.meta && d.meta.periods ? d.meta : null;
+  P('<div id="metaw"><div class="sec"><b>Meta Ads</b><span class="sp"></span>'
+    + '<select id="mp" aria-label="Page"></select><select id="ma" aria-label="Зар"></select>'
+    + '<select id="md" aria-label="Хугацаа"><option value="7">7 хоног</option><option value="30">30 хоног</option><option value="90">90 хоног</option></select></div>');
+  if (!MT) {
+    P('<div class="em">Meta Ads өгөгдөл ачаалагдсангүй (S4 SQL ажилласан эсэхийг шалга).</div></div>');
+  } else {
+    P('<div class="krow krow4" id="mtiles"></div><div id="mlist"></div></div>');
+    P('<script type="application/json" id="metaData">' + JSON.stringify({ pages: MT.pages || [], periods: MT.periods || {} }).replace(/</g, '\\u003c') + '</script>');
+    P(META_JS);
+  }
 
   const S = 30, OX = 500, OY = 310, VW = 1000, VH = 600;
   const ip = (gx, gy) => [(gx - gy) * 0.866 * S + OX, (gx + gy) * 0.5 * S + OY];
@@ -527,12 +669,6 @@ function renderBoard(DATA, QUERY) {
   P('<div class="row"><span>зарын зардал</span><b>' + mnt(Ec.ad_spend_mnt) + '</b></div>');
   P('<div class="row"><span>Цэвэр</span><b class="' + (n(Ec.net_mnt) > 0 ? 'good' : (n(Ec.net_mnt) < 0 ? 'crit' : '')) + '">' + mnt(Ec.net_mnt) + '</b></div>');
   P('<div class="row"><span>системийн зардал</span><b>' + mnt(R.system_cost_mnt) + '</b></div>');
-  P('<div class="row hd2"><span>Анхаарал</span></div>');
-  P('<div class="row"><span>баталгаажуулалт хүлээж буй</span><b class="' + (n(C.awaiting_confirm) ? 'warn' : '') + '">' + n(C.awaiting_confirm) + '</b></div>');
-  P('<div class="row"><span>операторын дараалал</span><b class="' + (n(C.operator_queue) ? 'crit' : '') + '">' + n(C.operator_queue) + '</b></div>');
-  P('<div class="row"><span>утсаар залгах (вэб/гар)</span><b class="' + (toCall.length ? 'crit' : '') + '">' + toCall.length + '</b></div>');
-  P('<div class="row"><span>гацсан захиалга</span><b class="' + (stalled.length ? 'crit' : '') + '">' + stalled.length + '</b></div>');
-  P('<div class="row"><span>шалгах захиалга</span><b class="' + (n(C.needs_review) ? 'warn' : '') + '">' + n(C.needs_review) + '</b></div>');
   const wns = Array.isArray(E30.warnings) ? E30.warnings : [];
   if (wns.length) P('<div class="note">⚠️ ' + wns.map(esc).join('<br>⚠️ ') + '</div>');
   P('<div class="note">Тоонууд нь хүргэгдсэн захиалга дээр тооцогдоно. Сүүлийн мессеж '
@@ -561,17 +697,6 @@ function renderBoard(DATA, QUERY) {
         .forEach((m) => P('<div><b>' + esc(m[0]) + '</b>' + esc(m[1]) + '</div>'));
       P('</div></div>');
     });
-  }
-
-  const alerts = [];
-  toCall.forEach((o) => alerts.push(['залгах', (o.customer || 'нэргүй') + ' · ' + (o.phone || 'утас алга') + ' · '
-    + (o.product || '') + ' · ' + n(o.total_mnt).toLocaleString('en-US') + '₮ · ' + n(o.hours_since) + ' цаг', 'crit']));
-  stalled.forEach((s) => alerts.push(['гацсан', (s.product || 'бараа?') + ' · ' + (s.status || '') + ' · ' + n(s.idle_days) + ' хоног · ' + (s.phone || ''), 'crit']));
-  lowStock.forEach((s) => alerts.push(['нөөц', s.name + ' — үлдэгдэл ' + n(s.stock_qty), '']));
-  events.forEach((e) => alerts.push(['хуанли', e.name + ' — ' + n(e.days_left) + ' хоног (' + e.event_date + ')', '']));
-  if (alerts.length) {
-    P('<h2>Анхаарах</h2>');
-    alerts.forEach((a) => P('<div class="al ' + a[2] + '"><span class="tag">' + esc(a[0]) + '</span><span>' + esc(a[1]) + '</span></div>'));
   }
 
   if (creatives.length) {
