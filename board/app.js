@@ -55,6 +55,37 @@ function ssNav(on, themeQ) {
   if (m) { store(decodeURIComponent(m[1])); history.replaceState(null, '', location.pathname + location.search); }
   var key = load();
 
+  /* THEME (2026-10-05): нэг газар — бүх хуудас. Сонголт localStorage ss_board_theme (dark|light);
+     байхгүй бол хуучин ?theme= холбоос, тэгэхгүй бол төхөөрөмжийн горим. */
+  var TKEY = 'ss_board_theme';
+  function themePref() {
+    try { var t = localStorage.getItem(TKEY); if (t === 'dark' || t === 'light') return t; } catch (e) { /* private window */ }
+    return q.theme === 'dark' || q.theme === 'light' ? q.theme : '';
+  }
+  function themeNow() {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark' || t === 'light') return t;
+    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function stamp(html) {
+    var t = themePref();
+    html = html.replace(/(<html[^>]*?) data-theme="[^"]*"/, '$1');
+    return t ? html.replace('<html lang="mn"', '<html lang="mn" data-theme="' + t + '"') : html;
+  }
+  function themeBtn() {
+    var hd = document.querySelector('header .hd');
+    if (!hd) return;
+    var b = document.getElementById('tb');
+    if (!b) {
+      b = document.createElement('button'); b.id = 'tb'; b.type = 'button'; b.className = 'tb';
+      var rf = hd.querySelector('a.rf'); if (rf) hd.insertBefore(b, rf); else hd.appendChild(b);
+    }
+    var t = themeNow();
+    b.textContent = t === 'dark' ? '☾ Харанхуй' : '☀ Цайвар';
+    b.setAttribute('aria-label', 'Горим: ' + (t === 'dark' ? 'харанхуй' : 'цайвар') + ' — солих');
+  }
+  if (themePref()) document.documentElement.setAttribute('data-theme', themePref());
+
   var gate = document.getElementById('gate');
   function ask(msg) {
     gate.innerHTML = '<h1>Starshopping · Самбар</h1><p>Түлхүүрээ оруулна уу. Нэг удаа оруулахад энэ төхөөрөмж санана.</p>'
@@ -119,7 +150,7 @@ function ssNav(on, themeQ) {
       var d = res[0] || {};
       ex.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
       var html = window[V.render](d, q);
-      return html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
+      return stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?v=20261005a"><style>'));
     });
   }
   // Дараагийн зурагт нээлттэй байсныг сэргээх түлхүүрүүд (data-keep="..." бүхий элементүүд)
@@ -154,6 +185,7 @@ function ssNav(on, themeQ) {
     var hs = doc.head.querySelectorAll('style'), cur = document.head.querySelectorAll('style');
     if (hs.length && cur.length && hs[hs.length - 1].textContent !== cur[cur.length - 1].textContent) cur[cur.length - 1].textContent = hs[hs.length - 1].textContent;
     restore(st);
+    themeBtn();
   }
   function refresh(force) {
     if (painting) return;
@@ -203,6 +235,14 @@ function ssNav(on, themeQ) {
       if (!a) return;
       e.preventDefault(); pending = false; refresh(true);
     });
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('#tb');
+      if (!b) return;
+      var next = themeNow() === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem(TKEY, next); } catch (er) { /* private window */ }
+      document.documentElement.setAttribute('data-theme', next);
+      themeBtn();
+    });
     window.ssRefresh = function () { refresh(true); };
     tick(); health();
     setInterval(tick, T); setInterval(health, 600000);
@@ -213,9 +253,9 @@ function ssNav(on, themeQ) {
       var d = res[0] || {};
       extras.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
       var html = window[V.render](d, q);
-      html = html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css"><style>');
+      html = stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?v=20261005a"><style>'));
       document.open(); document.write(html); document.close();
-      live();
+      live(); themeBtn();
     })
     .catch(function (e) {
       if (e.message === 'key') return ask('Түлхүүр буруу байна.');
