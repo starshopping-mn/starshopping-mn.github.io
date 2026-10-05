@@ -1482,6 +1482,16 @@ select.input {
   color: #b0702a;
 }
 .preline + .shipline { margin-top: 0; }
+/* A size already spoken for: accepted, but it joins the list for the next shipment (S1). */
+.skuwait {
+  margin: 0.2rem 0 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: #fbf1e4;
+  color: #8a5420;
+  font-size: 0.82rem; font-weight: 600; line-height: 1.4;
+}
+.skuwait[hidden] { display: none; }
 .note--pre b { color: var(--fg); }
 .stickybuy__ship--pre { color: #b0702a; font-weight: 700; }
 .field__hint { margin: -0.35rem 0 0.8rem; font-size: 0.72rem; color: var(--fg-dim); }
