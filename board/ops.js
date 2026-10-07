@@ -80,7 +80,7 @@ function renderOps(DATA, QUERY) {
       WL.forEach((g) => {
         o('<h3>' + esc([g.color, g.size].filter(Boolean).join(' ')) + ' <span class="pill crit">' + n(g.waiting_qty) + ' ш хүлээлтэд</span> <span class="sm mut">одоогийн ачаанд ' + n(g.supply) + ' ш</span></h3>');
         o('<div class="tw"><table class="ot"><colgroup><col style="width:8%"><col style="width:14%"><col style="width:8%"><col style="width:26%"><col style="width:26%"><col></colgroup><thead><tr><th>№</th><th>Захиалга</th><th>Тоо</th><th>Утас</th><th>Нэр</th><th>Захиалсан</th></tr></thead><tbody>');
-        A(g.queue).forEach((w, i) => o('<tr><td>' + (i + 1) + '</td><td>#' + n(w.order_id) + '</td><td>' + n(w.qty) + '</td><td>' + (w.phone ? '<a href="tel:' + esc(w.phone) + '">' + esc(w.phone) + '</a>' : '—') + '</td><td>' + esc(w.name || '—') + '</td><td>' + dt(w.placed_at) + '</td></tr>'));
+        A(g.queue).forEach((w, i) => o('<tr><td>' + (i + 1) + '</td><td>#' + esc(String(w.order_id || '').slice(0, 6)) + '</td><td>' + n(w.qty) + '</td><td>' + (w.phone ? '<a href="tel:' + esc(w.phone) + '">' + esc(w.phone) + '</a>' : '—') + '</td><td>' + esc(w.name || '—') + '</td><td>' + dt(w.placed_at) + '</td></tr>'));
         o('</tbody></table></div>');
       });
       o('<p class="sm mut">Цуцлалт гарвал чөлөөлөгдсөн ширхэг автоматаар эхний хүлээгчид шилжинэ (захиалгын төлөв «cancelled»/«returned» болгоход). Хаяггүй (зөвхөн утас) захиалга энд ордоггүй — тэднийг хаяг өгөхөд л жагсаалтад оруулна.</p>');
