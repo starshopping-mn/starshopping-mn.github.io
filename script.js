@@ -345,7 +345,7 @@ const waitLate = (p) => {
    joins the list for the next shipment, with no date promised. */
 const skuAvail = (slug, color, size) => {
   const st = STOCK_PUBLIC[slug];
-  if (!st || st.mode !== "preorder" || !Array.isArray(st.skus)) return null;
+  if (!st || (st.mode !== "preorder" && st.mode !== "live") || !Array.isArray(st.skus)) return null; /* S4 (10/07): live горимд ч размер тус бүр */
   const eq = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
   const hit = st.skus.find((k) => (!k.color || eq(k.color, color)) && (!k.size || eq(k.size, size)));
   return hit && Number.isFinite(Number(hit.available)) ? Number(hit.available) : null;
@@ -366,7 +366,7 @@ const step2Banner = (d) =>
     ? TEST_BANNER
     : d.preorder
     ? waitSentence(d)
-    : d.leadTime || DEFAULT_LEAD_TIME;
+    : skuWaitSentence(d.slug, d.color, d.size) || d.leadTime || DEFAULT_LEAD_TIME;
 const step2WhenTitle = (d) =>
   d.test
     ? TEST_WHEN_TITLE
@@ -376,8 +376,11 @@ const step2WhenTitle = (d) =>
       : waitLate(d)
       ? "Дараагийн ачаанд"
       : waitWindow(d)
+    : skuWaitSentence(d.slug, d.color, d.size)
+    ? "Дараагийн ачааны жагсаалт"
     : d.leadTime || DEFAULT_LEAD_TIME;
-const step2WhenNote = (d) => (d.test ? TEST_WHEN_NOTE : d.preorder ? PRE_NOTE : d.leadNote || DEFAULT_LEAD_NOTE);
+const step2WhenNote = (d) =>
+  d.test ? TEST_WHEN_NOTE : d.preorder || skuWaitSentence(d.slug, d.color, d.size) ? PRE_NOTE : d.leadNote || DEFAULT_LEAD_NOTE;
 /* Block BF (2026-10-01): the wait is read from the stock position, not from a
    fixed number of days. stock_public() gives, per slug, the pieces still free
    (warehouse + in transit − complete orders) and the next arrival date. */
@@ -409,7 +412,7 @@ function paintSkuWait() {
     const c = document.querySelector(`.opt__row[data-opt="${k}"] .chip.is-active`);
     return c ? c.textContent.trim() : "";
   };
-  const msg = p && isPreorder(p) ? skuWaitSentence(p.slug, act("color"), act("size")) : "";
+  const msg = p && !isTest(p) ? skuWaitSentence(p.slug, act("color"), act("size")) : "";
   el.textContent = msg;
   el.hidden = !msg;
 }
