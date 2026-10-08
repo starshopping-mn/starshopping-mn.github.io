@@ -215,6 +215,9 @@ const SET_ADDRESS = `${SUPABASE_URL}/rest/v1/rpc/set_order_address`;
    rides along so the bot knows which advert brought them — the same value the
    web order carries as creative_id. */
 const MESSENGER_PAGE = "1300692469783051";
+/* Машины хаалганы гэрэл (тест #5) нь «Starshopping Auto Tools» page-ийн бараа — чат тэр page руу орно. */
+const AUTO_PAGE = "1253449267863040";
+const pageFor = (slug) => (String(slug || "").toLowerCase() === "mashiny-haalganii-gerel" ? AUTO_PAGE : MESSENGER_PAGE);
 /* On a phone `m.me` hands straight to the Messenger app, where the visitor is
    already signed in. On a desktop it redirects to messenger.com, which keeps a
    session of its own: measured on 2026-09-23, someone signed in to facebook.com
@@ -229,16 +232,17 @@ const onPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgen
    An m.me `ref` alone arrives from Meta as a separate referral event with no
    text, which bridge 29 skips (it only forwards messages that carry text), so
    the code also rides in the text, where 29 reads it back out as the referral. */
-const messengerLink = (productName) => {
+const messengerLink = (productName, slug) => {
+  const PAGE = pageFor(slug);
   const ref = creativeId();
   const intro = productName ? `Сайн байна уу! «${productName}» сонирхож байна.` : "Сайн байна уу!";
   const text = intro + (ref ? ` [${ref}]` : "");
-  if (!onPhone()) return `https://www.facebook.com/messages/t/${MESSENGER_PAGE}`;
+  if (!onPhone()) return `https://www.facebook.com/messages/t/${PAGE}`;
   const qs = [ref ? `ref=${encodeURIComponent(ref)}` : "", `text=${encodeURIComponent(text)}`].filter(Boolean).join("&");
-  return `https://m.me/${MESSENGER_PAGE}?${qs}`;
+  return `https://m.me/${PAGE}?${qs}`;
 };
-const chatButton = (productName) =>
-  `<a class="chatbuy" href="${esc(messengerLink(productName))}" target="_blank" rel="noopener" data-chat>💬 Чатаар захиалах</a>`;
+const chatButton = (productName, slug) =>
+  `<a class="chatbuy" href="${esc(messengerLink(productName, slug))}" target="_blank" rel="noopener" data-chat>💬 Чатаар захиалах</a>`;
 /* One listener for every chat button, wherever it is drawn. `Contact` is the
    standard event for it, so the ad report can count chat starts next to orders. */
 document.addEventListener("click", (e) => {
@@ -1349,7 +1353,7 @@ async function saveOrderCar(orderId, car, tellFn) {
 
 const carText = (c) => (c ? `${c.label}, ${c.year}` : "");
 
-const FB_PAGE_URL = `https://www.facebook.com/profile.php?id=${MESSENGER_PAGE}`;
+const FB_PAGE_URL = `https://www.facebook.com/profile.php?id=${AUTO_PAGE}`;
 
 function mountCarPicker(p, root, onState) {
   const box = root.querySelector("#carBox");
@@ -1369,7 +1373,7 @@ function mountCarPicker(p, root, onState) {
 
   box.innerHTML = `
     <div class="carbox__step">ЭХЛЭЭД МАШИНАА ШАЛГАНА УУ</div>
-    <p class="carbox__hint">Зөвхөн манай жагсаалтад байгаа машинд зарна. Таны машин жагсаалтад байхгүй бол одоогоор тохирохгүй.</p>
+    <p class="carbox__hint">Манай жагсаалтаас машиныхаа марк, загвар, оноо сонгоно уу. Таны машины марк, загвар жагсаалтад байхгүй бол <b>манайд энэ бараа байхгүй</b> гэсэн үг.</p>
     <div class="opt"><span class="opt__label">1 · МАРК</span><div class="opt__row" id="cbMake"><span class="carbox__load">Ачаалж байна…</span></div></div>
     <div class="opt" id="cbGroupBox" hidden><span class="opt__label">2 · ЗАГВАР</span><select class="input" id="cbGroup"></select></div>
     <div class="opt" id="cbGenBox" hidden><span class="opt__label">3 · ҮЕ</span><div class="opt__row" id="cbGen"></div></div>
@@ -1380,7 +1384,7 @@ function mountCarPicker(p, root, onState) {
       <label class="carbox__confirm"><input type="checkbox" id="cbLit"><span>Миний машины урд хаалганы доод хэсэгт гэрэл асдаг.</span></label>
       <div id="cbLegal" hidden>
         <p class="carbox__legal">Та машины марк, загвар, он болон хаалганы доод гэрэл асдаг эсэхээ өөрөө баталж захиалж байна. Иймд буруу бараа захиалсан тохиолдолд манай дэлгүүр хариуцахгүй.</p>
-        <p class="carbox__legal">🔧 Угсрах зааврыг манай <a href="${FB_PAGE_URL}" target="_blank" rel="noopener">Facebook page хуудаснаас</a> аваарай.</p>
+        <p class="carbox__legal">🔧 Угсрах зааврыг манай <a href="${FB_PAGE_URL}" target="_blank" rel="noopener">Starshopping Auto Tools page хуудаснаас</a> аваарай.</p>
       </div>
     </div>`;
 
@@ -1404,13 +1408,16 @@ function mountCarPicker(p, root, onState) {
     emit();
   };
 
-  const models = () => ((S.catalog.makes.find((m) => m.make === S.make) || {}).models || []);
+  /* Зөвхөн зарж буй (сервер verdict = sell) загваруудыг жагсаана — бусад нь жагсаалтад огт байхгүй.
+     Хэрэглэгч өөрийн машиныг олохгүй бол «манайд энэ бараа байхгүй» гэж ойлгоно. */
+  const sellable = (m) => m && m.verdict === "sell";
+  const models = () => ((S.catalog.makes.find((x) => x.make === S.make) || {}).models || []).filter(sellable);
   const groups = () => { const seenG = []; models().forEach((m) => { if (seenG.indexOf(m.group) < 0) seenG.push(m.group); }); return seenG; };
   const inGroup = () => models().filter((m) => m.group === S.group);
   const years = (m) => `${m.year_from || "…"}–${m.year_to || "одоо"}`;
 
   const showMakes = () => {
-    const names = S.catalog.makes.map((m) => m.make).sort((a, b) => (a === "Toyota" ? -1 : b === "Toyota" ? 1 : 0));
+    const names = S.catalog.makes.filter((x) => (x.models || []).some(sellable)).map((m) => m.make).sort((a, b) => (a === "Toyota" ? -1 : b === "Toyota" ? 1 : 0));
     makeBox.innerHTML = names.map((n) => `<button type="button" class="chip" data-make="${esc(n)}">${esc(n)}</button>`).join("");
   };
 
@@ -1423,7 +1430,7 @@ function mountCarPicker(p, root, onState) {
       html += `<div class="opt__row carbox__cands">` + r.candidates.map((c) => `<button type="button" class="chip" data-cand="${esc(c.model_key)}">${esc(c.label)}${c.chassis ? " · " + esc(c.chassis) : ""} (${c.year_from || "…"}–${c.year_to || "одоо"})</button>`).join("") + `</div>`;
     }
     if (r.status === "year_out_of_range" || (r.status === "resolved" && r.verdict === "hold")) {
-      html += `<p class="carbox__sub">Машинаа баталгаажуулмаар байвал чатаар бичээрэй:</p>${chatButton(p.name)}`;
+      html += `<p class="carbox__sub">Машинаа баталгаажуулмаар байвал чатаар бичээрэй:</p>${chatButton(p.name, p.slug)}`;
     }
     resBox.innerHTML = html;
     if (r.status === "resolved" && r.verdict === "sell") { litBox.hidden = false; track("sell", S.make, S.group, r.label); }
@@ -1763,7 +1770,7 @@ function renderProduct(slug) {
              <span class="buy__label">УТСААР ЗАХИАЛНА</span>
            </div>
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
-           ${chatButton(p.name)}
+           ${chatButton(p.name, p.slug)}
            <p class="note">Энэ барааг одоогоор онлайнаар захиалах боломжгүй.<br>9550-5717 руу залгавал шууд бүртгэнэ.</p>`
         : `<!-- STEP ONE ON THE PRODUCT PAGE (2026-09-29, owner's design). Measured
                 the day before: ~90 visitors reached this page from the advert and
@@ -1790,7 +1797,7 @@ function renderProduct(slug) {
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
            <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
-           ${chatButton(p.name)}
+           ${chatButton(p.name, p.slug)}
            <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 9550-5717</p>`
     }
 
@@ -2248,7 +2255,7 @@ async function renderOrder() {
         <span class="buy__label">ҮРГЭЛЖЛҮҮЛЭХ →</span>
       </button>
       <p class="note">${esc(NEXT_STEP_NOTE)}</p>
-      ${chatButton(d.name)}
+      ${chatButton(d.name, d.slug)}
     </form>
 
     <!-- Step two: the order exists by now. The address makes delivery faster,
