@@ -1349,6 +1349,8 @@ async function saveOrderCar(orderId, car, tellFn) {
 
 const carText = (c) => (c ? `${c.label}, ${c.year}` : "");
 
+const FB_PAGE_URL = `https://www.facebook.com/profile.php?id=${MESSENGER_PAGE}`;
+
 function mountCarPicker(p, root, onState) {
   const box = root.querySelector("#carBox");
   if (!box) return;
@@ -1362,44 +1364,43 @@ function mountCarPicker(p, root, onState) {
     ck("car_" + result, label || group || make || "");
   };
 
-  const S = { catalog: null, make: null, group: null, key: null, year: "", res: null, lit: null, seq: 0 };
+  const S = { catalog: null, make: null, group: null, key: null, year: "", res: null, lit: false, seq: 0 };
   const failHtml = `<p class="carbox__msg carbox__msg--no">Машины жагсаалтыг одоогоор ачаалж чадсангүй. Утсаар захиална уу: <a href="tel:95505717">9550-5717</a></p>`;
 
   box.innerHTML = `
     <div class="carbox__step">ЭХЛЭЭД МАШИНАА ШАЛГАНА УУ</div>
-    <p class="carbox__hint">Зөвхөн урд хоёр хаалганы доод хэсэгт гэрэл асдаг машинд. Манай тохирох машины жагсаалтаар шалгана.</p>
+    <p class="carbox__hint">Зөвхөн манай жагсаалтад байгаа машинд зарна. Таны машин жагсаалтад байхгүй бол одоогоор тохирохгүй.</p>
     <div class="opt"><span class="opt__label">1 · МАРК</span><div class="opt__row" id="cbMake"><span class="carbox__load">Ачаалж байна…</span></div></div>
     <div class="opt" id="cbGroupBox" hidden><span class="opt__label">2 · ЗАГВАР</span><select class="input" id="cbGroup"></select></div>
     <div class="opt" id="cbGenBox" hidden><span class="opt__label">3 · ҮЕ</span><div class="opt__row" id="cbGen"></div></div>
-    <div class="opt" id="cbYearBox" hidden><span class="opt__label">4 · ҮЙЛДВЭРЛЭСЭН ОН</span>
-      <input class="input" id="cbYear" type="tel" inputmode="numeric" maxlength="4" placeholder="Жишээ нь 2012" autocomplete="off"></div>
+    <div class="opt" id="cbYearBox" hidden><span class="opt__label">4 · ҮЙЛДВЭРЛЭСЭН ОН</span><select class="input" id="cbYear"></select></div>
     <div id="cbRes" aria-live="polite"></div>
-    <div class="opt" id="cbLitBox" hidden><span class="opt__label">5 · ХААЛГАНЫ ДООД ГЭРЭЛ</span>
-      <p class="carbox__q">Урд хаалгаа нээхэд хаалганы <b>доод</b> хэсэгт гэрэл асдаг уу?</p>
-      <div class="opt__row" id="cbLit">
-        <button type="button" class="chip" data-lit="yes">Асдаг</button>
-        <button type="button" class="chip" data-lit="no">Асдаггүй, зөвхөн улаан рефлектор</button>
-        <button type="button" class="chip" data-lit="unk">Мэдэхгүй</button>
+    <div class="opt" id="cbLitBox" hidden>
+      <p class="carbox__tip">💡 Зөвлөмж: урд хаалганы <b>доод</b> гэрэл асдаг бол энэ гэрэл таарна.</p>
+      <label class="carbox__confirm"><input type="checkbox" id="cbLit"><span>Миний машины урд хаалганы доод хэсэгт гэрэл асдаг.</span></label>
+      <div id="cbLegal" hidden>
+        <p class="carbox__legal">Та машины марк, загвар, он болон хаалганы доод гэрэл асдаг эсэхээ өөрөө баталж захиалж байна. Иймд буруу бараа захиалсан тохиолдолд манай дэлгүүр хариуцахгүй.</p>
+        <p class="carbox__legal">🔧 Угсрах зааврыг манай <a href="${FB_PAGE_URL}" target="_blank" rel="noopener">Facebook page хуудаснаас</a> аваарай.</p>
       </div>
-      <div id="cbLitMsg"></div>
     </div>`;
 
   const $c = (id) => box.querySelector("#" + id);
   const makeBox = $c("cbMake"), groupBox = $c("cbGroupBox"), groupSel = $c("cbGroup"), genBox = $c("cbGenBox"), genRow = $c("cbGen");
-  const yearBox = $c("cbYearBox"), yearIn = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), litRow = $c("cbLit"), litMsg = $c("cbLitMsg");
+  const yearBox = $c("cbYearBox"), yearSel = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), litChk = $c("cbLit"), legal = $c("cbLegal");
 
   const emit = () => {
     const r = S.res;
     const ok = !!(r && r.status === "resolved" && r.verdict === "sell" && S.lit === true);
+    legal.hidden = !ok;
     onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: r.design, sku_id: r.sku_id, lit: true, make: S.make, group: S.group } : { ok: false });
   };
+  const clearLit = () => { S.lit = false; litChk.checked = false; litBox.hidden = true; };
   const resetFrom = (level) => {
     S.seq++;
     if (level <= 1) { S.group = null; groupBox.hidden = true; }
     if (level <= 2) { S.key = null; genBox.hidden = true; genRow.innerHTML = ""; }
-    if (level <= 3) { S.res = null; resBox.innerHTML = ""; }
-    S.lit = null; litBox.hidden = true; litMsg.innerHTML = "";
-    litRow.querySelectorAll(".chip").forEach((c) => c.classList.remove("is-active"));
+    if (level <= 3) { S.year = ""; yearBox.hidden = true; S.res = null; resBox.innerHTML = ""; }
+    clearLit();
     emit();
   };
 
@@ -1410,7 +1411,7 @@ function mountCarPicker(p, root, onState) {
 
   const showMakes = () => {
     const names = S.catalog.makes.map((m) => m.make).sort((a, b) => (a === "Toyota" ? -1 : b === "Toyota" ? 1 : 0));
-    makeBox.innerHTML = names.concat(["Бусад"]).map((n) => `<button type="button" class="chip" data-make="${esc(n)}">${esc(n)}</button>`).join("");
+    makeBox.innerHTML = names.map((n) => `<button type="button" class="chip" data-make="${esc(n)}">${esc(n)}</button>`).join("");
   };
 
   const showResult = (r, label) => {
@@ -1435,12 +1436,9 @@ function mountCarPicker(p, root, onState) {
   };
 
   const check = async () => {
-    const y = yearIn.value.replace(/\D/g, "");
-    S.year = y;
-    S.res = null; resBox.innerHTML = ""; litBox.hidden = true; S.lit = null; emit();
-    if (!S.key || y.length !== 4) return;
-    const yy = Number(y);
-    if (yy < 1985 || yy > new Date().getFullYear() + 1) { resBox.innerHTML = `<p class="carbox__msg carbox__msg--ask">Он 4 оронтой, бодит байх ёстой (жишээ нь 2012).</p>`; return; }
+    S.res = null; resBox.innerHTML = ""; clearLit(); emit();
+    const yy = Number(S.year);
+    if (!S.key || !yy) return;
     const my = ++S.seq;
     resBox.innerHTML = `<p class="carbox__load">Шалгаж байна…</p>`;
     try {
@@ -1453,32 +1451,34 @@ function mountCarPicker(p, root, onState) {
     }
   };
 
-  const pickModel = (key) => { S.key = key; yearBox.hidden = false; if (S.year.length === 4) check(); else { S.res = null; resBox.innerHTML = ""; litBox.hidden = true; emit(); yearIn.focus({ preventScroll: true }); } };
+  const pickModel = (key) => {
+    S.key = key; S.year = ""; S.res = null; resBox.innerHTML = ""; clearLit(); emit();
+    const m = inGroup().find((x) => x.model_key === key) || {};
+    const to = m.year_to || new Date().getFullYear();
+    const from = m.year_from || to - 15;
+    let opts = `<option value="">— он сонгоно уу —</option>`;
+    for (let y = to; y >= from; y--) opts += `<option value="${y}">${y}</option>`;
+    yearSel.innerHTML = opts;
+    yearBox.hidden = false;
+  };
 
   makeBox.addEventListener("click", (e) => {
     const b = e.target.closest("[data-make]");
     if (!b) return;
     makeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
     S.make = b.dataset.make;
-    resetFrom(1); yearBox.hidden = true;
-    if (S.make === "Бусад") {
-      S.res = { status: "other_make", verdict: "no", message_mn: "Одоогоор зөвхөн Toyota, Lexus-ийн зарим загварт зарж байна. Таны машинд тохирох гэрэл бидэнд одоохондоо алга, уучлаарай." };
-      resBox.innerHTML = `<p class="carbox__msg carbox__msg--no">${esc(S.res.message_mn)}</p>`;
-      track("other_make", "Бусад", "", "other");
-      return;
-    }
+    resetFrom(1);
     groupSel.innerHTML = `<option value="">— загвараа сонгоно уу —</option>` + groups().map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
     groupBox.hidden = false;
   });
 
   groupSel.addEventListener("change", () => {
     S.group = groupSel.value || null;
-    resetFrom(2); yearBox.hidden = true;
+    resetFrom(2);
     if (!S.group) return;
     const ms = inGroup();
     if (ms.length === 1) { pickModel(ms[0].model_key); return; }
-    genRow.innerHTML = ms.map((m) => `<button type="button" class="chip" data-key="${esc(m.model_key)}">${esc(m.label)}${m.chassis ? " · " + esc(m.chassis) : ""} (${years(m)})</button>`).join("")
-      + `<button type="button" class="chip" data-key="">Үеэ мэдэхгүй байна</button>`;
+    genRow.innerHTML = ms.map((m) => `<button type="button" class="chip" data-key="${esc(m.model_key)}">${esc(m.label)}${m.chassis ? " · " + esc(m.chassis) : ""} (${years(m)})</button>`).join("");
     genBox.hidden = false;
   });
 
@@ -1486,23 +1486,14 @@ function mountCarPicker(p, root, onState) {
     const b = e.target.closest("[data-key]");
     if (!b) return;
     genRow.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
-    resetFrom(3); yearBox.hidden = true;
-    if (!b.dataset.key) {
-      resBox.innerHTML = `<p class="carbox__msg carbox__msg--ask">Үеэ мэдэхгүй бол машиныхаа марк, загвар, оноо чатаар бичээрэй — бид жагсаалтаас шалгаж хэлнэ.</p>${chatButton(p.name)}`;
-      track("gen_unknown", S.make, S.group, S.group);
-      return;
-    }
+    resetFrom(3);
     pickModel(b.dataset.key);
   });
 
-  yearIn.addEventListener("input", () => {
-    const d = yearIn.value.replace(/\D/g, "").slice(0, 4);
-    if (yearIn.value !== d) yearIn.value = d;
-    S.year = d;
-    S.res = null; resBox.innerHTML = ""; litBox.hidden = true; S.lit = null; litMsg.innerHTML = "";
-    litRow.querySelectorAll(".chip").forEach((c) => c.classList.remove("is-active"));
-    emit();
-    if (d.length === 4) check();
+  yearSel.addEventListener("change", () => {
+    S.year = yearSel.value || "";
+    if (!S.year) { S.res = null; resBox.innerHTML = ""; clearLit(); emit(); return; }
+    check();
   });
 
   resBox.addEventListener("click", (e) => {
@@ -1512,22 +1503,10 @@ function mountCarPicker(p, root, onState) {
     check();
   });
 
-  litRow.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-lit]");
-    if (!b || !S.res || S.res.verdict !== "sell") return;
-    litRow.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
-    const v = b.dataset.lit;
-    if (v === "yes") {
-      S.lit = true; litMsg.innerHTML = "";
-      track("lit_yes", S.make, S.group, S.res.label);
-    } else if (v === "no") {
-      S.lit = false;
-      litMsg.innerHTML = `<p class="carbox__msg carbox__msg--no">Хаалганы доод хэсэгт гэрэл асдаггүй (зөвхөн рефлектор) бол энэ гэрэл таарахгүй, тиймээс захиалга авахгүй. Уучлаарай 🙏</p>`;
-      track("lit_no", S.make, S.group, S.res.label);
-    } else {
-      S.lit = null;
-      litMsg.innerHTML = `<p class="carbox__msg carbox__msg--ask">Машиныхаа урд хаалгыг нээгээд доод хэсгийг хараарай. Гэрэл асаж байвал «Асдаг» гэж сонгоно уу. Зөвхөн улаан тусгагч байвал «Асдаггүй» гэж сонгоно.</p>`;
-    }
+  litChk.addEventListener("change", () => {
+    if (!S.res || S.res.verdict !== "sell") { litChk.checked = false; return; }
+    S.lit = litChk.checked;
+    if (S.lit) track("lit_yes", S.make, S.group, S.res.label);
     emit();
   });
 
