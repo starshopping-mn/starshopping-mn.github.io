@@ -1518,3 +1518,25 @@ select.input {
 .qform__next { text-align: center; font-size: 0.78rem; color: var(--fg-dim); margin: 0.45rem 0 0.2rem; }
 .step2__when { margin: 0.55rem auto 0; font-size: 0.9rem; line-height: 1.55; }
 @media (min-width: 900px) { .qform, .qform__next { max-width: 420px; } }
+
+/* ── Машины хаалганы гэрэл: машин шалгагч (2026-10-08) ───────────────────────
+   Машин баталгаажтал утасны маягт, «Захиалах» товч нуугдана (.car-locked). */
+.carbox { margin: 1.1rem 0 1.2rem; padding: 1rem 1rem 0.4rem; border: 1px solid var(--line); border-radius: 14px; background: rgba(69, 36, 26, 0.03); }
+.carbox__step { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.14em; color: var(--fg-dim); margin-bottom: 0.5rem; }
+.carbox__hint { font-size: 0.82rem; line-height: 1.55; color: var(--fg-dim); margin-bottom: 1rem; }
+.carbox__q { font-size: 0.92rem; line-height: 1.5; margin-bottom: 0.6rem; }
+.carbox__load { font-size: 0.82rem; color: var(--fg-dim); }
+.carbox select.input { width: 100%; }
+.carbox [hidden] { display: none !important; }
+.carbox__msg { margin: 0 0 1rem; padding: 0.8rem 0.9rem; border-radius: 10px; font-size: 0.88rem; line-height: 1.55; border: 1px solid var(--line); background: var(--bg); }
+.carbox__msg--ok { border-color: rgba(46, 125, 50, 0.55); background: rgba(46, 125, 50, 0.08); }
+.carbox__msg--hold { border-color: rgba(191, 120, 0, 0.55); background: rgba(191, 120, 0, 0.09); }
+.carbox__msg--no { border-color: rgba(192, 52, 27, 0.55); background: rgba(192, 52, 27, 0.07); }
+.carbox__msg a { color: inherit; font-weight: 700; }
+.carbox__sub { font-size: 0.82rem; color: var(--fg-dim); margin: -0.4rem 0 0.6rem; }
+.carbox__cands { margin: -0.3rem 0 1rem; }
+.carbox .chatbuy { margin-bottom: 1rem; }
+.car-locked #qform,
+.car-locked #buyBtn,
+.car-locked .qform__next,
+.car-locked .assure { display: none; }
