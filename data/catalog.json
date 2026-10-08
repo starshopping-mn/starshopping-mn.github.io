@@ -92,6 +92,23 @@
       "maxPerOrder": 5
     },
     {
+      "slug": "mashiny-haalganii-gerel",
+      "product_id": "f26c23d5-9898-46b3-b629-58a17b29a2b8",
+      "category": "avto",
+      "name": "Машины хаалганы лого гэрэл · далавч Welcome (1 хос)",
+      "desc": "Урд хаалганы доод гэрлийн оронд залгаж солих лого проекцтой гэрэл (1 хос = урд 2 хаалга)\nХаалга нээхэд шороон дээр лого ба далавч «Welcome» тусна\nЗөвхөн үйлдвэрийн доод гэрэл нь асдаг машинд тохирно\nТохирох эсэхийг машиныхаа марк, загвар, оноор шалгана\nЗагвар: Lexus · Toyota · Crown",
+      "price": 95000,
+      "discount": null,
+      "compareAt": null,
+      "images": [],
+      "featured": false,
+      "deliveryPaidBy": "included",
+      "fulfillment": "test",
+      "shipsInDays": 14,
+      "maxPerOrder": 2,
+      "active": true
+    },
+    {
       "slug": "Huwtsas-hadgalah-sags",
       "category": "ger-ahui",
       "name": "Хувцас хадгалах сагсны шийд",
