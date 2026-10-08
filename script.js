@@ -499,6 +499,7 @@ const WEBP_ASSETS = {
   "assets/product-turntable.png": "assets/product-turntable.webp",
   "assets/cat-huuhdiin-heregsel.png": "assets/cat-huuhdiin-heregsel.webp",
   "assets/cat-huwtsas.png": "assets/cat-huwtsas.webp",
+  "assets/cat-avto.png": "assets/cat-avto.webp",
 };
 
 /* A category's picture is its product cut out of its backdrop, so it can sit
@@ -508,6 +509,7 @@ const WEBP_ASSETS = {
    A category not listed falls back to whatever the sheet gives. */
 const CATEGORY_ART = {
   huwtsas: "assets/cat-huwtsas.png",
+  avto: "assets/cat-avto.png",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -1289,6 +1291,249 @@ function renderPending() {
     </div>`;
 }
 
+/* ============================================================================
+   МАШИНЫ ХААЛГАНЫ ГЭРЭЛ (тест #5, 2026-10-08) — машин шалгагч.
+   Машин тохирох эсэхийг энд ХЭЗЭЭ Ч шийдэхгүй: жагсаалт `fitment_catalog()`,
+   дүгнэлт `fitment_check()` — хоёул Supabase (Postgres fit_decide)-ээс. Сервер
+   `message_mn` өгвөл үгээр нь харуулна. Утасны маягт нь машин баталгаажиж,
+   «доод гэрэл асдаг» гэж хариулах хүртэл НЭЭГДЭХГҮЙ. Жагсаалт/шалгалт ачаалагдахгүй
+   бол хаалттай хэвээр (fail-closed) — залгаж захиалах л үлдэнэ.
+   ========================================================================== */
+const DOORLIGHT_SLUG = "mashiny-haalganii-gerel";
+const isDoorLight = (p) => !!p && String(p.slug || "").toLowerCase() === DOORLIGHT_SLUG;
+const EXTRA_CATEGORIES = [
+  { slug: "avto", name: "МАШИНЫ ХЭРЭГСЭЛ", image: "assets/cat-avto.png", order: 3, active: true },
+];
+
+const carRpc = async (fn, body, ms = 12000) => {
+  const bail = typeof AbortController === "function" ? new AbortController() : null;
+  const t = setTimeout(() => bail && bail.abort(), ms);
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+      body: JSON.stringify(body),
+      signal: bail ? bail.signal : undefined,
+    });
+    if (!res.ok) throw new Error("http_" + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+};
+
+let carCatalogPromise = null;
+const loadCarCatalog = () => {
+  if (!carCatalogPromise) {
+    carCatalogPromise = carRpc("fitment_catalog", {}).then((c) => {
+      if (!c || !Array.isArray(c.makes) || !c.makes.length) throw new Error("empty");
+      return c;
+    });
+    carCatalogPromise.catch(() => { carCatalogPromise = null; }); // next page view may try again
+  }
+  return carCatalogPromise;
+};
+
+/* Захиалга үүссэний дараа машиныг захиалгад бичнэ (сервер загварыг дахин тогтооно). Нэг дахин оролдоно. */
+async function saveOrderCar(orderId, car, tellFn) {
+  const body = { p: { order_id: orderId, model_key: car.model_key, year: car.year, light_lit: car.lit === true, source: "web" } };
+  for (let i = 0; i < 2; i++) {
+    try {
+      const out = await carRpc("set_order_car", body, 15000);
+      if (out && out.ok) return out;
+    } catch (e) { /* once more */ }
+  }
+  if (tellFn) tellFn("car_save");
+  return null;
+}
+
+const carText = (c) => (c ? `${c.label}, ${c.year}` : "");
+
+function mountCarPicker(p, root, onState) {
+  const box = root.querySelector("#carBox");
+  if (!box) return;
+  const seen = new Set();
+  const track = (result, make, group, label) => {
+    const k = result + "|" + make + "|" + group;
+    if (seen.has(k)) return;
+    seen.add(k);
+    try { if (window.fbq) fbq("trackCustom", "CarCheck", { result, make: make || "", group: group || "" }); } catch (e) { /* pixel is a bystander */ }
+    ckSlug = p.slug;
+    ck("car_" + result, label || group || make || "");
+  };
+
+  const S = { catalog: null, make: null, group: null, key: null, year: "", res: null, lit: null, seq: 0 };
+  const failHtml = `<p class="carbox__msg carbox__msg--no">Машины жагсаалтыг одоогоор ачаалж чадсангүй. Утсаар захиална уу: <a href="tel:95505717">9550-5717</a></p>`;
+
+  box.innerHTML = `
+    <div class="carbox__step">ЭХЛЭЭД МАШИНАА ШАЛГАНА УУ</div>
+    <p class="carbox__hint">Зөвхөн урд хоёр хаалганы доод хэсэгт гэрэл асдаг машинд. Манай тохирох машины жагсаалтаар шалгана.</p>
+    <div class="opt"><span class="opt__label">1 · МАРК</span><div class="opt__row" id="cbMake"><span class="carbox__load">Ачаалж байна…</span></div></div>
+    <div class="opt" id="cbGroupBox" hidden><span class="opt__label">2 · ЗАГВАР</span><select class="input" id="cbGroup"></select></div>
+    <div class="opt" id="cbGenBox" hidden><span class="opt__label">3 · ҮЕ</span><div class="opt__row" id="cbGen"></div></div>
+    <div class="opt" id="cbYearBox" hidden><span class="opt__label">4 · ҮЙЛДВЭРЛЭСЭН ОН</span>
+      <input class="input" id="cbYear" type="tel" inputmode="numeric" maxlength="4" placeholder="Жишээ нь 2012" autocomplete="off"></div>
+    <div id="cbRes" aria-live="polite"></div>
+    <div class="opt" id="cbLitBox" hidden><span class="opt__label">5 · ХААЛГАНЫ ДООД ГЭРЭЛ</span>
+      <p class="carbox__q">Урд хаалгаа нээхэд хаалганы <b>доод</b> хэсэгт гэрэл асдаг уу?</p>
+      <div class="opt__row" id="cbLit">
+        <button type="button" class="chip" data-lit="yes">Асдаг</button>
+        <button type="button" class="chip" data-lit="no">Асдаггүй, зөвхөн улаан рефлектор</button>
+        <button type="button" class="chip" data-lit="unk">Мэдэхгүй</button>
+      </div>
+      <div id="cbLitMsg"></div>
+    </div>`;
+
+  const $c = (id) => box.querySelector("#" + id);
+  const makeBox = $c("cbMake"), groupBox = $c("cbGroupBox"), groupSel = $c("cbGroup"), genBox = $c("cbGenBox"), genRow = $c("cbGen");
+  const yearBox = $c("cbYearBox"), yearIn = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), litRow = $c("cbLit"), litMsg = $c("cbLitMsg");
+
+  const emit = () => {
+    const r = S.res;
+    const ok = !!(r && r.status === "resolved" && r.verdict === "sell" && S.lit === true);
+    onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: r.design, sku_id: r.sku_id, lit: true, make: S.make, group: S.group } : { ok: false });
+  };
+  const resetFrom = (level) => {
+    S.seq++;
+    if (level <= 1) { S.group = null; groupBox.hidden = true; }
+    if (level <= 2) { S.key = null; genBox.hidden = true; genRow.innerHTML = ""; }
+    if (level <= 3) { S.res = null; resBox.innerHTML = ""; }
+    S.lit = null; litBox.hidden = true; litMsg.innerHTML = "";
+    litRow.querySelectorAll(".chip").forEach((c) => c.classList.remove("is-active"));
+    emit();
+  };
+
+  const models = () => ((S.catalog.makes.find((m) => m.make === S.make) || {}).models || []);
+  const groups = () => { const seenG = []; models().forEach((m) => { if (seenG.indexOf(m.group) < 0) seenG.push(m.group); }); return seenG; };
+  const inGroup = () => models().filter((m) => m.group === S.group);
+  const years = (m) => `${m.year_from || "…"}–${m.year_to || "одоо"}`;
+
+  const showMakes = () => {
+    const names = S.catalog.makes.map((m) => m.make).sort((a, b) => (a === "Toyota" ? -1 : b === "Toyota" ? 1 : 0));
+    makeBox.innerHTML = names.concat(["Бусад"]).map((n) => `<button type="button" class="chip" data-make="${esc(n)}">${esc(n)}</button>`).join("");
+  };
+
+  const showResult = (r, label) => {
+    S.res = r;
+    const v = r.status === "resolved" ? r.verdict : r.status;
+    const cls = v === "sell" ? "ok" : v === "ask_choice" || v === "ask_year" ? "ask" : v === "no" ? "no" : "hold";
+    let html = `<p class="carbox__msg carbox__msg--${cls}">${esc(r.message_mn || "")}</p>`;
+    if (r.status === "ask_choice" && Array.isArray(r.candidates)) {
+      html += `<div class="opt__row carbox__cands">` + r.candidates.map((c) => `<button type="button" class="chip" data-cand="${esc(c.model_key)}">${esc(c.label)}${c.chassis ? " · " + esc(c.chassis) : ""} (${c.year_from || "…"}–${c.year_to || "одоо"})</button>`).join("") + `</div>`;
+    }
+    if (r.status === "year_out_of_range" || (r.status === "resolved" && r.verdict === "hold")) {
+      html += `<p class="carbox__sub">Машинаа баталгаажуулмаар байвал чатаар бичээрэй:</p>${chatButton(p.name)}`;
+    }
+    resBox.innerHTML = html;
+    if (r.status === "resolved" && r.verdict === "sell") { litBox.hidden = false; track("sell", S.make, S.group, r.label); }
+    else {
+      litBox.hidden = true;
+      const t = r.status === "year_out_of_range" ? "out_of_range" : r.status === "resolved" ? r.verdict : "";
+      if (t) track(t, S.make, S.group, label);
+    }
+    emit();
+  };
+
+  const check = async () => {
+    const y = yearIn.value.replace(/\D/g, "");
+    S.year = y;
+    S.res = null; resBox.innerHTML = ""; litBox.hidden = true; S.lit = null; emit();
+    if (!S.key || y.length !== 4) return;
+    const yy = Number(y);
+    if (yy < 1985 || yy > new Date().getFullYear() + 1) { resBox.innerHTML = `<p class="carbox__msg carbox__msg--ask">Он 4 оронтой, бодит байх ёстой (жишээ нь 2012).</p>`; return; }
+    const my = ++S.seq;
+    resBox.innerHTML = `<p class="carbox__load">Шалгаж байна…</p>`;
+    try {
+      const r = await carRpc("fitment_check", { p: { model_key: S.key, year: yy } });
+      if (my !== S.seq) return; // сонголт солигдсон
+      showResult(r, (inGroup().find((m) => m.model_key === S.key) || {}).label);
+    } catch (e) {
+      if (my !== S.seq) return;
+      resBox.innerHTML = failHtml;
+    }
+  };
+
+  const pickModel = (key) => { S.key = key; yearBox.hidden = false; if (S.year.length === 4) check(); else { S.res = null; resBox.innerHTML = ""; litBox.hidden = true; emit(); yearIn.focus({ preventScroll: true }); } };
+
+  makeBox.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-make]");
+    if (!b) return;
+    makeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
+    S.make = b.dataset.make;
+    resetFrom(1); yearBox.hidden = true;
+    if (S.make === "Бусад") {
+      S.res = { status: "other_make", verdict: "no", message_mn: "Одоогоор зөвхөн Toyota, Lexus-ийн зарим загварт зарж байна. Таны машинд тохирох гэрэл бидэнд одоохондоо алга, уучлаарай." };
+      resBox.innerHTML = `<p class="carbox__msg carbox__msg--no">${esc(S.res.message_mn)}</p>`;
+      track("other_make", "Бусад", "", "other");
+      return;
+    }
+    groupSel.innerHTML = `<option value="">— загвараа сонгоно уу —</option>` + groups().map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
+    groupBox.hidden = false;
+  });
+
+  groupSel.addEventListener("change", () => {
+    S.group = groupSel.value || null;
+    resetFrom(2); yearBox.hidden = true;
+    if (!S.group) return;
+    const ms = inGroup();
+    if (ms.length === 1) { pickModel(ms[0].model_key); return; }
+    genRow.innerHTML = ms.map((m) => `<button type="button" class="chip" data-key="${esc(m.model_key)}">${esc(m.label)}${m.chassis ? " · " + esc(m.chassis) : ""} (${years(m)})</button>`).join("")
+      + `<button type="button" class="chip" data-key="">Үеэ мэдэхгүй байна</button>`;
+    genBox.hidden = false;
+  });
+
+  genRow.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-key]");
+    if (!b) return;
+    genRow.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
+    resetFrom(3); yearBox.hidden = true;
+    if (!b.dataset.key) {
+      resBox.innerHTML = `<p class="carbox__msg carbox__msg--ask">Үеэ мэдэхгүй бол машиныхаа марк, загвар, оноо чатаар бичээрэй — бид жагсаалтаас шалгаж хэлнэ.</p>${chatButton(p.name)}`;
+      track("gen_unknown", S.make, S.group, S.group);
+      return;
+    }
+    pickModel(b.dataset.key);
+  });
+
+  yearIn.addEventListener("input", () => {
+    const d = yearIn.value.replace(/\D/g, "").slice(0, 4);
+    if (yearIn.value !== d) yearIn.value = d;
+    S.year = d;
+    S.res = null; resBox.innerHTML = ""; litBox.hidden = true; S.lit = null; litMsg.innerHTML = "";
+    litRow.querySelectorAll(".chip").forEach((c) => c.classList.remove("is-active"));
+    emit();
+    if (d.length === 4) check();
+  });
+
+  resBox.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cand]");
+    if (!b) return;
+    S.key = b.dataset.cand;
+    check();
+  });
+
+  litRow.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-lit]");
+    if (!b || !S.res || S.res.verdict !== "sell") return;
+    litRow.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
+    const v = b.dataset.lit;
+    if (v === "yes") {
+      S.lit = true; litMsg.innerHTML = "";
+      track("lit_yes", S.make, S.group, S.res.label);
+    } else if (v === "no") {
+      S.lit = false;
+      litMsg.innerHTML = `<p class="carbox__msg carbox__msg--no">Хаалганы доод хэсэгт гэрэл асдаггүй (зөвхөн рефлектор) бол энэ гэрэл таарахгүй, тиймээс захиалга авахгүй. Уучлаарай 🙏</p>`;
+      track("lit_no", S.make, S.group, S.res.label);
+    } else {
+      S.lit = null;
+      litMsg.innerHTML = `<p class="carbox__msg carbox__msg--ask">Машиныхаа урд хаалгыг нээгээд доод хэсгийг хараарай. Гэрэл асаж байвал «Асдаг» гэж сонгоно уу. Зөвхөн улаан тусгагч байвал «Асдаггүй» гэж сонгоно.</p>`;
+    }
+    emit();
+  });
+
+  loadCarCatalog().then((c) => { S.catalog = c; showMakes(); }).catch(() => { makeBox.innerHTML = failHtml; });
+}
+
 let stickyWatch = null; // the observer behind the product page's bottom bar
 let viewReported = ""; // the product whose ViewContent has gone out for this visit
 
@@ -1311,8 +1556,10 @@ function renderProduct(slug) {
   setHead(p.name, CARD_SLUG.test(p.slug) ? `/p/${p.slug}/` : "/");
   pdpTouched = false;
   pdpNav = null; // reassigned below only when there is a set to step through
-  const colors = listOf(p.colors);
-  const sizes = listOf(p.sizes);
+  const dl = isDoorLight(p); // машины хаалганы гэрэл: загварыг өнгө биш машин тогтооно
+  let car = null; // баталгаажсан машин (sell + доод гэрэл асдаг) — үгүй бол маягт хаалттай
+  const colors = dl ? [] : listOf(p.colors);
+  const sizes = dl ? [] : listOf(p.sizes);
   /* Called through a lambda, not handed to `map` directly: `map` passes the
      index as the second argument, which `imageUrl` now reads as the width —
      the first variant photo would be asked for at zero pixels wide. */
@@ -1500,6 +1747,7 @@ function renderProduct(slug) {
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 ? `<p class="fastline">${esc(FAST_LINE)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
+    ${dl ? `<div class="carbox" id="carBox"></div>` : ""}
     ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
       <div class="opt__row" data-opt="color">
         ${colors.map((c, i) => `<button class="chip${i === 0 ? " is-active" : ""}" data-i="${i}">${esc(c)}</button>`).join("")}
@@ -1516,7 +1764,7 @@ function renderProduct(slug) {
         ? `<div class="opt"><span class="opt__label">БАГЦ СОНГОХ</span>
              <div class="packs" id="packs"></div>
            </div>`
-        : `<div class="opt"><span class="opt__label">ТОО ШИРХЭГ</span>
+        : `<div class="opt"><span class="opt__label">${dl ? "ТОО (ХОС)" : "ТОО ШИРХЭГ"}</span>
              <div class="qty">
                <button class="qty__btn" data-step="-1">−</button>
                <span class="qty__val" id="qtyVal">1</span>
@@ -1722,7 +1970,7 @@ function renderProduct(slug) {
   const refreshTotalLine = () => {
     // absent when the product is sold out — the button is replaced, not hidden
     if (!buyTotal) return;
-    buyTotal.textContent = `${qty} ширхэг · ${money(orderTotal())}`;
+    buyTotal.textContent = `${qty} ${dl ? "хос" : "ширхэг"} · ${money(orderTotal())}`;
     if (stickyPrice) stickyPrice.textContent = money(orderTotal());
   };
 
@@ -1737,6 +1985,13 @@ function renderProduct(slug) {
   };
   refreshPrice();
   paintSkuWait();
+  if (dl) {
+    right.classList.add("car-locked");
+    mountCarPicker(p, right, (st) => {
+      car = st && st.ok ? st : null;
+      right.classList.toggle("car-locked", !car);
+    });
+  }
 
   right.querySelectorAll(".opt__row").forEach((row) =>
     row.addEventListener("click", (e) => {
@@ -1794,6 +2049,12 @@ function renderProduct(slug) {
 
   right.querySelector("#buyBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    if (dl && !car) {
+      /* машин баталгаажаагүй бол захиалга эхлэхгүй — шалгагч руу аваачна */
+      const cb = right.querySelector("#carBox");
+      if (cb) cb.scrollIntoView({ block: "center", behavior: "smooth" });
+      return;
+    }
     /* «open» = pressed «Захиалах», counted before the number is checked, so the
        funnel still shows how many wanted to order and how many then gave a number */
     ckSlug = p.slug;
@@ -1828,10 +2089,11 @@ function renderProduct(slug) {
       qty,
       goods: orderTotal(),
       pack: pack ? pack.label || `${pack.qty} ширхэгийн багц` : "",
-      color,
+      color: dl && car ? car.design : color,
       size,
       /* the SKU those two picks add up to — the intake books stock by it */
-      skuId: skuFor(p, color, size),
+      skuId: dl && car ? car.sku_id : skuFor(p, color, size),
+      car: dl && car ? { model_key: car.model_key, year: car.year, label: car.label, lit: true, make: car.make, group: car.group } : null,
       leadTime,
       leadNote,
       preorder: isPreorder(p),
@@ -1969,7 +2231,7 @@ async function renderOrder() {
         <div>
           <div class="sum__name">${esc(d.name)}</div>
           <div class="sum__meta">
-            ${d.color ? esc(d.color) + " · " : ""}${d.size ? esc(d.size) + " · " : ""}<span id="sumQty">${d.qty}</span> ширхэг
+            ${d.car ? esc(carText(d.car)) + " · " : ""}${d.color ? esc(d.color) + " · " : ""}${d.size ? esc(d.size) + " · " : ""}<span id="sumQty">${d.qty}</span> ${d.car ? "хос" : "ширхэг"}
             ${d.pack ? `<span class="sum__pack">${esc(d.pack)}</span>` : ""}
           </div>
         </div>
@@ -1987,7 +2249,7 @@ async function renderOrder() {
         d.pack
           ? ""
           : `<div class="field">
-               <span class="field__label">ТОО ШИРХЭГ</span>
+               <span class="field__label">${d.car ? "ТОО (ХОС)" : "ТОО ШИРХЭГ"}</span>
                <div class="qty">
                  <button class="qty__btn" type="button" data-step="-1" aria-label="Хасах">−</button>
                  <span class="qty__val" id="oQty">${d.qty}</span>
@@ -1996,7 +2258,7 @@ async function renderOrder() {
              </div>`
       }
       <div class="totals">
-        <div class="totals__row totals__row--big"><span>Бараа (<span id="tQty">${d.qty}</span>ш)</span><span id="tGoods"></span></div>
+        <div class="totals__row totals__row--big"><span>Бараа (<span id="tQty">${d.qty}</span>${d.car ? " хос" : "ш"})</span><span id="tGoods"></span></div>
         <div class="totals__row"><span>Хүргэлт</span><span>${shipIncluded ? "үнэгүй" : esc(deliverySummary()) + " · тусдаа"}</span></div>
       </div>
 
@@ -2408,7 +2670,9 @@ async function renderOrder() {
      it, so it rides in the address detail in brackets, where the operator who
      rings them reads it — dropping it would mean asking again. */
   const pickedOnProduct = () =>
-    [d.color && `Өнгө: ${d.color}`, d.size && `Хэмжээ: ${d.size}`, d.pack && `Багц: ${d.pack}`].filter(Boolean);
+    d.car
+      ? [`Машин: ${carText(d.car)}`, d.color && `Загвар: ${d.color}`, "Доод гэрэл асдаг: тийм"].filter(Boolean)
+      : [d.color && `Өнгө: ${d.color}`, d.size && `Хэмжээ: ${d.size}`, d.pack && `Багц: ${d.pack}`].filter(Boolean);
 
   /* Attach an address (or just the picks) to an order that already exists. */
   const setAddress = async (orderId, districtFull, detail) => {
@@ -2493,6 +2757,13 @@ async function renderOrder() {
       return fail("", "Энэ барааг одоогоор онлайнаар захиалах боломжгүй. 9550-5717 руу залгана уу.");
     }
 
+    /* Машины хаалганы гэрэл машингүйгээр (хуучин ноорог, шууд хаяг) явахгүй. */
+    if (String(d.slug || "").toLowerCase() === DOORLIGHT_SLUG && !d.car) {
+      ck("error", "no_car");
+      tell("no_car");
+      return fail("", "Эхлээд машиныхаа тохирлыг бараа дээр шалгана уу.");
+    }
+
     sending = true;
     busy(btn, "ИЛГЭЭЖ БАЙНА…");
     try {
@@ -2530,6 +2801,9 @@ async function renderOrder() {
         x.reply = out || {};
         throw x;
       }
+      /* Машины хаалганы гэрэл: захиалга үүссэн даруй машиныг бичнэ (сервер загварыг
+         дахин тогтооно). Унавал захиалга хэвээр, оператор «МАШИН ӨГӨӨГҮЙ» гэж харна. */
+      if (d.car && out.order_id) await saveOrderCar(out.order_id, d.car, tell);
 
       const total = Number(out.total_mnt) || 0;
       /* Purchase: once per real order, for the goods only (the delivery fee
@@ -3262,10 +3536,17 @@ const writeCache = (data) => {
 };
 
 function setDB(data) {
+  const prods = (data.products || []).map((p) => ({ ...p, images: listOf(p.images) }));
+  const cats = (data.categories || []).map((c) => (CATEGORY_ART[c.slug] ? { ...c, image: CATEGORY_ART[c.slug] } : c));
+  /* A category the owner has not added to the sheet yet still appears once it
+     has a product — never empty, never missing. */
+  EXTRA_CATEGORIES.forEach((x) => {
+    if (!cats.some((c) => c.slug === x.slug) && prods.some((p) => p.active !== false && p.category === x.slug)) cats.push({ ...x });
+  });
   DB = {
     shop: data.shop || {},
-    categories: (data.categories || []).map((c) => (CATEGORY_ART[c.slug] ? { ...c, image: CATEGORY_ART[c.slug] } : c)),
-    products: (data.products || []).map((p) => ({ ...p, images: listOf(p.images) })),
+    categories: cats,
+    products: prods,
     bundles: data.bundles || [],
     reviews: data.reviews || [],
     stock: data.stock || {},
