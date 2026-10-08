@@ -1925,9 +1925,9 @@ async function renderOrder() {
   const shipRaw = (DB.shop.delivery || []).length
     ? DB.shop.delivery
     : [
-        { name: "Энгийн хүргэлт", price: 6000, note: "Улаанбаатар хот" },
+        { name: "Энгийн хүргэлт", price: 7000, note: "Улаанбаатар хот" },
         { name: "Шуурхай хүргэлт", price: 12000, note: "Улаанбаатар хот" },
-        { name: "Орон нутаг", price: 6000, note: "Унаагаар илгээнэ · урьдчилж төлнө", prepaid: true },
+        { name: "Орон нутаг", price: 7000, note: "Унаагаар илгээнэ · урьдчилж төлнө", prepaid: true },
       ];
   const shipIncluded = deliveryIncluded(productBy(d.slug));
   const shipBase = shipIncluded ? Math.min(...shipRaw.map((x) => Number(x.price) || 0)) : 0;
@@ -2972,7 +2972,7 @@ const POLICIES = {
       дараа дугаар, цагийг нь утсаар мэдэгдэнэ.</p>
       <h2>Анхаарах</h2>
       <p>Хаяг буруу, эсвэл заасан хугацаанд утсаа авахгүй тохиолдолд хүргэлт хойшлох
-      боломжтой. Ийм тохиолдолд дахин хүргэлтэд 6,000₮ нэмэгдэж болно.</p>
+      боломжтой. Ийм тохиолдолд дахин хүргэлтэд 7,000₮ нэмэгдэж болно.</p>
       <h2>Лавлах</h2>
       <p>Хүргэлтийн явц, хугацаа — ${COURIER.name}: <a href="tel:${COURIER.tel}">${COURIER.text}</a><br>
       Захиалгын талаар — <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a></p>`,
