@@ -85,6 +85,35 @@ function renderOps(DATA, QUERY) {
       });
       o('<p class="sm mut">Цуцлалт гарвал чөлөөлөгдсөн ширхэг автоматаар эхний хүлээгчид шилжинэ (захиалгын төлөв «cancelled»/«returned» болгоход). Хаяггүй (зөвхөн утас) захиалга энд ордоггүй — тэднийг хаяг өгөхөд л жагсаалтад оруулна.</p>');
     }
+    // S7 (2026-10-07): дахин захиалгын дохио — размер бүрээр, зөвхөн утсаар баталгаажсан эрэлтээс. ЗӨВХӨН ДОХИО — PO тавих шийдвэр эзнийх.
+    const RS = d.reorder;
+    if (RS && Array.isArray(RS.products) && RS.products.length) {
+      o('<h2>Дахин захиалгын дохио <span class="sm mut">(размер бүрээр · зөвхөн утсаар баталгаажсан эрэлтээс · шийдвэр эзнийх)</span></h2>');
+      const SL = { 'ЗАХИАЛ': ['crit', 'Захиалах'], 'ХҮЛЭЭ': ['warn', 'Хүлээ'], 'ИЛҮҮ': ['info', 'Илүү'], 'ТЭНЦҮҮ': ['ok', 'Тэнцүү'], 'АШИГГҮЙ': ['crit', 'Ашиггүй'] };
+      RS.products.forEach((p) => {
+        const L = p.lamps || {};
+        const early = !(L.calls_ok && L.deliveries_ok);
+        o('<h3>' + esc(p.name || p.slug) + ' <span class="sm mut">ашиг ' + mnt(p.contribution_mnt) + '/ш · өртөг ' + mnt(p.cost_mnt) + '</span></h3>');
+        o('<div class="sm" style="margin:4px 0 8px">'
+          + '<span class="pill ' + (L.calls_ok ? 'ok' : 'warn') + '">дуудлага ' + (has(L.calls_pct) ? n(L.calls_pct) + '%' : '—') + ' (босго ' + n(RS.min_calls_pct) + '%)</span> '
+          + '<span class="pill ' + (L.deliveries_ok ? 'ok' : 'warn') + '">хүргэгдсэн ' + n(L.delivered) + '/' + n(RS.min_delivered) + '</span> '
+          + '<span class="pill info">авах хувь ' + Math.round(n(L.ratio_used) * 100) + '% (' + (L.ratio_src === 'бодит' ? 'бодит' : 'таамаг') + ')</span></div>');
+        if (early) o('<p class="sm mut">⚠️ Дохио урьдчилсан: хүргэлт/дуудлагын гэрэл ногоон болоогүй тул захиалах тоог шууд ЗӨВШӨӨРӨХГҮЙ. (10/05 шийдвэр: бараа хүргэгдэж, борлуулалт амжилттай болтол дахин захиалахгүй.)</p>');
+        o('<div class="tw"><table class="ot"><thead><tr><th>Хувилбар</th><th>Нөөц+замд+хуваарилсан</th><th>Баталсан</th><th>Хаягтай, баталгаагүй</th><th>Хаяггүй</th><th>Дутагдал (баталсан)</th><th>Дохио</th><th>Захиалах</th><th>Мөнгө</th></tr></thead><tbody>');
+        A(p.skus).forEach((s) => {
+          const st = SL[s.state] || ['', esc(s.state)];
+          o('<tr><td><b>' + esc([s.color, s.size].filter(Boolean).join(' ')) + '</b></td><td>' + n(s.pool) + ' <span class="sm mut">(' + n(s.on_hand) + '+' + n(s.in_transit) + '+' + n(s.alloc) + ')</span></td>'
+            + '<td>' + n(s.firm) + '</td><td>' + n(s.pending) + '</td><td>' + n(s.noaddr) + (n(s.new7) ? ' <span class="sm mut">(+' + n(s.new7) + ' 7х)</span>' : '') + '</td>'
+            + '<td>' + (n(s.short_firm) ? '<b>' + n(s.short_firm) + '</b>' : '0') + (n(s.short_pend) > n(s.short_firm) ? ' <span class="sm mut">(боломжит ' + n(s.short_pend) + ')</span>' : '') + '</td>'
+            + '<td><span class="pill ' + st[0] + '">' + st[1] + '</span></td>'
+            + '<td>' + (n(s.rec_qty) ? '<b>' + n(s.rec_qty) + ' ш</b>' + (s.fits_budget === false ? ' <span class="pill warn">төсөвт багтахгүй</span>' : '') : '—') + '</td>'
+            + '<td>' + (has(s.cash_need) && n(s.rec_qty) ? mnt(s.cash_need) : '—') + '</td></tr>');
+        });
+        o('</tbody></table></div>');
+        if (n(p.total_cash_need)) o('<p class="sm mut">Нийт хэрэгтэй мөнгө (хэрэв бүгдийг захиалбал): <b>' + mnt(p.total_cash_need) + '</b></p>');
+      });
+      o('<p class="sm mut">Дутагдал = баталсан захиалга − (агуулах + замд + хуваарилсан). Захиалах = дутагдал × авах хувь — нэг ч захиалга татгалзвал мөнгө түгжигдэхээс сэргийлнэ. «Хүлээ» = баталгаагүй/хаяггүй эрэлтээр л дутаж байна — залгаж баталгаажуулмагц дохио өөрчлөгдөнө. «Илүү» = бүгд авсан ч үлдэх — захиалахгүй.</p>');
+    }
     o('<p class="sm mut">Чөлөөтэй = агуулах + замд − амлагдсан. Дахин захиалах цэг = хоногийн хурд × тээврийн хоног. Эрэлт хэмжээ бүрээр өөр тул захиалгыг энэ хүснэгтээр хийнэ.</p>');
 
     o('<h2>1688 захиалгууд (PO)</h2><div class="out" id="out-po"></div>');
