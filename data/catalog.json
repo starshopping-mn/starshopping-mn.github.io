@@ -95,8 +95,8 @@
       "slug": "mashiny-haalganii-gerel",
       "product_id": "f26c23d5-9898-46b3-b629-58a17b29a2b8",
       "category": "avto",
-      "name": "Машины хаалганы лого гэрэл · далавч Welcome (1 хос)",
-      "desc": "Урд хаалганы доод гэрлийн оронд залгаж солих лого проекцтой гэрэл (1 хос = урд 2 хаалга)\nХаалга нээхэд шороон дээр лого ба далавч «Welcome» тусна\nЗөвхөн үйлдвэрийн доод гэрэл нь асдаг машинд тохирно\nТохирох эсэхийг машиныхаа марк, загвар, оноор шалгана\nЗагвар: Lexus · Toyota · Crown",
+      "name": "Машины хаалганы LED гэрэл · лого, далавчтай (1 хос)",
+      "desc": "Таны машины лого болон далавчтай тусгай загвартай LED гэрэл — урд хаалганы доод гэрлийн оронд залгаж солино\n1 хос = урд 2 хаалганд\nХаалга нээхэд шороон дээр машины лого ба далавч тусна\nЗөвхөн үйлдвэрийн доод гэрэл нь асдаг машинд тохирно\nТохирох эсэхийг машиныхаа марк, загвар, оноор шалгана\nЗагвар: Lexus · Toyota · Crown",
       "price": 95000,
       "discount": null,
       "compareAt": null,
@@ -107,42 +107,9 @@
       "shipsInDays": 14,
       "maxPerOrder": 2,
       "active": true
-    },
-    {
-      "slug": "Huwtsas-hadgalah-sags",
-      "category": "ger-ahui",
-      "name": "Хувцас хадгалах сагсны шийд",
-      "desc": "🛠️ Хадаас, өрөм шаардлагагүй: Тусгай зориулалтын хүчтэй наалт эсвэл хаалганы дэгээгээр хана, хаалгаа зурахгүйгээр 1 минутанд угсарна. 🧺 Багтаамж сайтай & Хувцас авахад хялбар: Бат бөх сүлжмэл тор нь их хэмжээний хувцас даах бөгөөд доод талын зангилаагаар шууд угаалгын машин руу хийхэд амархан. Материал: Өндөр зэрэглэлийн акрил/модон самбар, бэхжүүлсэн нейлон тор, металл цагираг",
-      "price": 70000,
-      "discount": null,
-      "images": [
-        "https://drive.google.com/file/d/1Sf27-uJhmDj0J7kLXJ5SnS7HritowKId/view?usp=sharing",
-        "https://drive.google.com/file/d/19lN26dG1uWOWz8pi6FehcGPp6IVz98LH/view?usp=sharing",
-        "https://drive.google.com/file/d/1Co57isphLy63vXEVbXfDWtVElJwvds71/view?usp=sharing"
-      ],
-      "sizes": [],
-      "sizePrices": [],
-      "colors": [
-        "Шар"
-      ],
-      "colorImages": [],
-      "sizeImages": [],
-      "stock": 0,
-      "leadTime": "3-9 хоногт",
-      "leadNote": "Одоогоор бараа хил дээр агуулахад байгаа.  Ирээд 24 цагийн дотор хүргэлтээр очно",
-      "active": true,
-      "product_id": "71bc990f-82c9-49e0-a875-0005cf66ef44",
-      "compareAt": null,
-      "featured": false,
-      "deliveryPaidBy": "included",
-      "fulfillment": "live",
-      "shipsInDays": null,
-      "maxPerOrder": 5
     }
   ],
   "bundles": [],
   "reviews": [],
-  "stock": {
-    "Huwtsas-hadgalah-sags": 0
-  }
+  "stock": {}
 }
