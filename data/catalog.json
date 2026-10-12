@@ -100,7 +100,11 @@
       "price": 95000,
       "discount": null,
       "compareAt": null,
-      "images": [],
+      "images": [
+        "https://starshopping.mn/img/door-light-lexus-1200.webp",
+        "https://starshopping.mn/img/door-light-toyota-1200.webp",
+        "https://starshopping.mn/img/door-light-crown-1200.webp"
+      ],
       "featured": false,
       "deliveryPaidBy": "included",
       "fulfillment": "test",
