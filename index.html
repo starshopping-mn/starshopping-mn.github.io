@@ -304,13 +304,25 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
         render(shown);
         if (shown !== target) raf = requestAnimationFrame(tick);
       }
-      function wake() { target = progress(); if (!raf) raf = requestAnimationFrame(tick); }
+      /* Every wake asks for a fresh frame and lets go of the one still
+         pending. A frame asked for while the page was not being shown (a tab
+         opened in the background, a link opening behind the app that sent it)
+         can wait indefinitely, and a single such handle, kept as "already
+         asked", used to stop every later wake: the door then never drew, and
+         the tiles — which rise only on its word — stayed invisible. */
+      function wake() {
+        target = progress();
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
+      }
       function refresh() { camW = -1; shown = -1; wake(); }
 
       addEventListener("scroll", wake, { passive: true });
       addEventListener("resize", refresh);
       addEventListener("orientationchange", refresh);
       addEventListener("load", refresh);
+      /* shown again after a spell in the background: measure and draw afresh */
+      document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
       window.ssDoor = {
         refresh: refresh,
         onInside: function (fn) { hooks.push(fn); },
