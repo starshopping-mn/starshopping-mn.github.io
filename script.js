@@ -3207,7 +3207,59 @@ function show(name) {
 
 let routedOnce = false;
 
+/* Where a visitor left a page, so that coming back puts them there.
+
+   The browser's own scroll restoration is switched off at the top of this
+   file (a reload must not open the front door half-way into the dive), and
+   that also switched off the thing it does best: a tap on back landed at the
+   top of every page. From the shelf that meant the camera again, two screens
+   above the tiles the visitor had been looking at a moment ago — the intro
+   replayed on every return, and a long category or a product page lost its
+   place on the way back from the order form.
+
+   Each history entry is stamped once (replaceState: no new entry, no event)
+   and the scroll position is noted under that stamp on the way out. An entry
+   met again is a traversal — back, forward, a swipe from the edge — and its
+   position comes back; a fresh entry starts at the top as before.
+
+   The front door is kept by one flag instead of a position: left from among
+   the tiles, by any way back — the browser, the «← Нүүр» link, the logo — it
+   re-opens at the end of its track, where the tiles are, never mid-dive and
+   never on the hero. Left from the hero, it opens on the hero. */
+let entryStamp = 0;
+let homeLeftInside = false;
+const leftAt = new Map();
+const stampEntry = () => {
+  try {
+    const s = history.state;
+    if (s && typeof s.ss === "number") return s.ss;
+    const id = (Date.now() % 1e9) + Math.random();
+    history.replaceState(Object.assign({}, s || {}, { ss: id }), "");
+    return id;
+  } catch (e) {
+    return 0; // state refused (a throttled WebKit) — pages then start at the top
+  }
+};
+const knownSpot = () => {
+  try {
+    const s = history.state;
+    return s && typeof s.ss === "number" && leftAt.has(s.ss) ? leftAt.get(s.ss) : null;
+  } catch (e) {
+    return null;
+  }
+};
+/* the foot of the door's track: the stage has stopped and the tiles are out */
+const doorEnd = () => {
+  const door = document.getElementById("door");
+  if (!door || !door.classList.contains("door--motion")) return 0;
+  return door.getBoundingClientRect().top + window.scrollY + door.offsetHeight - door.firstElementChild.offsetHeight;
+};
+
 function route() {
+  /* On the way out: where this page was and, for the front door, whether the
+     visitor was in among the tiles when they left it. */
+  if (entryStamp) leftAt.set(entryStamp, window.scrollY);
+  if (!views.home.hidden) homeLeftInside = !!(window.ssDoor && ssDoor.inside);
   const [kind, rawSlug] = hashParts();
   /* Slugs are typed into the sheet by hand, so one arrives with spaces or
      Cyrillic sooner or later. The browser stores those percent-encoded, and
@@ -3253,15 +3305,23 @@ function route() {
     setRail("hero");
   }
 
-  /* A new page starts at its top, at once. The document scrolls smoothly in
-     general (html { scroll-behavior }), and a smooth trip from the foot of the
-     front door to the top of a category page is a visible slide of the new
-     page — and one that only completes while the browser is painting frames,
-     which a tab put in the background is not. The same switch openStep2 uses. */
+  /* On arrival: a page met before (back, forward, a swipe from the edge)
+     resumes where it was left; a new one starts at its top; the front door
+     re-opens at the tiles when it was left from among them. Either way at
+     once: the document scrolls smoothly in general (html { scroll-behavior }),
+     and a smooth trip from the foot of the front door to the top of a
+     category page is a visible slide of the new page — one that only
+     completes while the browser is painting frames, which a tab put in the
+     background is not. The same switch openStep2 uses. */
+  const spot = knownSpot();
+  entryStamp = stampEntry();
+  leftAt.delete(entryStamp);
+  let top = spot == null ? 0 : spot;
+  if (!views.home.hidden && window.ssDoor) top = homeLeftInside ? doorEnd() : 0;
   const root = document.documentElement;
   const had = root.style.scrollBehavior;
   root.style.scrollBehavior = "auto";
-  window.scrollTo(0, 0);
+  window.scrollTo(0, top);
   root.style.scrollBehavior = had;
   refreshMotion();
   /* index.html has already reported the page the visitor landed on; saying it

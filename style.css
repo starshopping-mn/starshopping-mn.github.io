@@ -353,6 +353,11 @@ a { color: inherit; text-decoration: none; }
   scrollbar-width: none;
 }
 .cats__emerge::-webkit-scrollbar { display: none; }
+/* …but not while the door is still opening: a finger on the tiles at
+   seven-tenths of the way would scroll the list and leave the dive standing.
+   The driver marks the moment the categories are fully out (`is-end`). */
+.door--motion .cats__emerge { overflow-y: hidden; }
+.door--motion.is-end .cats__emerge { overflow-y: auto; }
 
 .cats__head { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .cats__eyebrow { margin: 0; font: inherit; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.2em; }
@@ -368,7 +373,9 @@ a { color: inherit; text-decoration: none; }
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(132px, 1fr);
+  /* rows share the height; the floor is what eight tiles need to still fit
+     a 812px phone without the list having to scroll */
+  grid-auto-rows: minmax(118px, 1fr);
   gap: 10px;
 }
 .tile {
@@ -441,7 +448,7 @@ a { color: inherit; text-decoration: none; }
 .door--motion .tile {
   opacity: 0;
   transform: translateY(14px);
-  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.25s ease;
 }
 .door--motion.is-in .tile { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 70ms); }
 .door--motion.is-in .tile:active { transform: scale(0.98); transition-delay: 0s; }
@@ -1387,6 +1394,17 @@ select.input {
   .tile { padding: 0.65rem; }
   .tile__name { font-size: 0.9rem; }
   .tile--wide .tile__name { font-size: 1.25rem; }
+}
+
+/* A phone held sideways: two columns of three rows do not fit a screen 375px
+   tall, and the last tile sat cut off below the stage. Wide and short, the
+   tiles take the wide-screen arrangement instead — one row of up to four,
+   with no tile spanning the row. */
+@media (min-width: 560px) and (max-height: 520px) {
+  .tiles { grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); }
+  .tile--wide { grid-column: auto; }
+  .tile--wide .tile__img { inset: 1.6rem 0.6rem 3rem 44%; }
+  .tile--wide .tile__name { font-size: 0.98rem; max-width: calc(100% - 2.4rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

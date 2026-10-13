@@ -238,7 +238,7 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
          0.29 of the picture's width and sits at --lens-x / --lens-y. */
       var CAM = 2.4, PUPIL = 0.29, LX = 0.598, LY = 0.895;
       var cam = null, camW = -1, pupil = 0, cover = 0;
-      var target = 0, shown = -1, raf = 0, inside = false, hooks = [];
+      var target = 0, shown = -1, raf = 0, inside = false, atEnd = false, hooks = [];
       var set = function (k, v) { door.style.setProperty(k, v); };
       var seg = function (p, a, b) { return p <= a ? 0 : p >= b ? 1 : (p - a) / (b - a); };
       var inOut = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
@@ -282,6 +282,15 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
           inside = now;
           door.classList.toggle("is-in", now);
           for (var i = 0; i < hooks.length; i++) hooks[i](now);
+        }
+        /* fully out (the categories' own fade ends at 0.98): only from here
+           may a list of tiles too long for the screen scroll by itself —
+           any earlier, a finger on it would scroll the list and leave the
+           dive standing (style.css, .cats__emerge) */
+        var end = p >= 0.98;
+        if (end !== atEnd) {
+          atEnd = end;
+          door.classList.toggle("is-end", end);
         }
       }
       /* The drawn position eases towards the scrolled one over a few frames —
