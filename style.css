@@ -339,141 +339,112 @@ a { color: inherit; text-decoration: none; }
 .door--motion.is-in .cats { pointer-events: auto; }
 .door--motion.is-in .hero { pointer-events: none; }
 
-/* `margin: auto` rather than centred alignment: in short viewports — an
-   in-app browser with its own chrome, say — centring pushes the top of the
-   block off screen behind the header. Auto margins collapse to the start
-   instead of overflowing upward. */
+/* `margin: 0 auto`, and stretched to the section's height: the grid of tiles
+   fills whatever the stage leaves below the header, so four tiles are tall and
+   eight are shorter, and nothing has to scroll on an ordinary phone. */
 .cats__emerge {
-  margin: auto;
+  margin: 0 auto;
   width: 100%; max-width: 1100px;
-  display: flex; flex-direction: column; align-items: center;
-  gap: 1rem;
-  will-change: transform, opacity;
+  min-height: 0;
+  display: flex; flex-direction: column;
+  gap: 0.9rem;
+  /* only when a long list of categories outgrows a short screen */
+  overflow-y: auto;
+  scrollbar-width: none;
 }
+.cats__emerge::-webkit-scrollbar { display: none; }
 
-.cats__eyebrow { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.2em; }
+.cats__head { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.cats__eyebrow { margin: 0; font: inherit; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.2em; }
+.cats__sum { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; color: var(--fg-dim); white-space: nowrap; }
 
-.cats__main {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.5rem;
-  /* hands sideways gestures to the script while leaving the page free to
-     scroll down and the visitor free to pinch-zoom */
-  touch-action: pan-y pinch-zoom;
-  /* a drag across the giant name would otherwise select it */
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* clamped so the section still fits once browser chrome eats into the view */
-.cats__stage {
-  position: relative;
+/* ---------- the tiles: every category, all at once ----------
+   A phone gets two columns; the first tile runs across both, and so does a
+   last tile that would otherwise stand alone in its row (script.js decides
+   which — `tile--wide`). A wide screen ignores that and lays the lot in one
+   row of up to four, or two rows of three (`--cols`, also from the script). */
+.tiles {
   flex: 1 1 auto;
-  min-width: 0;
-  height: clamp(200px, 46svh, 360px);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(132px, 1fr);
+  gap: 10px;
 }
-
-/* ---------- the standing list of every category ----------
-   Phone first: a horizontal strip under the artwork, because a left-hand
-   column at 390px would eat the width the giant category name needs — and
-   that name is the whole point of the screen. `order` on the wide layout
-   below swings it round to the left without touching the markup. */
-.catrail {
+.tile {
   position: relative;
-  flex: 0 0 auto;
-  width: 100%;
-  height: 30px;
-  overflow: hidden;
-  /* room enough that a long name does not sit on its neighbours; the ones
-     either side are faded and running into the mask anyway */
-  --gap: 150px;
-  /* the ends dissolve rather than being sliced off by the overflow */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
-}
-
-/* Fallbacks on every custom property: the list paints from CSS alone before
-   the script has assigned a slot, and one missing value would otherwise
-   collapse the whole transform. */
-.catrail__item {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform-origin: 50% 50%;
-  transform: translate(calc(-50% + var(--off, 0) * var(--gap)), -50%) scale(var(--s, 1));
-  opacity: var(--o, 0);
-  font-family: var(--font-display);
-  font-weight: 800;
-  /* --fit is measured in the script: a name too long for its lane is set
-     smaller rather than sliced off by the overflow */
-  font-size: calc(0.82rem * var(--fit, 1));
-  letter-spacing: 0.09em;
-  white-space: nowrap;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-width: 0; min-height: 0;
+  padding: 0.8rem;
+  border-radius: 18px;
+  /* a soft light in the top-left corner, so the cutout reads as standing on
+     something rather than pasted on flat colour */
+  background: radial-gradient(120% 90% at 30% 18%, #fff 0%, var(--surface) 70%);
   color: var(--fg);
-  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.5s ease;
-  will-change: transform, opacity;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-.catrail__item.is-on { letter-spacing: 0.05em; }
-.catrail__item:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; }
+.tile--wide { grid-column: 1 / -1; }
+.tile:hover { box-shadow: 0 14px 34px rgba(69, 36, 26, 0.14); }
+.tile:active { transform: scale(0.98); }
+.tile:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+/* a category with nothing in it yet: present, quieter, not a link */
+.tile--soon { cursor: default; }
+.tile--soon:hover { box-shadow: none; }
+.tile--soon .tile__img img { opacity: 0.55; filter: drop-shadow(0 10px 16px rgba(69, 36, 26, 0.12)); }
+.tile--soon .tile__name { color: var(--fg-dim); }
 
-/* one category is not a list — hide it rather than show a lone word that
-   nothing can scroll between */
-.catrail.is-solo { display: none; }
-
-.cat {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; gap: 0.6rem;
-  opacity: 0;
-  transition: opacity 0.6s ease;
+.tile__count {
+  position: absolute; left: 0.8rem; top: 0.75rem;
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--fg-dim);
+}
+/* the picture keeps to the right of the tile, clear of the name */
+.tile__img {
+  position: absolute; inset: 1.6rem 0.6rem 3rem 44%;
+  display: grid; place-items: center;
   pointer-events: none;
 }
-.cat.is-active { opacity: 1; pointer-events: auto; }
-
-.cat__side { flex: 0 0 47%; display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; }
-
-.cat__name {
-  display: flex; flex-direction: column;
-  text-transform: uppercase; /* the sheet is typed by hand: «Хувцас» and «ХУВЦАС» must look the same */
+.tile--wide .tile__img { inset: 0.9rem 1rem 1rem 48%; }
+.tile__img img {
+  max-width: 100%; max-height: 100%; width: auto; height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 24px rgba(69, 36, 26, 0.2));
+}
+.tile__name {
+  position: relative;
   font-family: var(--font-display);
-  font-weight: 900;
-  line-height: 0.94;
-  font-size: min(13vw, calc(46vw / (var(--chars, 6) * 0.72)));
+  font-weight: 800;
+  text-transform: uppercase; /* the sheet is typed by hand: «Хувцас» and «ХУВЦАС» must look the same */
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-size: 0.98rem;
+  /* the name sits under the picture, so it may run the tile's width, short of
+     the arrow; a word breaks only when it could never fit on a line */
+  max-width: calc(100% - 2.4rem);
+  overflow-wrap: break-word;
 }
-
-.cat__cta {
-  display: inline-flex; align-items: center; gap: 0.5rem;
+.tile--wide .tile__name { font-size: 1.5rem; max-width: 50%; }
+.tile__go {
+  position: absolute; right: 0.75rem; bottom: 0.75rem;
+  width: 28px; height: 28px; border-radius: 50%;
   background: var(--fg); color: var(--on-fg);
-  border-radius: 999px;
-  padding: 0.62rem 1.05rem;
-  font-weight: 700; font-size: 0.8rem;
-  box-shadow: 0 10px 26px rgba(69, 36, 26, 0.14);
-  transition: transform 0.25s ease;
-}
-.cat__cta:active { transform: scale(0.97); }
-.cat__count { opacity: 0.55; }
-
-.cat__img { flex: 1 1 53%; display: grid; place-items: center; height: 100%; }
-.cat__img img {
-  max-height: 100%; width: auto; max-width: 100%;
-  filter: drop-shadow(0 26px 40px rgba(69, 36, 26, 0.2));
-}
-
-.cats__nav { display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
-.cats__arrows { display: flex; gap: 1.6rem; }
-
-.arrow {
-  width: 58px; height: 58px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(69, 36, 26, 0.5);
   display: grid; place-items: center;
-  transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
+  font-size: 0.85rem; line-height: 1;
 }
-.arrow svg { width: 26px; height: 26px; }
-.arrow:hover { background: var(--fg); color: var(--on-fg); }
-.arrow:active { transform: scale(0.94); }
 
-.cats__hint { text-align: center; font-weight: 700; font-size: 0.95rem; line-height: 1.45; }
+/* Out of the black: the door (index.html) marks the moment the categories
+   are in, and the tiles rise one after another from there — the stagger
+   comes from --i, set per tile by the script. Without motion the tiles are
+   simply there. */
+.door--motion .tile {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.door--motion.is-in .tile { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 70ms); }
+.door--motion.is-in .tile:active { transform: scale(0.98); transition-delay: 0s; }
 
 /* ===================== inner pages ===================== */
 .page {
@@ -1379,46 +1350,16 @@ select.input {
 
   .cats { padding: 6rem 3rem 3rem; }
   .cats__eyebrow { font-size: 0.88rem; }
-  .cats__stage { height: 58svh; }
-  .cats__main { flex-direction: row; gap: 1.6rem; }
-
-  /* wide enough for the column: it stands to the left of the artwork, names
-     running top to bottom with the chosen one held in the middle */
-  .catrail {
-    order: -1;
-    /* wide enough that a real Mongolian category name — "ХҮҮХДИЙН ХЭРЭГСЭЛ" —
-       stands at close to full size rather than being shrunk to fit */
-    width: 210px;
-    height: auto;
-    /* clears the fixed progress rail at the window edge, which reaches ~94px
-       in and would otherwise draw its dashes straight through these names */
-    margin-left: 60px;
-    --gap: 38px;
-    border-right: 1px solid rgba(69, 36, 26, 0.14);
-    -webkit-mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
-    mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
-  }
-  .catrail__item {
-    left: auto; right: 1.15rem;
-    text-align: right;
-    transform-origin: 100% 50%;
-    transform: translateY(calc(-50% + var(--off, 0) * var(--gap))) scale(var(--s, 1));
-    font-size: calc(0.95rem * var(--fit, 1));
-  }
-
-  .cat { gap: 2rem; }
-  .cat__side { flex-basis: 44%; gap: 1.4rem; }
-  /* The second term only binds for a long name: "ХҮҮХДИЙН ХЭРЭГСЭЛ" ran 486px
-     wide and left the artwork 231px of an 804px stage, using barely half the
-     height available to it. Lowered until the two share the room. A short name
-     is capped by the first term and is not touched — ГЭР АХУЙ is the same size
-     it has always been. */
-  .cat__name { font-size: min(7.5vw, calc(33vw / (var(--chars, 6) * 0.72))); }
-  .cat__cta { font-size: 0.92rem; padding: 0.8rem 1.4rem; }
-  .cat__img { flex-basis: 56%; }
-  .arrow { width: 70px; height: 70px; }
-  .arrow svg { width: 30px; height: 30px; }
-  .cats__hint { font-size: 1.1rem; }
+  .cats__sum { font-size: 0.86rem; }
+  .cats__emerge { gap: 1.2rem; }
+  /* one row of up to four, or two rows of three — the script sets --cols */
+  .tiles { grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: 16px; }
+  .tile { padding: 1.25rem; border-radius: 24px; }
+  .tile--wide { grid-column: auto; }
+  .tile__count { left: 1.25rem; top: 1.1rem; font-size: 0.74rem; }
+  .tile__img, .tile--wide .tile__img { inset: 2.4rem 1rem 3.4rem 30%; }
+  .tile__name, .tile--wide .tile__name { font-size: 1.35rem; max-width: 70%; }
+  .tile__go { right: 1.1rem; bottom: 1.1rem; width: 34px; height: 34px; font-size: 1rem; }
 
   .page { padding: 6.5rem 3rem 4rem; }
   .prow { gap: 1.6rem; padding: 1rem; border-radius: 24px; }
@@ -1440,17 +1381,12 @@ select.input {
    the usable height can drop well below a normal phone viewport. Tighten the
    full-height sections rather than letting them overflow. */
 @media (max-height: 640px) {
-  .cats { padding-top: 4.4rem; padding-bottom: 1.4rem; }
-  .cats__emerge { gap: 0.7rem; }
-  .cats__stage { height: clamp(180px, 42svh, 300px); }
-  .cats__main { gap: 0.3rem; }
-  .catrail { height: 24px; }
-  .catrail__item { font-size: calc(0.74rem * var(--fit, 1)); }
-  .cats__nav { gap: 0.6rem; }
-  .cats__hint { font-size: 0.86rem; }
-  .arrow { width: 50px; height: 50px; }
-  .arrow svg { width: 22px; height: 22px; }
-  .cat__cta { padding: 0.5rem 0.9rem; font-size: 0.75rem; }
+  .cats { padding-top: 4rem; padding-bottom: 0.9rem; }
+  .cats__emerge { gap: 0.5rem; }
+  .tiles { gap: 8px; grid-auto-rows: minmax(100px, 1fr); }
+  .tile { padding: 0.65rem; }
+  .tile__name { font-size: 0.9rem; }
+  .tile--wide .tile__name { font-size: 1.25rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

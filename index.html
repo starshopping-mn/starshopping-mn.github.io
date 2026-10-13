@@ -193,26 +193,17 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
     </section>
 
     <div class="door__lens" aria-hidden="true"></div>
-    <section class="cats" id="cats">
+    <section class="cats" id="cats" aria-labelledby="catsTitle">
       <div class="cats__emerge">
-        <span class="cats__eyebrow">КАТЕГОРИ · <span id="catIndex">01</span> / <span id="catTotal">01</span></span>
-        <div class="cats__main">
-          <div class="cats__stage" id="catsStage"></div>
-          <!-- after the stage in the markup so a phone reads it below the
-               artwork; on a wide screen `order` moves it back to the left -->
-          <div class="catrail" id="catRail" aria-label="Бүх категори"></div>
+        <div class="cats__head">
+          <h2 class="cats__eyebrow" id="catsTitle">КАТЕГОРИ</h2>
+          <span class="cats__sum" id="catsSum"></span>
         </div>
-        <div class="cats__nav">
-          <div class="cats__arrows">
-            <button class="arrow" data-dir="-1" aria-label="Өмнөх категори">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4 L7 12 L15 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <button class="arrow" data-dir="1" aria-label="Дараагийн категори">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
-          <p class="cats__hint">Категори солих бол хажуу тийш<br>шудрах эсвэл суман дээр дарна уу</p>
-        </div>
+        <!-- One tile per category, every category at once; built by
+             renderCategories() in script.js from the catalogue. Until the
+             catalogue arrives the grid is empty and the stage shows the page
+             colour, which is how the shelf has always begun. -->
+        <nav class="tiles" id="catsStage" aria-label="Бүх категори"></nav>
       </div>
     </section>
     </div>
@@ -286,7 +277,7 @@ src="https://www.facebook.com/tr?id=1409055724744932&ev=PageView&noscript=1"/></
         set("--door-ds", (pupil + (cover - pupil) * sqIn(seg(p, 0.5, 0.77))).toFixed(3)); // and grows past the corners
         set("--door-cv", p >= 0.77 ? "hidden" : "visible");          // the photograph is released
         set("--door-k", sqOut(seg(p, 0.7, 0.98)).toFixed(4));        // the categories come out of the black
-        var now = p > 0.62;
+        var now = p > 0.7;
         if (now !== inside) {
           inside = now;
           door.classList.toggle("is-in", now);

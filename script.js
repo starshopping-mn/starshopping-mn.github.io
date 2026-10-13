@@ -782,14 +782,10 @@ function stopFrames() {
 }
 
 /* ========================================================================
-   HOME · category browser
+   HOME · categories — one tile each, all at once
    ===================================================================== */
 const catsStage = document.getElementById("catsStage");
-const catRail = document.getElementById("catRail");
-const catIndexEl = document.getElementById("catIndex");
-const catTotalEl = document.getElementById("catTotal");
-let current = 0;
-let cycle = null;
+const catsSum = document.getElementById("catsSum");
 
 /* The category artwork is drawn into the home view whenever the catalogue
    lands, home or not — and a hidden <img> with a `src` is fetched all the
@@ -803,220 +799,46 @@ function wakeHome() {
   });
 }
 
+/* Every category on one screen, as tiles. The ring this replaces showed one
+   category at a time and asked the visitor to turn it; in the studies behind
+   that pattern about one visitor in a hundred ever does, and most of those
+   only see the first. Here there is nothing to operate: look, tap.
+
+   A phone gets two columns: the first tile runs across both, and so does a
+   last tile that would otherwise stand alone in its row. A wide screen lays
+   the lot in one row of up to four, or two rows of three (`--cols`).
+
+   Every category the sheet marks active is shown — that is the owner's switch.
+   One with nothing to sell yet is drawn quieter, says «УДАХГҮЙ» and is not a
+   link: a shelf that is coming reads better than a tap into an empty page, and
+   a young shop still shows the breadth it is building. The counts are real. */
 function renderCategories() {
   const cats = DB.categories.filter((c) => c.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const n = cats.length;
+  const counts = cats.map((c) => productsIn(c.slug).length);
+  const goods = counts.reduce((sum, x) => sum + x, 0);
+
   catsStage.innerHTML = "";
-  catTotalEl.textContent = String(cats.length).padStart(2, "0");
+  catsSum.textContent = n ? `${n} ангилал · ${goods} бараа` : "";
+  catsStage.style.setProperty("--cols", String(n <= 4 ? Math.max(n, 1) : n <= 6 ? 3 : 4));
 
   cats.forEach((c, i) => {
-    // "УНДААНЫ САВ" stacks as two lines; the longest one sets the type size
-    const words = String(c.name).trim().split(/\s+/);
-    const lines = words.length > 1 ? [words[0], words.slice(1).join(" ")] : [words[0]];
-    const chars = Math.max(...lines.map((l) => l.length));
-    const count = productsIn(c.slug).length;
-
-    const art = document.createElement("article");
-    art.className = "cat" + (i === 0 ? " is-active" : "");
-    art.innerHTML = `
-      <div class="cat__side">
-        <h2 class="cat__name" style="--chars:${chars}">
-          ${lines.map((l) => `<span>${esc(l)}</span>`).join("")}
-        </h2>
-        <a class="cat__cta" href="#/c/${esc(encodeURIComponent(c.slug))}">
-          <span class="cat__count">${count} бараа</span>
-          <span class="cat__go">Үзэх →</span>
-        </a>
-      </div>
-      <div class="cat__img"><img ${views.home.hidden ? "data-src" : "src"}="${photoSrc(c.image).src}" data-fallback="${esc(photoSrc(c.image).fallback)}" alt="${esc(c.name)}"></div>`;
-    catsStage.appendChild(art);
+    const count = counts[i];
+    const tile = document.createElement(count ? "a" : "span");
+    // the first; and the last when it would otherwise be the odd one out
+    const wide = i === 0 || (i === n - 1 && n % 2 === 0);
+    tile.className = "tile" + (wide ? " tile--wide" : "") + (count ? "" : " tile--soon");
+    if (count) tile.href = `#/c/${encodeURIComponent(c.slug)}`;
+    tile.style.setProperty("--i", String(i));
+    const photo = photoSrc(c.image);
+    tile.innerHTML = `
+      <span class="tile__count">${count ? `${count} БАРАА` : "УДАХГҮЙ"}</span>
+      <span class="tile__img"><img ${views.home.hidden ? "data-src" : "src"}="${esc(photo.src)}" data-fallback="${esc(photo.fallback)}" alt=""></span>
+      <span class="tile__name">${esc(c.name)}</span>
+      ${count ? '<span class="tile__go" aria-hidden="true">→</span>' : ""}`;
+    catsStage.appendChild(tile);
   });
-
-  catRail.innerHTML = "";
-  cats.forEach((c, i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "catrail__item";
-    b.textContent = c.name;
-    b.addEventListener("click", () => {
-      showCat(i);
-      startCycle();
-    });
-    catRail.appendChild(b);
-  });
-  // a single name is not something you can scroll between
-  catRail.classList.toggle("is-solo", cats.length < 2);
-  fitRail();
-  paintRail();
 }
-
-/* Category names are written by hand in the sheet and some are long —
-   "ХҮҮХДИЙН ХЭРЭГСЭЛ" runs wider than the column it stands in, and the
-   overflow that keeps the list tidy would slice its first letters clean off.
-   Rather than cap the name or widen the column into the giant type's space,
-   each name is measured and set smaller only if it needs to be.
-
-   Down the side of a wide screen the limit is the column. Across the foot of a
-   phone it is the spacing between names, or neighbours would run together. */
-function fitRail() {
-  const items = [...catRail.children];
-  if (!items.length) return;
-  const wide = window.matchMedia("(min-width: 860px)").matches;
-  /* Down the side of a wide screen the column is the limit. Across the foot of
-     a phone the strip is the full width, and the names either side of the
-     chosen one are faded almost to nothing and dissolving into the mask — so
-     sizing the whole list down to keep them apart would shrink the one name
-     anybody reads. The strip is what constrains it there. */
-  const room = catRail.clientWidth - (wide ? 26 : 16);
-  /* The column has no width yet on the first pass through — the list is built
-     before the section has been laid out. Come back once it has. */
-  if (room <= 0) {
-    requestAnimationFrame(fitRail);
-    return;
-  }
-  items.forEach((el) => el.style.setProperty("--fit", 1));
-  const widest = Math.max(...items.map((el) => el.offsetWidth));
-  /* One factor for the whole list, taken from the longest name. Sizing each
-     name to its own length would leave them all slightly different, which
-     reads as a mistake rather than as a set. */
-  const fit = widest > room ? Math.max(0.8, room / widest) : 1;
-  items.forEach((el) => el.style.setProperty("--fit", fit));
-}
-
-/* the column's width follows the viewport, so a name that fitted at one size
-   may not at another */
-addEventListener("resize", () => {
-  clearTimeout(fitRail._t);
-  fitRail._t = setTimeout(fitRail, 150);
-});
-
-/* Every name keeps its slot in the ring; the chosen one sits at full size in
-   the middle and the rest fall away from it in both directions. Offsets wrap
-   through the halfway point so the list turns endlessly instead of hitting an
-   end and snapping back across the whole column. */
-function paintRail() {
-  const items = catRail.children;
-  const n = items.length;
-  for (let i = 0; i < n; i++) {
-    let off = i - current;
-    if (off > n / 2) off -= n;
-    if (off < -n / 2) off += n;
-    const away = Math.abs(off);
-    const el = items[i];
-    el.style.setProperty("--off", off);
-    // only ever scaled down — text scaled above 1 rasterises soft
-    el.style.setProperty("--s", off === 0 ? 1 : Math.max(0.55, 1 - away * 0.24));
-    el.style.setProperty("--o", off === 0 ? 1 : Math.max(0, 0.44 - away * 0.13));
-    el.classList.toggle("is-on", off === 0);
-    el.setAttribute("aria-current", off === 0 ? "true" : "false");
-  }
-}
-
-function showCat(i) {
-  const cards = catsStage.querySelectorAll(".cat");
-  if (!cards.length) return;
-  current = (i + cards.length) % cards.length;
-  cards.forEach((c, n) => c.classList.toggle("is-active", n === current));
-  catIndexEl.textContent = String(current + 1).padStart(2, "0");
-  paintRail();
-}
-
-/* Sideways gestures only — over the artwork as well as the list, since the
-   picture is what the visitor is looking at when they reach to change it.
-   Nothing here ever swallows a vertical scroll: whatever the visitor does, the
-   page keeps moving down the moment they push down, so this section cannot
-   trap anyone. */
-const catsMain = document.querySelector(".cats__main");
-const turnable = () => catRail.children.length > 1;
-
-let turnAt = 0;
-const turn = (dir) => {
-  const now = Date.now();
-  if (now - turnAt < 260) return;
-  turnAt = now;
-  showCat(current + dir);
-  startCycle();
-};
-
-/* A trackpad or a tilt wheel reports sideways travel as deltaX. Claiming it
-   also stops the browser treating the same gesture as "go back". */
-catsMain.addEventListener(
-  "wheel",
-  (e) => {
-    if (!turnable()) return;
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-    e.preventDefault();
-    turn(e.deltaX > 0 ? 1 : -1);
-  },
-  { passive: false }
-);
-
-/* Passive touch: a sideways swipe turns, a downward one is left alone. */
-let touchX = 0;
-let touchY = 0;
-let swiping = false;
-
-catsMain.addEventListener(
-  "touchstart",
-  (e) => {
-    if (!turnable()) return;
-    touchX = e.touches[0].clientX;
-    touchY = e.touches[0].clientY;
-    swiping = true;
-  },
-  { passive: true }
-);
-catsMain.addEventListener(
-  "touchmove",
-  (e) => {
-    if (!swiping) return;
-    const dx = e.touches[0].clientX - touchX;
-    const dy = e.touches[0].clientY - touchY;
-    if (Math.abs(dx) < 34 || Math.abs(dx) < Math.abs(dy)) return;
-    swiping = false;
-    turn(dx < 0 ? 1 : -1);
-  },
-  { passive: true }
-);
-catsMain.addEventListener("touchend", () => (swiping = false), { passive: true });
-
-/* An ordinary mouse has no sideways wheel, so dragging stands in for it. */
-let dragX = 0;
-let dragY = 0;
-let dragging = false;
-
-catsMain.addEventListener("pointerdown", (e) => {
-  if (!turnable() || e.pointerType !== "mouse" || e.button !== 0) return;
-  dragX = e.clientX;
-  dragY = e.clientY;
-  dragging = true;
-});
-catsMain.addEventListener("pointermove", (e) => {
-  if (!dragging) return;
-  const dx = e.clientX - dragX;
-  const dy = e.clientY - dragY;
-  if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy)) return;
-  dragging = false;
-  turn(dx < 0 ? 1 : -1);
-});
-["pointerup", "pointercancel", "pointerleave"].forEach((ev) =>
-  catsMain.addEventListener(ev, () => (dragging = false))
-);
-
-const startCycle = () => {
-  stopCycle();
-  cycle = setInterval(() => showCat(current + 1), 5000);
-};
-const stopCycle = () => {
-  if (cycle) clearInterval(cycle);
-  cycle = null;
-};
-
-document.querySelectorAll(".arrow").forEach((arrow) =>
-  arrow.addEventListener("click", () => {
-    showCat(current + Number(arrow.dataset.dir));
-    startCycle();
-  })
-);
 
 /* ========================================================================
    HOME · motion
@@ -1073,7 +895,7 @@ if (/(^|[?&])diag/.test(location.search)) {
 
 /* The front door is shown: make sure the camera is in the page, let the
    driver measure it, and follow its word on whether the categories are in
-   (the side rail and the category rotation hang on that). Without the driver
+   (the side rail hangs on that). Without the driver
    — no sticky, reduced motion — the sections simply stack and there is
    nothing to drive. */
 function buildHomeMotion() {
@@ -1081,22 +903,16 @@ function buildHomeMotion() {
   if (!window.ssDoor) return;
   if (!doorHooked) {
     doorHooked = true;
-    ssDoor.onInside((inside) => {
-      setRail(inside ? "cats" : "hero");
-      if (inside) startCycle();
-      else stopCycle();
-    });
+    ssDoor.onInside((inside) => setRail(inside ? "cats" : "hero"));
   }
   ssDoor.refresh();
   setRail(ssDoor.inside ? "cats" : "hero");
-  if (ssDoor.inside) startCycle();
 }
 
 /* Leaving the front door. The driver notices the hidden stage by itself and
-   draws nothing until the door is shown again; only the rotation is ours. */
-function destroyHomeMotion() {
-  stopCycle();
-}
+   draws nothing until the door is shown again; nothing else of the front
+   door's keeps running, so there is nothing to stop. */
+function destroyHomeMotion() {}
 
 const railEl = document.getElementById("rail");
 const edgeEl = document.getElementById("edge");
@@ -1104,7 +920,9 @@ const railLines = Array.from(document.querySelectorAll(".rail__line"));
 
 function setRail(id) {
   railLines.forEach((l) => l.classList.toggle("is-active", l.dataset.goto === id));
-  edgeEl.classList.add("is-shown");
+  // the running strip down the right edge belongs to the camera; over the
+  // category tiles it would only sit on top of a picture
+  edgeEl.classList.toggle("is-shown", id !== "cats");
 }
 
 railLines.forEach((line) =>
@@ -3601,17 +3419,11 @@ function paint(data, { first }) {
      put the category ring back on its first name, swapped the very pictures
      on screen and re-measured the pinned hero mid-scroll, which is the hitch
      a returning visitor saw. The front door is now rebuilt only when what it
-     shows has actually changed, and then it stays on the category in view. */
+     shows has actually changed. */
   const homeWas = first ? "" : homeSignature();
   setDB(data);
   const homeChanged = first || homeSignature() !== homeWas;
-  if (homeChanged) {
-    const slugInView = first ? "" : (catsStage.querySelector(".cat.is-active .cat__cta") || { hash: "" }).hash;
-    renderCategories();
-    const cards = [...catsStage.querySelectorAll(".cat .cat__cta")];
-    const at = slugInView ? cards.findIndex((a) => a.hash === slugInView) : 0;
-    showCat(at > 0 ? at : 0);
-  }
+  if (homeChanged) renderCategories();
   if (first) {
     window.scrollTo(0, 0);
     route();
