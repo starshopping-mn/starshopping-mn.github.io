@@ -793,6 +793,7 @@ const catsSum = document.getElementById("catsSum");
    that never shows them. While the home view is hidden the address waits in
    `data-src`; entering home wakes them (`wakeHome`). */
 function wakeHome() {
+  if (!catsStage) return;
   catsStage.querySelectorAll("img[data-src]").forEach((img) => {
     img.src = img.dataset.src;
     delete img.dataset.src;
@@ -813,13 +814,18 @@ function wakeHome() {
    link: a shelf that is coming reads better than a tap into an empty page, and
    a young shop still shows the breadth it is building. The counts are real. */
 function renderCategories() {
+  /* The host caches each file for ten minutes on its own clock, so for a few
+     minutes after a deploy a visitor can hold a fresh script against a page
+     from before the tiles. Drawing nothing is better than throwing here,
+     which would take the whole catalogue paint down with it. */
+  if (!catsStage) return;
   const cats = DB.categories.filter((c) => c.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
   const n = cats.length;
   const counts = cats.map((c) => productsIn(c.slug).length);
   const goods = counts.reduce((sum, x) => sum + x, 0);
 
   catsStage.innerHTML = "";
-  catsSum.textContent = n ? `${n} ангилал · ${goods} бараа` : "";
+  if (catsSum) catsSum.textContent = n ? `${n} ангилал · ${goods} бараа` : "";
   catsStage.style.setProperty("--cols", String(n <= 4 ? Math.max(n, 1) : n <= 6 ? 3 : 4));
 
   cats.forEach((c, i) => {
