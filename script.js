@@ -3253,7 +3253,16 @@ function route() {
     setRail("hero");
   }
 
+  /* A new page starts at its top, at once. The document scrolls smoothly in
+     general (html { scroll-behavior }), and a smooth trip from the foot of the
+     front door to the top of a category page is a visible slide of the new
+     page — and one that only completes while the browser is painting frames,
+     which a tab put in the background is not. The same switch openStep2 uses. */
+  const root = document.documentElement;
+  const had = root.style.scrollBehavior;
+  root.style.scrollBehavior = "auto";
   window.scrollTo(0, 0);
+  root.style.scrollBehavior = had;
   refreshMotion();
   /* index.html has already reported the page the visitor landed on; saying it
      again for the first route counted every arrival twice. Later routes are
