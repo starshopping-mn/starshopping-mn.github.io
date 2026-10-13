@@ -14,6 +14,31 @@ const refreshMotion = () => {
    restoration makes every load begin from a known state. */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
+/* An instant scroll to a height, whatever html { scroll-behavior: smooth }
+   says. Overriding that property inline and scrolling at once was not enough:
+   the browser picks smooth or not from the style it has already computed, and
+   setting the property does not recompute it — measured: the scroll stayed
+   the smooth kind, and a page the browser is not drawing (a tab in the
+   background, a link opened behind the app that sent it) never finishes a
+   smooth scroll, so a category page opened 245px down with its title above
+   the screen. Reading the property back forces the recomputation; asking for
+   "instant" by name settles it where that word is understood (an older
+   WebKit rejects it, hence the fallback). Layout is settled first so a page
+   that has just become shorter is clamped before, not after, the jump. */
+const jumpTo = (top) => {
+  const root = document.documentElement;
+  const had = root.style.scrollBehavior;
+  root.style.scrollBehavior = "auto";
+  void root.offsetHeight;
+  void getComputedStyle(root).scrollBehavior;
+  try {
+    window.scrollTo({ top, left: 0, behavior: "instant" });
+  } catch (e) {
+    window.scrollTo(0, top);
+  }
+  root.style.scrollBehavior = had;
+};
+
 /* An ad link ends in ?ref=<creative id>, and that id is the only thing tying an
    order back to the advert that earned it. It is read once, on arrival, and
    kept: someone who looks today and orders next week still belongs to the same
@@ -2411,7 +2436,12 @@ async function renderOrder() {
     const root = document.documentElement;
     const had = root.style.scrollBehavior;
     root.style.scrollBehavior = "auto";
-    el.scrollIntoView({ block: "center" });
+    void getComputedStyle(root).scrollBehavior; // applied before the browser decides how to scroll (see jumpTo)
+    try {
+      el.scrollIntoView({ block: "center", behavior: "instant" });
+    } catch (e) {
+      el.scrollIntoView({ block: "center" });
+    }
     root.style.scrollBehavior = had;
   };
 
@@ -2513,11 +2543,7 @@ async function renderOrder() {
     $("orderForm").hidden = true;
     $("addrForm").hidden = false;
     E = E2;
-    const root = document.documentElement;
-    const had = root.style.scrollBehavior;
-    root.style.scrollBehavior = "auto";
-    window.scrollTo(0, 0);
-    root.style.scrollBehavior = had;
+    jumpTo(0);
   };
 
   /* Why an order did not go out, told to the pixel as a custom event. There
@@ -3302,7 +3328,9 @@ function route() {
     wakeHome();
     setHead("", "/");
     buildHomeMotion();
-    setRail("hero");
+    // the side rail says where the visitor lands: among the tiles when the
+    // front door re-opens there (below), on the camera otherwise
+    setRail(window.ssDoor && homeLeftInside ? "cats" : "hero");
   }
 
   /* On arrival: a page met before (back, forward, a swipe from the edge)
@@ -3312,17 +3340,13 @@ function route() {
      and a smooth trip from the foot of the front door to the top of a
      category page is a visible slide of the new page — one that only
      completes while the browser is painting frames, which a tab put in the
-     background is not. The same switch openStep2 uses. */
+     background is not (`jumpTo`, at the top of this file). */
   const spot = knownSpot();
   entryStamp = stampEntry();
   leftAt.delete(entryStamp);
   let top = spot == null ? 0 : spot;
   if (!views.home.hidden && window.ssDoor) top = homeLeftInside ? doorEnd() : 0;
-  const root = document.documentElement;
-  const had = root.style.scrollBehavior;
-  root.style.scrollBehavior = "auto";
-  window.scrollTo(0, top);
-  root.style.scrollBehavior = had;
+  jumpTo(top);
   refreshMotion();
   /* index.html has already reported the page the visitor landed on; saying it
      again for the first route counted every arrival twice. Later routes are
@@ -3500,7 +3524,7 @@ function paint(data, { first }) {
   const homeChanged = first || homeSignature() !== homeWas;
   if (homeChanged) renderCategories();
   if (first) {
-    window.scrollTo(0, 0);
+    jumpTo(0);
     route();
     booted = true;
   } else {
