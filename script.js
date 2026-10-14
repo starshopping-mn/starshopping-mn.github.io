@@ -1632,8 +1632,6 @@ function renderProduct(slug) {
              <div class="qform__step">ЗАХИАЛГА · АЛХАМ 1/2</div>
              <label class="field__label" for="qPhone">УТАСНЫ ДУГААР</label>
              <input class="input input--big" id="qPhone" type="tel" inputmode="numeric" maxlength="14" placeholder="8 оронтой" autocomplete="tel">
-             <label class="field__label qform__gap" for="qName">НЭР <span class="field__opt">(заавал биш)</span></label>
-             <input class="input" id="qName" type="text" placeholder="Таныг юу гэж дуудах вэ" autocomplete="name">
              <p class="qform__ship">${esc(deliveryIncluded(p) ? "🚚 Хүргэлт үнэгүй · Монгол даяар" : "🚚 Хүргэлт " + deliverySummary())}</p>
              <p class="err" id="qErr"></p>
            </div>
@@ -1907,7 +1905,6 @@ function renderProduct(slug) {
     setDraft({
       /* typed on the product page: the order page sends step one by itself */
       phone: quickPhone || "",
-      custName: right.querySelector("#qName") ? right.querySelector("#qName").value.trim().replace(/\s+/g, " ").slice(0, 80) : "",
       auto: !!quickPhone,
       slug: p.slug,
       /* what the order intake knows the product by: the Supabase UUID. Every
@@ -2075,10 +2072,6 @@ async function renderOrder() {
       <div class="field">
         <label class="field__label" for="fPhone">УТАСНЫ ДУГААР</label>
         <input class="input input--big" id="fPhone" name="tel" type="tel" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 оронтой" autocomplete="tel" required>
-      </div>
-      <div class="field">
-        <label class="field__label" for="fName">НЭР <span class="field__opt">(заавал биш)</span></label>
-        <input class="input" id="fName" name="name" type="text" placeholder="Таныг юу гэж дуудах вэ" autocomplete="name">
       </div>
       ${
         d.pack
@@ -2574,7 +2567,7 @@ async function renderOrder() {
     let phone = typed.replace(/\D/g, "");
     if (phone.length === 11 && phone.startsWith("976")) phone = phone.slice(3);
     if (phone.length === 9 && phone.startsWith("0")) phone = phone.slice(1);
-    const name = $("fName").value.trim().replace(/\s+/g, " ").slice(0, 80);
+    const name = ""; /* 2026-10-14: нэр асуухаа больсон — зөвхөн утас + хаяг */
     if (!/^\d{8}$/.test(phone)) {
       ck("invalid", "phone:" + phone.length);
       tell("phone", { digits: phone.length });
@@ -2736,7 +2729,6 @@ async function renderOrder() {
      filled in, with the reason under the field. */
   if (d.auto && d.phone && !placed) {
     $("fPhone").value = String(d.phone).replace(/\D/g, "").slice(0, 8);
-    if (d.custName && $("fName")) $("fName").value = d.custName;
     try { const dd = getDraft(); if (dd) { delete dd.auto; setDraft(dd); } } catch (e) { /* storage refused — the intake catches a repeat */ }
     const f1 = $("orderForm");
     setTimeout(() => (typeof f1.requestSubmit === "function" ? f1.requestSubmit() : btn.click()), 0);
