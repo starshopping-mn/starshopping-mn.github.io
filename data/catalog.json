@@ -107,7 +107,7 @@
       ],
       "featured": false,
       "deliveryPaidBy": "included",
-      "fulfillment": "test",
+      "fulfillment": "preorder",
       "shipsInDays": 14,
       "maxPerOrder": 2,
       "active": true
