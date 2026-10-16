@@ -332,7 +332,9 @@ const isPreorder = (p) => !!p && (p.fulfillment === "preorder" || p.fulfillment 
    not the long wait that kept people from leaving a number. The wait is told
    plainly the moment the phone number is in, and nothing is ever paid for it.
    Only goods counted into the warehouse ("live" with stock) promise 24 hours. */
-const isTest = (p) => !!p && p.fulfillment === "test";
+/* M1 (2026-10-16, эзэн): «нөөцөд ирээгүй / хангалттай захиалга цугларвал» гэж ХЭЗЭЭ Ч хэлэхгүй.
+   Тест бараа ч зочинд урьдчилсан захиалгатай ЯГ ижил харагдана: «нөөц дууссан, 7–14 хоногт ирнэ». */
+const isTest = (p) => false;
 /* Блок BJ: хүлээлтийг барааны хуудсан дээр хэлэхгүй (эзэн 10/01) — хуудас зөвхөн нэр, утас асууна.
    Хугацааг 2-р алхамд (хаяг) тухайн барааны үнэнээр хэлнэ. */
 const showsWait = () => false;
