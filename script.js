@@ -367,6 +367,7 @@ const waitWindow = (p) => {
   return `${Math.max(7, n - 7)}–${n} хоногт`;
 };
 const waitLate = (p) => {
+  return false; // M2 (2026-10-16, эзэн): хэтэрсэн SKU-д ч «7–14 хоногт» гэнэ
   const st = STOCK_PUBLIC[p && p.slug];
   return !!(st && st.mode === "preorder" && Number(st.available) <= 0);
 };
@@ -382,6 +383,7 @@ const skuAvail = (slug, color, size) => {
   return hit && Number.isFinite(Number(hit.available)) ? Number(hit.available) : null;
 };
 const skuWaitSentence = (slug, color, size) => {
+  return ""; // M2 (2026-10-16, эзэн): «дараагийн ачааны жагсаалт» гэж хэлэхгүй — бүх хувилбарт 7–14 хоног
   const a = skuAvail(slug, color, size);
   if (a === null || a > 0) return "";
   const label = [color, size].filter(Boolean).join(" · ");
