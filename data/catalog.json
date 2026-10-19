@@ -87,8 +87,8 @@
       "compareAt": null,
       "featured": true,
       "deliveryPaidBy": "included",
-      "fulfillment": "preorder",
-      "shipsInDays": 14,
+      "fulfillment": "live",
+      "shipsInDays": null,
       "maxPerOrder": 5
     },
     {
@@ -115,5 +115,7 @@
   ],
   "bundles": [],
   "reviews": [],
-  "stock": {}
+  "stock": {
+    "Halaaguurtai-hantaaz": 52
+  }
 }
