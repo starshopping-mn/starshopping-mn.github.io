@@ -132,6 +132,7 @@ function renderOrders(DATA, QUERY) {
       else st.push('<span class="pill">' + (r.mode === 'live' ? 'нөөцөөс' : 'бараа ирээгүй') + '</span>');
       if (r.gyals_listed_at) st.push('<span class="pill">Gyals ' + day(r.gyals_listed_at) + '</span>');
       if (r.prepaid_at) st.push('<span class="pill ok">урьдчилж төлсөн ' + day(r.prepaid_at) + '</span>');
+      if (r.deliver_sms_at) st.push('<span class="pill info">💬 SMS ' + dt(r.deliver_sms_at) + '</span>');
     }
     if (r.needs_review && r.review_reason) st.push('<span class="pill warn" title="' + esc(r.review_reason) + '">⚑ ' + esc(String(r.review_reason).slice(0, 26)) + '</span>');
     const addr = r.has_address
@@ -152,6 +153,7 @@ function renderOrders(DATA, QUERY) {
       if (r.stage === 'order') h += '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж баталгаажуулсан">Батлах</button>';
       if (['order', 'confirmed'].indexOf(r.stage) >= 0) {
         if (!r.shipped_at) h += '<button class="btn oa" data-id="' + id + '" data-do="shipped" title="Гялс/хүргэгчид өгсөн">Ачсан</button>';
+        if (!r.shipped_at && !r.is_rural) h += '<button class="btn oa" data-id="' + id + '" data-do="deliver_sms" title="Утас холбогдоогүй бол: хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS (M5)">💬 ' + (r.deliver_sms_at ? 'SMS дахин' : 'Хүргэлтийн SMS') + '</button>';
         h += '<button class="btn oa" data-id="' + id + '" data-do="paid" title="Хүргэгдэж төлбөр авсан (COD)">' + (r.prepaid_at ? 'Хүлээн авсан' : 'Төлсөн') + '</button>';
       }
       if (r.stage === 'delivered') h += '<button class="btn go oa" data-id="' + id + '" data-do="paid">Төлбөр бүртгэх</button>';
@@ -259,7 +261,8 @@ function renderOrders(DATA, QUERY) {
     + 'var note;if(d==="cancel"){note=prompt("Цуцлах шалтгаан (сонголттой):","");if(note===null)return}'
     + 'if(d==="paid"&&!confirm("Хүргэгдсэн (төлбөр бүрэн) гэж бүртгэх үү?"))return;'
     + 'if(d==="prepaid"&&!confirm("Мөнгө данс руу орсныг шалгасан уу?"))return;'
-    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",prepaid_undo:"Буцаалаа",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
+    + 'if(d==="deliver_sms"&&!confirm("Энэ хүнд хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS явуулах уу?"))return;'
+    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
     + 'document.querySelectorAll(".osave").forEach(function(b){b.addEventListener("click",function(){var id=b.dataset.id,dv=(document.getElementById("d-"+id).value||"").trim(),av=(document.getElementById("a-"+id).value||"").trim(),nv=(document.getElementById("n-"+id).value||"").trim();'
     + 'if(!dv||!av){say("out-o","Дүүрэг/хороо ба байр-тоот хоёулаа хэрэгтэй",true);return}'
     + 'post({action:"order",order_id:id,do:"address",district_full:dv,address_detail:av,note:nv||undefined,by:"самбар"},b,"out-o").then(function(){say("out-o","Хаяг хадгалагдлаа — захиалга баталгаажлаа ✓");reload()})'
