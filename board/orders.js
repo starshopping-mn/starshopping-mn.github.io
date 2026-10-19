@@ -49,7 +49,7 @@ function renderOrders(DATA, QUERY) {
     + '.btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 2px 1px 0}.btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.stop{color:#d64b4b;border-color:rgba(239,68,68,.45)}.btn:disabled{opacity:.5;cursor:default}'
     + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}td.acts{white-space:normal}@media(max-width:820px){table.ot{table-layout:auto;min-width:900px}}'
     + '.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}.frm .sug{margin-top:4px}.frm .sug button{margin:2px}'
-    + 'td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
+    + 'tr.tch td{background:rgba(34,197,94,.10)!important}tr.tch td:first-child{box-shadow:inset 5px 0 0 #22c55e}tr.tlast td{background:rgba(34,197,94,.24)!important}tr.tlast td:first-child{box-shadow:inset 8px 0 0 #16a34a}.tchb{font-size:11px;padding:2px 7px;margin-top:4px}tr.tch .tchb{background:#16a34a;color:#fff;border-color:#16a34a}.tlastb{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:999px;background:#16a34a;color:#fff;font-size:10.5px;font-weight:700}.tchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:4px 0 8px}td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}h2 .cnt{font-size:12px;color:var(--mut);font-weight:500}'
     + 'details.more{margin-top:4px}details.more summary{cursor:pointer;font-size:11.5px;color:var(--mut)}details.more div{font-size:11.5px;color:var(--ink2);margin-top:3px}'
@@ -141,7 +141,7 @@ function renderOrders(DATA, QUERY) {
     const cls = (kind === 'other' ? 'done' : '') + (r.stage === 'lead' && r.call_ready ? ' call' : '');
     let h = '<tr class="' + cls + '" data-keep="o-' + esc(r.order_id) + '"><td>' + dt(r.placed_at) + '<br><span class="sm mut">' + esc(ago(r.placed_at)) + '</span></td>'
       + '<td>' + srcCell(r) + '</td>'
-      + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>'
+      + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a>' + (kind === 'other' ? '' : '<br><button class="btn tchb" title="Залгасан/ярьсан гэж тэмдэглэх (зөвхөн энэ төхөөрөмжид)">☐ залгасан</button>') + '</td>'
       + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '<br><span class="sm mut">' + mnt(r.amount_mnt) + '</span></td>'
       + stkCell(r)
       + '<td>' + addr + '</td><td>' + st.join('') + more(r) + '</td><td class="acts">';
@@ -181,7 +181,7 @@ function renderOrders(DATA, QUERY) {
     const urgent = mode === 'pay' && r.placed_mode === 'live';
     const prod = esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '<br><span class="sm mut">' + mnt(r.amount_mnt) + '</span>';
     const where = '<b>' + esc(String(r.district || '').replace(/^Орон нутаг\s*/, '')) + '</b>' + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '<br><span class="pill crit">хаяг дутуу</span>');
-    const who = '<b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a>';
+    const who = '<b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a><br><button class="btn tchb" title="Залгасан/ярьсан гэж тэмдэглэх">☐ залгасан</button>';
     let st = '', acts = '';
     if (mode === 'pay') {
       st = (urgent ? '<span class="pill crit">🔴 яаралтай залга</span>' : '<span class="pill info">📞 залгах</span>')
@@ -233,6 +233,7 @@ function renderOrders(DATA, QUERY) {
   const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r));
   const addrWait = addressed.filter((r) => !isAct(r) && isWait(r)).sort((a, b) => new Date(a.deliver_sms_at) - new Date(b.deliver_sms_at));
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
+  o('<div class="tchbar"><span>🟩 ногоон = залгасан/товч дарсан · <b>СҮҮЛД</b> = хамгийн сүүлд ажилласан мөр</span><button class="btn" id="tch-go">↓ Сүүлд залгасан руу очих</button><button class="btn" id="tch-clr" title="Өнөөдрийн тэмдэглэгээг арилгах">Тэмдэглэгээ арилгах</button></div>');
   table(addrMain, 'addressed', 'Шүүлтэд таарах хаягтай захиалга алга');
   if (addrWait.length) {
     o('<h2>⏳ Хүлээлэг — SMS явуулсан, хариу хүлээж буй <span class="cnt">' + addrWait.length + ' · ' + big(addrWait.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
@@ -279,6 +280,7 @@ function renderOrders(DATA, QUERY) {
     + 'document.querySelectorAll(".cb").forEach(function(b){b.addEventListener("click",function(){var t=b.dataset.tel;cp(t).then(function(){say("out-o","Дугаар хуулагдлаа: "+t+" — залгаж байна…")});setTimeout(function(){location.href="tel:"+t.replace(/[^0-9+]/g,"")},150)})});'
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр) — Gyals руу paste хий")})})});'
     + '(' + ssStockUI.toString() + ')(post,say,reload,e);'
+    + '(' + ssTouchUI.toString() + ')();'
     + '})();</script></body></html>');
   return out.join('');
 }
@@ -339,4 +341,45 @@ function ssStockUI(post, say, reload, e) {
       });
     });
   });
+}
+
+/* M5c (2026-10-19) · «Залгасан» тэмдэглэгээ: мөрийн аль нэг товч / утас / «☐ залгасан» дарвал мөр ногоон болно,
+   хамгийн сүүлийнх нь тод ногоон + «СҮҮЛД». Зөвхөн энэ хөтөчид (localStorage ss_touched), 36 цаг хадгална. */
+function ssTouchUI() {
+  var KEY = 'ss_touched', TTL = 36 * 3600e3, T = {}, last = null;
+  try { var j = JSON.parse(localStorage.getItem(KEY) || '{}'); T = j.t || {}; last = j.last || null; } catch (x) {}
+  var now = Date.now();
+  Object.keys(T).forEach(function (k) { if (now - T[k] > TTL) delete T[k]; });
+  if (last && !T[last]) last = null;
+  var save = function () { try { localStorage.setItem(KEY, JSON.stringify({ t: T, last: last })); } catch (x) {} };
+  var idOf = function (tr) { var k = tr && tr.getAttribute('data-keep') || ''; var m = k.match(/^[or]-(.+)$/); return m ? m[1] : null; };
+  var paint = function () {
+    document.querySelectorAll('tr[data-keep]').forEach(function (tr) {
+      var id = idOf(tr); if (!id) return;
+      var on = !!T[id], isLast = on && id === last;
+      tr.classList.toggle('tch', on); tr.classList.toggle('tlast', isLast);
+      var b = tr.querySelector('.tchb'); if (b) b.textContent = on ? '✓ залгасан' : '☐ залгасан';
+      var bd = tr.querySelector('.tlastb');
+      if (isLast && !bd) { var td = tr.querySelector('td'); if (td) { bd = document.createElement('span'); bd.className = 'tlastb'; bd.textContent = 'СҮҮЛД'; td.appendChild(document.createElement('br')); td.appendChild(bd); } }
+      if (!isLast && bd) { if (bd.previousSibling && bd.previousSibling.nodeName === 'BR') bd.previousSibling.remove(); bd.remove(); }
+    });
+  };
+  var mark = function (id) { if (!id) return; T[id] = Date.now(); last = id; save(); paint(); };
+  document.addEventListener('click', function (ev) {
+    var t = ev.target; if (!t || !t.closest) return;
+    var tr = t.closest('tr[data-keep]'); var id = idOf(tr); if (!id) return;
+    if (t.closest('.tchb')) {
+      if (T[id] && id !== last) { delete T[id]; } else if (T[id] && id === last) { delete T[id]; last = null; } else { T[id] = Date.now(); last = id; }
+      save(); paint(); return;
+    }
+    if (t.closest('td.acts button') || t.closest('a[href^="tel:"]') || t.closest('.frm button')) mark(id);
+  }, true);
+  var go = document.getElementById('tch-go');
+  if (go) go.addEventListener('click', function () {
+    var tr = last && document.querySelector('tr[data-keep="o-' + last + '"], tr[data-keep="r-' + last + '"]');
+    if (tr) tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+  var clr = document.getElementById('tch-clr');
+  if (clr) clr.addEventListener('click', function () { if (!confirm('Бүх «залгасан» тэмдэглэгээг арилгах уу?')) return; T = {}; last = null; save(); paint(); });
+  paint();
 }
