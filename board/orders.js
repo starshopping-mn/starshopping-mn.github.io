@@ -49,6 +49,7 @@ function renderOrders(DATA, QUERY) {
     + '.btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 2px 1px 0}.btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.stop{color:#d64b4b;border-color:rgba(239,68,68,.45)}.btn:disabled{opacity:.5;cursor:default}'
     + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}td.acts{white-space:normal}@media(max-width:820px){table.ot{table-layout:auto;min-width:900px}}'
     + '.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}.frm .sug{margin-top:4px}.frm .sug button{margin:2px}'
+    + 'td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}h2 .cnt{font-size:12px;color:var(--mut);font-weight:500}'
     + 'details.more{margin-top:4px}details.more summary{cursor:pointer;font-size:11.5px;color:var(--mut)}details.more div{font-size:11.5px;color:var(--ink2);margin-top:3px}'
@@ -141,11 +142,12 @@ function renderOrders(DATA, QUERY) {
       + '<td>' + srcCell(r) + '</td>'
       + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>'
       + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '<br><span class="sm mut">' + mnt(r.amount_mnt) + '</span></td>'
+      + stkCell(r)
       + '<td>' + addr + '</td><td>' + st.join('') + more(r) + '</td><td class="acts">';
     const id = esc(r.order_id);
     if (kind === 'lead') {
       h += callBtn(r) + '<button class="btn go oa" data-id="' + id + '" data-do="addr">Хаяг оруулах</button>'
-        + '<button class="btn stop oa" data-id="' + id + '" data-do="cancel" title="Авахгүй гэвэл">Цуцлах</button>' + addrForm(r);
+        + '<button class="btn stop oa" data-id="' + id + '" data-do="cancel" title="Авахгүй гэвэл">Цуцлах</button>' + skuBtn(r) + addrForm(r);
     } else if (kind === 'addressed') {
       if (r.stage === 'order') h += '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж баталгаажуулсан">Батлах</button>';
       if (['order', 'confirmed'].indexOf(r.stage) >= 0) {
@@ -154,14 +156,20 @@ function renderOrders(DATA, QUERY) {
       }
       if (r.stage === 'delivered') h += '<button class="btn go oa" data-id="' + id + '" data-do="paid">Төлбөр бүртгэх</button>';
       if (['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0) h += '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button><button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>';
-      h += addrForm(r);
+      h += skuBtn(r) + addrForm(r);
     }
     return h + '</td></tr>';
   };
+  // M4 (2026-10-19): «Нөөц» багана — тухайн хувилбарын сул үлдэгдэл + өөр сонголт (stock_public-аас хуудсан дээр бөглөнө)
+  const canSwap = (r) => has(r.slug) && (r.stage === 'lead' || (['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at));
+  const stkCell = (r) => canSwap(r)
+    ? '<td class="stk" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" data-al="' + (r.stock_ready_at ? 1 : 0) + '" data-qty="' + (n(r.qty) || 1) + '" data-lead="' + (r.stage === 'lead' ? 1 : 0) + '"><span class="mut">…</span></td>'
+    : '<td class="stk"><span class="mut">—</span></td>';
+  const skuBtn = (r) => (canSwap(r) ? '<button class="btn osku" data-id="' + esc(r.order_id) + '" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" title="Өнгө/размерыг солих (мэдэгдэл явахгүй)">🔁 Бараа солих</button><div class="frm sku" id="k-' + esc(r.order_id) + '"></div>' : '');
   const table = (rows, kind, empty) => {
-    o('<div class="tw"><table class="ot"><colgroup><col style="width:8%"><col style="width:11%"><col style="width:13%"><col style="width:17%"><col style="width:18%"><col style="width:15%"><col style="width:18%"></colgroup><thead><tr><th>Огноо</th><th>Эх үүсвэр</th><th>Хэн</th><th>Бараа</th><th>Хаяг</th><th>Төлөв</th><th>Үйлдэл</th></tr></thead><tbody>');
+    o('<div class="tw"><table class="ot"><colgroup><col style="width:7%"><col style="width:9%"><col style="width:12%"><col style="width:14%"><col style="width:12%"><col style="width:15%"><col style="width:13%"><col style="width:18%"></colgroup><thead><tr><th>Огноо</th><th>Эх үүсвэр</th><th>Хэн</th><th>Бараа</th><th>Нөөц</th><th>Хаяг</th><th>Төлөв</th><th>Үйлдэл</th></tr></thead><tbody>');
     rows.forEach((r) => o(row(r, kind)));
-    if (!rows.length) o('<tr><td colspan="7" class="mut">' + empty + '</td></tr>');
+    if (!rows.length) o('<tr><td colspan="8" class="mut">' + empty + '</td></tr>');
     o('</tbody></table></div>');
   };
 
@@ -259,6 +267,65 @@ function renderOrders(DATA, QUERY) {
     + 'function cp(t){try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t)}catch(x){}return new Promise(function(res){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy")}catch(x){}a.remove();res()})}'
     + 'document.querySelectorAll(".cb").forEach(function(b){b.addEventListener("click",function(){var t=b.dataset.tel;cp(t).then(function(){say("out-o","Дугаар хуулагдлаа: "+t+" — залгаж байна…")});setTimeout(function(){location.href="tel:"+t.replace(/[^0-9+]/g,"")},150)})});'
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр) — Gyals руу paste хий")})})});'
+    + '(' + ssStockUI.toString() + ')(post,say,reload,e);'
     + '})();</script></body></html>');
   return out.join('');
+}
+
+/* M4 (2026-10-19) · «Нөөц» багана + «Бараа солих». Хуудсан дээр stock_public (anon, нийтийн RPC) уншина.
+   available = агуулах(+зам) − хаягтай захиалгууд → сонирхогч (хаяггүй) мөрөнд «сул N» = түүнд өгч болох тоо.
+   Солих = POST action=order do=sku {color,size} → order_action M4: хуучин оноолтыг чөлөөлж, шинэд нөөц байвал онооно. Мэдэгдэл явахгүй (notify_silent). */
+function ssStockUI(post, say, reload, e) {
+  var URL = 'https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/stock_public?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkbmpucWZ0eHNjaGJsaXVtd3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNzExNTgsImV4cCI6MjEwNDk0NzE1OH0.lND_YBbjyCNT-yIa27OZ3V-1_fn76i9JUYrOfrXbC1w';
+  var lab = function (k) { return [k.color, k.size].filter(function (x) { return x; }).join(' '); };
+  var num = function (v) { var x = Number(v); return isNaN(x) ? 0 : x; };
+  fetch(URL).then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }).then(function (SP) {
+    SP = SP && typeof SP === 'object' ? SP : {};
+    document.querySelectorAll('td.stk[data-slug]').forEach(function (td) {
+      var P = SP[td.dataset.slug], K = (P && P.skus) || [];
+      if (!K.length) { td.innerHTML = '<span class="mut">нөөц бүртгэлгүй</span>'; return; }
+      var v = (td.dataset.var || '').trim(), q = num(td.dataset.qty) || 1, al = td.dataset.al === '1';
+      var need = td.dataset.lead === '1' ? q : 0; // хаягтай захиалгын өөрийн тоо available-аас аль хэдийн хасагдсан
+      var own = null; K.forEach(function (k) { if (lab(k) === v) own = k; });
+      var tr = P.mode === 'preorder' ? ' <span class="mut">(замд)</span>' : '';
+      var h = '';
+      if (!own) h = '<span class="no">хувилбар сонгоогүй</span>';
+      else if (al) h = '<span class="ok">✓ оноогдсон</span><br><span class="mut">илүү ' + Math.max(0, num(own.available)) + '</span>';
+      else if (num(own.available) >= need) h = '<span class="ok">✓ хүрнэ' + (num(own.available) > 0 ? ' · илүү ' + num(own.available) : '') + '</span>' + tr;
+      else h = '<span class="no">дууссан</span>' + (num(own.available) < 0 ? ' <span class="mut">(' + (-num(own.available)) + ' дутуу)</span>' : '');
+      var short = !own || num(own.available) < need;
+      if (!al && short) {
+        var alt = K.filter(function (k) { return k !== own && num(k.available) >= q; });
+        if (own) alt.sort(function (a, b) { return ((b.size === own.size) - (a.size === own.size)) || ((b.color === own.color) - (a.color === own.color)) || (num(b.available) - num(a.available)); });
+        else alt.sort(function (a, b) { return num(b.available) - num(a.available); });
+        if (alt.length) h += '<span class="sg">санал: ' + alt.slice(0, 4).map(function (k) { return '<b>' + e(lab(k)) + '</b> ' + num(k.available); }).join(' · ') + '</span>';
+        else h += '<span class="sg">өөр сул хувилбар алга</span>';
+      }
+      td.innerHTML = h;
+    });
+    document.querySelectorAll('.osku').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.dataset.id, f = document.getElementById('k-' + id);
+        if (!f) return;
+        if (f.classList.contains('on')) { f.classList.remove('on'); return; }
+        var P = SP[b.dataset.slug], K = ((P && P.skus) || []).slice(), cur = (b.dataset.var || '').trim();
+        if (!K.length) { say('out-o', 'Энэ бараанд нөөцийн хувилбар бүртгэгдээгүй', true); return; }
+        var ck = null; K.forEach(function (k) { if (lab(k) === cur) ck = k; });
+        K.sort(function (a, b2) { return (ck ? ((b2.size === ck.size) - (a.size === ck.size)) || ((b2.color === ck.color) - (a.color === ck.color)) : 0) || ((num(b2.available) > 0) - (num(a.available) > 0)) || (num(b2.available) - num(a.available)); });
+        f.innerHTML = '<div class="sm mut">Одоо: <b>' + e(cur || '—') + '</b></div><select>' + K.map(function (k, i) {
+          var L = lab(k); return '<option value="' + i + '"' + (L === cur ? ' disabled' : '') + '>' + e(L) + ' · ' + (num(k.available) > 0 ? 'сул ' + num(k.available) : 'дууссан') + (L === cur ? ' (одоогийн)' : '') + '</option>';
+        }).join('') + '</select><button class="btn go">Солих</button><div class="sm mut">Мэдэгдэл явахгүй. Хуучин хувилбар оноогдсон байсан бол чөлөөлөгдөж хүлээж буй өөр захиалгад шилжинэ.</div>';
+        var sel = f.querySelector('select'), go = f.querySelector('button');
+        for (var i = 0; i < sel.options.length; i++) if (!sel.options[i].disabled) { sel.selectedIndex = i; break; }
+        f.classList.add('on');
+        go.addEventListener('click', function () {
+          var k = K[Number(sel.value)]; if (!k || lab(k) === cur) return;
+          post({ action: 'order', order_id: id, do: 'sku', color: k.color || '', size: k.size || '', by: 'самбар' }, go, 'out-o').then(function (j) {
+            say('out-o', 'Солигдлоо → ' + lab(k) + (j.allocated ? ' · бараа оноогдлоо ✓' : ' · энэ хувилбарт нөөц алга — хүлээлгэнд'));
+            reload(900);
+          }).catch(function () {});
+        });
+      });
+    });
+  });
 }
