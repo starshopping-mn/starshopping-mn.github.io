@@ -28,7 +28,7 @@ function renderOrders(DATA, QUERY) {
   const ubDate = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
   const TODAY = ubDate(Date.now()), TOMORROW = ubDate(Date.now() + 864e5);
   const WD = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
-  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
+  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TODAY ? ' · ӨНӨӨДӨР (10:00-аас өмнө)' : iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
   const isAct = (r) => r.is_rural && ['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at;
   const ruralAct = O.filter(isAct);
   const rWait = ruralAct.filter((r) => !r.prepaid_at && !r.stock_ok);
@@ -241,17 +241,19 @@ function renderOrders(DATA, QUERY) {
   const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r));
   const addrWait = addressed.filter((r) => !isAct(r) && isWait(r)).sort((a, b) => new Date(a.deliver_sms_at) - new Date(b.deliver_sms_at));
   // M6 · 📦 ТҮГЭЭЛТ: баталгаажсан, УБ, ачаагүй → хүргэх өдрөөр (хоосон/өнгөрсөн = маргааш). Gyals-д хуулах.
-  const dsp = addressed.filter((r) => !isAct(r) && !r.is_rural && r.stage === 'confirmed' && !r.shipped_at);
+  // M7: эзэн баталсан ЭСВЭЛ нөөцтэй (live) бараа хаягтай захиалсан → дуудлагагүйгээр түгээлтэд. deliver_on-г DB тавина (өгсөн өдөр + 1).
+  const dsp = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')));
   if (dsp.length) {
     const G = {};
-    dsp.forEach((r) => { const k = r.deliver_on && r.deliver_on > TOMORROW ? r.deliver_on : TOMORROW; (G[k] = G[k] || []).push(r); });
+    dsp.forEach((r) => { const k = !r.deliver_on ? TOMORROW : r.deliver_on < TODAY ? TODAY : r.deliver_on; (G[k] = G[k] || []).push(r); });
     o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт — баталгаажсан, ачаагүй <span class="cnt">' + dsp.length + '</span></h2>');
-    o('<p class="sm mut">Өдөр бүрийн жагсаалтыг «📋 хуулах» дараад Gyals руу paste хий. Бараа оноогдоогүй (⚠) мөр жагсаалтад орохгүй. Өдрийг мөрийн «📅 хүргэх» талбараас солино.</p>');
+    o('<p class="sm mut">Gyals өглөө <b>10:00</b>-д захиалга авч дуусдаг → тухайн өдрийн жагсаалтыг 10:00-аас өмнө бүртгэ. Хаягтай захиалга өгсөн өдрийнхөө маргааш автоматаар орно (нөөцтэй бараа бол дуудлагагүй). Өдөр бүрийн жагсаалтыг «📋 хуулах» дараад Gyals руу paste хий. Бараа оноогдоогүй (⚠) мөр жагсаалтад орохгүй. Өдрийг мөрийн «📅 хүргэх» талбараас солино.</p>');
     Object.keys(G).sort().forEach((k) => {
       const rows = G[k].slice().sort((a, b) => String(a.district || '').localeCompare(String(b.district || '')));
       const ok = rows.filter((r) => r.stock_ready_at || r.stock_ok);
       const tsv = ok.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
-      o('<h3>📅 ' + esc(dLabel(k)) + ' <span class="cnt">' + ok.length + ' захиалга · ' + big(ok.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span>'
+      const late = rows.filter((r) => r.deliver_on && r.deliver_on < TODAY).length;
+      o('<h3>📅 ' + esc(dLabel(k)) + (late ? ' <span class="pill crit">' + late + ' хоцорсон</span>' : '') + ' <span class="cnt">' + ok.length + ' захиалга · ' + big(ok.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span>'
         + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '')
         + (ok.length ? ' <button class="btn go cp" data-n="' + ok.length + '" data-tsv="' + esc(tsv).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;') + '">📋 ' + esc(k.slice(5).replace('-', '/')) + '-ны жагсаалт хуулах</button>' : '') + '</h3>');
       o('<div class="tw"><table class="ot"><colgroup><col style="width:16%"><col style="width:30%"><col style="width:26%"><col style="width:12%"><col style="width:16%"></colgroup><thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
@@ -261,7 +263,7 @@ function renderOrders(DATA, QUERY) {
           + '<td>' + esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '') + '</td>'
           + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>'
           + '<td>' + mnt(r.amount_mnt) + '</td>'
-          + '<td>' + (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>') + (r.deliver_on ? '<span class="pill info">📅 ' + esc(r.deliver_on.slice(5).replace('-', '/')) + '</span>' : '') + '</td></tr>');
+          + '<td>' + (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>') + (r.stage === 'order' ? '<span class="pill">автомат (дуудлагагүй)</span>' : '') + (r.deliver_on ? '<span class="pill info">📅 ' + esc(r.deliver_on.slice(5).replace('-', '/')) + '</span>' : '') + '</td></tr>');
       });
       o('</tbody></table></div>');
     });
