@@ -25,6 +25,10 @@ function renderOrders(DATA, QUERY) {
   const leads = O.filter((r) => r.stage === 'lead');
   const others = O.filter((r) => ['cancelled', 'test', 'duplicate'].indexOf(r.stage) >= 0);
   // S8 ОРОН НУТАГ: 100% урьдчилж төлнө. Идэвхтэй = хаягтай, ачаагүй. Эдгээр нь дээд талын тусдаа блокт гарна.
+  const ubDate = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
+  const TODAY = ubDate(Date.now()), TOMORROW = ubDate(Date.now() + 864e5);
+  const WD = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
+  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
   const isAct = (r) => r.is_rural && ['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at;
   const ruralAct = O.filter(isAct);
   const rWait = ruralAct.filter((r) => !r.prepaid_at && !r.stock_ok);
@@ -49,7 +53,7 @@ function renderOrders(DATA, QUERY) {
     + '.btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 2px 1px 0}.btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.stop{color:#d64b4b;border-color:rgba(239,68,68,.45)}.btn:disabled{opacity:.5;cursor:default}'
     + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}td.acts{white-space:normal}@media(max-width:820px){table.ot{table-layout:auto;min-width:900px}}'
     + '.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}.frm .sug{margin-top:4px}.frm .sug button{margin:2px}'
-    + 'tr.tch td{background:rgba(34,197,94,.10)!important}tr.tch td:first-child{box-shadow:inset 5px 0 0 #22c55e}tr.tlast td{background:rgba(34,197,94,.24)!important}tr.tlast td:first-child{box-shadow:inset 8px 0 0 #16a34a}.tchb{font-size:11px;padding:2px 7px;margin-top:4px}tr.tch .tchb{background:#16a34a;color:#fff;border-color:#16a34a}.tlastb{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:999px;background:#16a34a;color:#fff;font-size:10.5px;font-weight:700}.tchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:4px 0 8px}td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
+    + '.dlv{display:block;margin-top:5px;font-size:11.5px;color:var(--mut)}.dlv input{box-sizing:border-box;padding:3px 5px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:12px system-ui,sans-serif;max-width:100%}.dlv.set{color:#2e9a5a;font-weight:600}.dsp{border:1px solid rgba(34,197,94,.35);border-radius:14px;padding:6px 12px 12px;margin:14px 0 18px;background:rgba(34,197,94,.04)}.dsp h3{font-size:13.5px;margin:12px 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}tr.tch td{background:rgba(34,197,94,.10)!important}tr.tch td:first-child{box-shadow:inset 5px 0 0 #22c55e}tr.tlast td{background:rgba(34,197,94,.24)!important}tr.tlast td:first-child{box-shadow:inset 8px 0 0 #16a34a}.tchb{font-size:11px;padding:2px 7px;margin-top:4px}tr.tch .tchb{background:#16a34a;color:#fff;border-color:#16a34a}.tlastb{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:999px;background:#16a34a;color:#fff;font-size:10.5px;font-weight:700}.tchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:4px 0 8px}td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}h2 .cnt{font-size:12px;color:var(--mut);font-weight:500}'
     + 'details.more{margin-top:4px}details.more summary{cursor:pointer;font-size:11.5px;color:var(--mut)}details.more div{font-size:11.5px;color:var(--ink2);margin-top:3px}'
@@ -133,6 +137,10 @@ function renderOrders(DATA, QUERY) {
       if (r.gyals_listed_at) st.push('<span class="pill">Gyals ' + day(r.gyals_listed_at) + '</span>');
       if (r.prepaid_at) st.push('<span class="pill ok">урьдчилж төлсөн ' + day(r.prepaid_at) + '</span>');
       if (r.deliver_sms_at) st.push('<span class="pill info">💬 SMS ' + dt(r.deliver_sms_at) + '</span>');
+    }
+    // M6: хүргэх өдөр (хоосон = маргааш). Зөвхөн УБ, хаягтай, ачаагүй.
+    if (['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && !r.is_rural) {
+      st.push('<label class="dlv' + (r.deliver_on ? ' set' : '') + '">📅 хүргэх: <input type="date" class="dlvi" data-id="' + esc(r.order_id) + '" value="' + esc(r.deliver_on || '') + '" min="' + TODAY + '" title="Хоосон = маргааш. Өөр өдөр авна гэвэл сонго."></label>' + (r.deliver_on ? '' : '<span class="sm mut">хоосон = маргааш</span>'));
     }
     if (r.needs_review && r.review_reason) st.push('<span class="pill warn" title="' + esc(r.review_reason) + '">⚑ ' + esc(String(r.review_reason).slice(0, 26)) + '</span>');
     const addr = r.has_address
@@ -232,6 +240,33 @@ function renderOrders(DATA, QUERY) {
   const isWait = (r) => !!r.deliver_sms_at && r.stage === 'order' && !r.shipped_at;
   const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r));
   const addrWait = addressed.filter((r) => !isAct(r) && isWait(r)).sort((a, b) => new Date(a.deliver_sms_at) - new Date(b.deliver_sms_at));
+  // M6 · 📦 ТҮГЭЭЛТ: баталгаажсан, УБ, ачаагүй → хүргэх өдрөөр (хоосон/өнгөрсөн = маргааш). Gyals-д хуулах.
+  const dsp = addressed.filter((r) => !isAct(r) && !r.is_rural && r.stage === 'confirmed' && !r.shipped_at);
+  if (dsp.length) {
+    const G = {};
+    dsp.forEach((r) => { const k = r.deliver_on && r.deliver_on > TOMORROW ? r.deliver_on : TOMORROW; (G[k] = G[k] || []).push(r); });
+    o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт — баталгаажсан, ачаагүй <span class="cnt">' + dsp.length + '</span></h2>');
+    o('<p class="sm mut">Өдөр бүрийн жагсаалтыг «📋 хуулах» дараад Gyals руу paste хий. Бараа оноогдоогүй (⚠) мөр жагсаалтад орохгүй. Өдрийг мөрийн «📅 хүргэх» талбараас солино.</p>');
+    Object.keys(G).sort().forEach((k) => {
+      const rows = G[k].slice().sort((a, b) => String(a.district || '').localeCompare(String(b.district || '')));
+      const ok = rows.filter((r) => r.stock_ready_at || r.stock_ok);
+      const tsv = ok.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+      o('<h3>📅 ' + esc(dLabel(k)) + ' <span class="cnt">' + ok.length + ' захиалга · ' + big(ok.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span>'
+        + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '')
+        + (ok.length ? ' <button class="btn go cp" data-n="' + ok.length + '" data-tsv="' + esc(tsv).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;') + '">📋 ' + esc(k.slice(5).replace('-', '/')) + '-ны жагсаалт хуулах</button>' : '') + '</h3>');
+      o('<div class="tw"><table class="ot"><colgroup><col style="width:16%"><col style="width:30%"><col style="width:26%"><col style="width:12%"><col style="width:16%"></colgroup><thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
+      rows.forEach((r) => {
+        const good = r.stock_ready_at || r.stock_ok;
+        o('<tr data-keep="d-' + esc(r.order_id) + '"><td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>'
+          + '<td>' + esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '') + '</td>'
+          + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>'
+          + '<td>' + mnt(r.amount_mnt) + '</td>'
+          + '<td>' + (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>') + (r.deliver_on ? '<span class="pill info">📅 ' + esc(r.deliver_on.slice(5).replace('-', '/')) + '</span>' : '') + '</td></tr>');
+      });
+      o('</tbody></table></div>');
+    });
+    o('</div>');
+  }
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
   o('<div class="tchbar"><span>🟩 ногоон = залгасан/товч дарсан · <b>СҮҮЛД</b> = хамгийн сүүлд ажилласан мөр</span><button class="btn" id="tch-go">↓ Сүүлд залгасан руу очих</button><button class="btn" id="tch-clr" title="Өнөөдрийн тэмдэглэгээг арилгах">Тэмдэглэгээ арилгах</button></div>');
   table(addrMain, 'addressed', 'Шүүлтэд таарах хаягтай захиалга алга');
@@ -281,6 +316,7 @@ function renderOrders(DATA, QUERY) {
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр) — Gyals руу paste хий")})})});'
     + '(' + ssStockUI.toString() + ')(post,say,reload,e);'
     + '(' + ssTouchUI.toString() + ')();'
+    + '(' + ssDeliverUI.toString() + ')(post,say,reload);'
     + '})();</script></body></html>');
   return out.join('');
 }
@@ -352,7 +388,7 @@ function ssTouchUI() {
   Object.keys(T).forEach(function (k) { if (now - T[k] > TTL) delete T[k]; });
   if (last && !T[last]) last = null;
   var save = function () { try { localStorage.setItem(KEY, JSON.stringify({ t: T, last: last })); } catch (x) {} };
-  var idOf = function (tr) { var k = tr && tr.getAttribute('data-keep') || ''; var m = k.match(/^[or]-(.+)$/); return m ? m[1] : null; };
+  var idOf = function (tr) { var k = tr && tr.getAttribute('data-keep') || ''; var m = k.match(/^[ord]-(.+)$/); return m ? m[1] : null; };
   var paint = function () {
     document.querySelectorAll('tr[data-keep]').forEach(function (tr) {
       var id = idOf(tr); if (!id) return;
@@ -382,4 +418,20 @@ function ssTouchUI() {
   var clr = document.getElementById('tch-clr');
   if (clr) clr.addEventListener('click', function () { if (!confirm('Бүх «залгасан» тэмдэглэгээг арилгах уу?')) return; T = {}; last = null; save(); paint(); });
   paint();
+}
+
+/* M6 (2026-10-19) · «📅 хүргэх» огноо солиход шууд хадгална (order_action do=deliver_on). Хоосон = маргааш. */
+function ssDeliverUI(post, say, reload) {
+  document.querySelectorAll('.dlvi').forEach(function (inp) {
+    inp.dataset.last = inp.value || '';
+    inp.addEventListener('change', function () {
+      var v = inp.value || '';
+      if (v === inp.dataset.last) return; // давхар change (гараар бичихэд) — нэг л удаа хадгална
+      inp.dataset.last = v;
+      post({ action: 'order', order_id: inp.dataset.id, do: 'deliver_on', date: v, by: 'самбар' }, null, 'out-o').then(function () {
+        say('out-o', v ? 'Хүргэх өдөр: ' + v.slice(5).replace('-', '/') + ' — тэр өдрийн түгээлтэд орлоо' : 'Хүргэх өдөр арилгав — маргаашийн түгээлтэд');
+        reload(700);
+      }).catch(function () {});
+    });
+  });
 }
