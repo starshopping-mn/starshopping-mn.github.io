@@ -228,9 +228,17 @@ function renderOrders(DATA, QUERY) {
   }
 
   // ── 1 · Хаягтай захиалга
-  const addrMain = addressed.filter((r) => !isAct(r));
+  // M5b (2026-10-19): «Хүргэлтийн SMS» явуулсан, батлаагүй → «Хүлээлэг» хэсэгт. «Батлах» дарвал эндээс гарна.
+  const isWait = (r) => !!r.deliver_sms_at && r.stage === 'order' && !r.shipped_at;
+  const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r));
+  const addrWait = addressed.filter((r) => !isAct(r) && isWait(r)).sort((a, b) => new Date(a.deliver_sms_at) - new Date(b.deliver_sms_at));
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
   table(addrMain, 'addressed', 'Шүүлтэд таарах хаягтай захиалга алга');
+  if (addrWait.length) {
+    o('<h2>⏳ Хүлээлэг — SMS явуулсан, хариу хүлээж буй <span class="cnt">' + addrWait.length + ' · ' + big(addrWait.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
+    o('<p class="sm mut">Утсаа аваагүй хүмүүс. Утсандаа ирсэн хариуг шалгаад: «Тийм» гэсэн бол <b>Батлах</b>, авахгүй гэсэн бол <b>Цуцлах</b>. Хариу ирээгүй бол дахин залга эсвэл <b>SMS дахин</b>.</p>');
+    table(addrWait, 'addressed', '');
+  }
 
   // ── 2 · Сонирхол (хаяггүй). WIN/амьд бараа руу залгах жагсаалт дээр нь
   o('<h2>Сонирхол — утас/нэр үлдээсэн, хаяггүй <span class="cnt">' + leads.length + '</span></h2>');
