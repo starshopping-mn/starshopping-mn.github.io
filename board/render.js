@@ -308,6 +308,21 @@ draw();
   moneyTile('exp', 'Зардал');
   moneyTile('net', 'Цэвэр');
   P('</div></div>');
+  // M12 (2026-10-20): Мөнгөний хөдөлгүүр — Мөнгө хуудасны engine-тэй ижил 4 тоо (бэлэн · нөөц сан · чөлөөт · тааз)
+  const EN = (MM && MM.engine) || (MA && MA.engine) || null;
+  if (EN) {
+    const EC = EN.cash || {}, ER = EN.reserve || {}, EF = EN.free || {}, caps = Array.isArray(EN.caps) ? EN.caps : [];
+    const STN = { ready: '🟢 хөрөнгө оруулалтад бэлэн', building: '🟡 нөөц сан бүрдэж байна', locked: '🔴 нөөц сан дутуу', no_snapshot: 'баланс оруулаагүй' };
+    const over = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= n(c.cap)).map((c) => c.label);
+    const warn = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= 0.8 * n(c.cap) && n(c.spent) < n(c.cap)).map((c) => c.label);
+    P('<div class="sec"><b>Мөнгөний хөдөлгүүр</b><span class="sd">бэлэн → нөөц сан → чөлөөт → хөрөнгө оруулалт · <a href="/board/?view=money' + (themeQ ? '&amp;theme=' + themeQ : '') + '">Мөнгө хуудас</a></span></div>');
+    P('<div class="krow krow4">');
+    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
+    kpi('Нөөц сан', (has(ER.pct) ? n(ER.pct) + '%' : '—'), short(ER.now) + ' / ' + short(ER.target) + ' · ' + n(ER.months) + ' сарын систем + татан авалт', n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit');
+    kpi('Чөлөөт мөнгө', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : '');
+    kpi('Сарын тааз', over.length ? '🔴 давсан' : warn.length ? '🟡 80%+' : '✓', over.length ? over.join(', ') + ' давсан' : warn.length ? warn.join(', ') + ' 80%-д хүрсэн' : caps.map((c) => c.label + ' ' + short(c.spent) + (has(c.cap) ? '/' + short(c.cap) : '')).join(' · '), over.length ? 'crit' : warn.length ? 'warn' : 'good');
+    P('</div>');
+  }
   P('<script>(function(){var r=document.getElementById("mrow");if(!r)return;var K="ss_home_per";'
     + 'function set(p){r.setAttribute("data-per",p);var s=document.getElementById("perSeg");if(s)Array.prototype.forEach.call(s.querySelectorAll("button"),function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
     + 'var p="m";try{p=localStorage.getItem(K)==="a"?"a":"m"}catch(e){}set(p);'
