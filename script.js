@@ -2828,6 +2828,19 @@ async function renderOrder() {
 
   const addrBtn = $("addrBtn");
   let sendingAddr = false;
+  /* M10 (2026-10-20): Gyals-ийн хүргэлтийн бүсээс гадуурх хаяг (жишээ Тахилт) — нэг удаа анхааруулж, хамгийн ойр авах цэгийг бичүүлнэ.
+     Хоёр дахь удаад дарвал хүлээж авна (эзэн залгаж тохирно). Шалгалт амжилтгүй бол хэзээ ч саатуулахгүй. */
+  let zoneWarned = false;
+  const zoneCheck = async (district, address) => {
+    try {
+      const r = await timed(`${SUPABASE_URL}/rest/v1/rpc/zone_check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+        body: JSON.stringify({ p: { district: district || "", address: address || "" } }),
+      }, 5000);
+      return r.ok ? await r.json() : null;
+    } catch (e) { return null; }
+  };
   $("addrForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sendingAddr || !placed) return;
@@ -2858,6 +2871,14 @@ async function renderOrder() {
       if (!where) return fail("fAddr", "Хүргүүлэх хаягаа бичнэ үү.");
     }
     clearFail();
+
+    if (addrKind !== "mn" && !zoneWarned) {
+      const z = await zoneCheck(districtFull, where);
+      if (z && z.out) {
+        zoneWarned = true;
+        return fail($("aLine1") ? "aLine1" : "fAddr", `Манай хүргэлт «${z.label}» руу очдоггүй. Хамгийн ойр авах цэг: ${z.pickup}. Аль цэг дээр авахаа хаягийн талбарт бичээд дахин дарна уу.`);
+      }
+    }
 
     const picked = [...pickedOnProduct(), shipName, payment].filter(Boolean);
     const detail = `${where} [${picked.join(" · ")}]`;
