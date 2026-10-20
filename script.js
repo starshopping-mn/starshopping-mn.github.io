@@ -445,10 +445,77 @@ function paintSkuWait() {
     const c = document.querySelector(`.opt__row[data-opt="${k}"] .chip.is-active`);
     return c ? c.textContent.trim() : "";
   };
-  const msg = p && !isTest(p) ? skuWaitSentence(p.slug, act("color"), act("size")) : "";
+  const g = p ? liveGuard(p) : null; // M8: нөөцтэй (live) бараа — дууссан хувилбарыг зарахгүй
+  const msg = g ? g.msg : p && !isTest(p) ? skuWaitSentence(p.slug, act("color"), act("size")) : "";
   el.textContent = msg;
   el.hidden = !msg;
 }
+/* M8 (2026-10-19, эзэн): НӨӨЦТЭЙ (live) барааны дууссан өнгө/размерыг зарахгүй — 7–14 хоногийн хүлээлэг үүсгэхгүй.
+   stock_public-ийн хувилбар бүрийн сул тоо ≤ 0 бол чип «дууссан» (is-out), дарахад сонгогдохгүй, байгаа хувилбарыг санал болгоно.
+   Идэвхтэй хувилбар дууссан бол эхний байгаа хувилбар руу автоматаар шилжинэ. Урьдчилсан/тест бараанд хамаарахгүй. */
+let LIVE_NOTE = "";
+const liveRows = () => ({
+  c: [...document.querySelectorAll('.opt__row[data-opt="color"] .chip')],
+  s: [...document.querySelectorAll('.opt__row[data-opt="size"] .chip')],
+});
+const chipTxt = (ch) => (ch ? ch.textContent.trim() : "");
+function liveAv(slug, color, size) {
+  const a = skuAvail(slug, color, size);
+  return a === null ? 1 : a; /* бүртгэлгүй хувилбар — хаахгүй (сервер дахин шалгана) */
+}
+function liveIsOn(p) {
+  const st = p && STOCK_PUBLIC[p.slug];
+  return !!(st && st.mode === "live" && Array.isArray(st.skus) && st.skus.length && !isPreorder(p) && !isTest(p));
+}
+function liveAlternatives(p, color, size) {
+  const st = STOCK_PUBLIC[p.slug];
+  const lab = (k) => [k.color, k.size].filter(Boolean).join(" ");
+  const free = st.skus.filter((k) => Number(k.available) > 0);
+  const eq = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  free.sort((a, b) => (eq(b.size, size) - eq(a.size, size)) || (eq(b.color, color) - eq(a.color, color)) || (b.available - a.available));
+  return free.slice(0, 3).map(lab);
+}
+function liveGuard(p) {
+  if (!liveIsOn(p)) return null;
+  const R = liveRows();
+  const act = (arr) => arr.find((x) => x.classList.contains("is-active")) || null;
+  let ac = act(R.c), as = act(R.s);
+  const okColor = (c) => (R.s.length ? R.s.some((s) => liveAv(p.slug, c, chipTxt(s)) > 0) : liveAv(p.slug, c, "") > 0);
+  R.c.forEach((ch) => ch.classList.toggle("is-out", !okColor(chipTxt(ch))));
+  const allOut = R.c.length ? R.c.every((ch) => ch.classList.contains("is-out")) : R.s.length ? R.s.every((s) => liveAv(p.slug, "", chipTxt(s)) <= 0) : liveAv(p.slug, "", "") <= 0;
+  if (allOut) return { allOut: true, msg: "Одоогоор бүх хувилбар дууссан. Шинэ ачаа ирэхэд зарна." };
+  if (ac && ac.classList.contains("is-out")) {
+    const nc = R.c.find((ch) => !ch.classList.contains("is-out"));
+    if (nc) { const note = `«${chipTxt(ac)}» өнгө дууссан — «${chipTxt(nc)}» сонгогдлоо.`; LIVE_NOTE = note; nc.click(); return { msg: note }; }
+  }
+  const color = chipTxt(ac);
+  R.s.forEach((ch) => ch.classList.toggle("is-out", liveAv(p.slug, color, chipTxt(ch)) <= 0));
+  if (as && as.classList.contains("is-out")) {
+    const ns = R.s.find((ch) => !ch.classList.contains("is-out"));
+    if (ns) { const note = `«${[color, chipTxt(as)].filter(Boolean).join(" ")}» дууссан — «${chipTxt(ns)}» сонгогдлоо.`; LIVE_NOTE = note; ns.click(); return { msg: note }; }
+  }
+  const msg = LIVE_NOTE; LIVE_NOTE = "";
+  return { msg };
+}
+/* дууссан чипийг дарахад сонгохгүй — оронд нь байгаа хувилбарыг хэлнэ */
+document.addEventListener("click", (e) => {
+  const chip = e.target.closest && e.target.closest('.opt__row[data-opt] .chip.is-out');
+  if (!chip) return;
+  const m = location.hash.match(/^#\/p\/([^/?#]+)/);
+  const p = m ? productBy(decodeURIComponent(m[1])) : null;
+  if (!p || !liveIsOn(p)) return;
+  e.preventDefault(); e.stopPropagation();
+  const R = liveRows();
+  const isColor = chip.closest('.opt__row').dataset.opt === "color";
+  const color = isColor ? chipTxt(chip) : chipTxt(R.c.find((x) => x.classList.contains("is-active")));
+  const size = isColor ? chipTxt(R.s.find((x) => x.classList.contains("is-active"))) : chipTxt(chip);
+  const alt = liveAlternatives(p, color, size);
+  const el = document.getElementById("skuWait");
+  if (el) {
+    el.textContent = `«${[color, isColor ? "" : size].filter(Boolean).join(" ")}» дууссан.` + (alt.length ? ` Бэлэн байгаа: ${alt.join(", ")}.` : "");
+    el.hidden = false;
+  }
+}, true);
 const PREORDER_NOTE =
   "Бараа Хятадаас ирмэгц бид залгаж баталгаажуулаад хүргэнэ. Төлбөрийг хүлээн авахдаа төлнө.";
 /* Said right under the wait, where the wait is read (W8.4): the wait is the
@@ -1891,6 +1958,21 @@ function renderProduct(slug) {
       const cb = right.querySelector("#carBox");
       if (cb) cb.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
+    }
+    /* M8: нөөцтэй барааны дууссан хувилбарыг захиалуулахгүй (сервер ч дахин шалгана) */
+    if (liveIsOn(p)) {
+      const lg = liveGuard(p);
+      const a = skuAvail(p.slug, color, size);
+      if ((lg && lg.allOut) || (a !== null && a < qty)) {
+        const el = right.querySelector("#skuWait");
+        if (el) {
+          const alt = liveAlternatives(p, color, size);
+          el.textContent = lg && lg.allOut ? lg.msg : a !== null && a > 0 ? `«${[color, size].filter(Boolean).join(" ")}» ${a} ширхэг л үлдсэн.` : `«${[color, size].filter(Boolean).join(" ")}» дууссан.` + (alt.length ? ` Бэлэн байгаа: ${alt.join(", ")}.` : "");
+          el.hidden = false;
+          el.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+        return;
+      }
     }
     /* «open» = pressed «Захиалах», counted before the number is checked, so the
        funnel still shows how many wanted to order and how many then gave a number */
