@@ -53,7 +53,7 @@ function renderOrders(DATA, QUERY) {
     + '.btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 2px 1px 0}.btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.stop{color:#d64b4b;border-color:rgba(239,68,68,.45)}.btn:disabled{opacity:.5;cursor:default}'
     + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}td.acts{white-space:normal}@media(max-width:820px){table.ot{table-layout:auto;min-width:900px}}'
     + '.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}.frm .sug{margin-top:4px}.frm .sug button{margin:2px}'
-    + '.dlv{display:block;margin-top:5px;font-size:11.5px;color:var(--mut)}.dlv input{box-sizing:border-box;padding:3px 5px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:12px system-ui,sans-serif;max-width:100%}.dlv.set{color:#2e9a5a;font-weight:600}.dsp{border:1px solid rgba(34,197,94,.35);border-radius:14px;padding:6px 12px 12px;margin:14px 0 18px;background:rgba(34,197,94,.04)}.dsp h3{font-size:13.5px;margin:12px 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}tr.tch td{background:rgba(34,197,94,.10)!important}tr.tch td:first-child{box-shadow:inset 5px 0 0 #22c55e}tr.tlast td{background:rgba(34,197,94,.24)!important}tr.tlast td:first-child{box-shadow:inset 8px 0 0 #16a34a}.tchb{font-size:11px;padding:2px 7px;margin-top:4px}tr.tch .tchb{background:#16a34a;color:#fff;border-color:#16a34a}.tlastb{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:999px;background:#16a34a;color:#fff;font-size:10.5px;font-weight:700}.tchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:4px 0 8px}td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
+    + '.dlv{display:block;margin-top:5px;font-size:11.5px;color:var(--mut)}.dlv input{box-sizing:border-box;padding:3px 5px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:12px system-ui,sans-serif;max-width:100%}.dlv.set{color:#2e9a5a;font-weight:600}.gxbar{margin:6px 0 14px;padding:8px 12px;border:1px dashed var(--ln2);border-radius:10px;font-size:12.5px}.gxbar table{margin-top:8px;font-size:12px;border-collapse:collapse;width:100%}.gxbar td,.gxbar th{border-top:1px solid var(--ln3);padding:4px 6px;text-align:left}.dsp{border:1px solid rgba(34,197,94,.35);border-radius:14px;padding:6px 12px 12px;margin:14px 0 18px;background:rgba(34,197,94,.04)}.dsp h3{font-size:13.5px;margin:12px 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}tr.tch td{background:rgba(34,197,94,.10)!important}tr.tch td:first-child{box-shadow:inset 5px 0 0 #22c55e}tr.tlast td{background:rgba(34,197,94,.24)!important}tr.tlast td:first-child{box-shadow:inset 8px 0 0 #16a34a}.tchb{font-size:11px;padding:2px 7px;margin-top:4px}tr.tch .tchb{background:#16a34a;color:#fff;border-color:#16a34a}.tlastb{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:999px;background:#16a34a;color:#fff;font-size:10.5px;font-weight:700}.tchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:4px 0 8px}td.stk{font-size:11.5px;line-height:1.45}td.stk .ok{color:#2e9a5a;font-weight:700}td.stk .no{color:#d64b4b;font-weight:700}td.stk .sg{display:block;margin-top:3px;color:var(--mut)}td.stk .sg b{color:var(--ink2);font-weight:600}.frm.sku select{min-width:180px}'
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}h2 .cnt{font-size:12px;color:var(--mut);font-weight:500}'
     + 'details.more{margin-top:4px}details.more summary{cursor:pointer;font-size:11.5px;color:var(--mut)}details.more div{font-size:11.5px;color:var(--ink2);margin-top:3px}'
@@ -243,6 +243,12 @@ function renderOrders(DATA, QUERY) {
   // M6 · 📦 ТҮГЭЭЛТ: баталгаажсан, УБ, ачаагүй → хүргэх өдрөөр (хоосон/өнгөрсөн = маргааш). Gyals-д хуулах.
   // M7: эзэн баталсан ЭСВЭЛ нөөцтэй (live) бараа хаягтай захиалсан → дуудлагагүйгээр түгээлтэд. deliver_on-г DB тавина (өгсөн өдөр + 1).
   const dsp = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')));
+  // M9 (2026-10-20): Gyals Excel (татах) + Gyals тайлан (оруулах) — өгөгдлийг клиент скрипт рүү дамжуулна
+  const gxRow = (r) => ({ id: r.order_id, customer: r.customer || '', phone: r.phone || '', district: String(r.district || '').replace(/^Орон нутаг\s*/, ''), address: r.address || '',
+    product: String(r.product || '').split(' · ')[0], variant: r.variant || '', qty: n(r.qty) || 1, amount: Math.round(n(r.amount_mnt)), note: r.confirm_note || '',
+    rural: !!r.is_rural, prepaid: Math.round(n(r.prepaid_mnt)) });
+  const GX = { groups: {}, rship: rShip.map(gxRow), codes: {} };
+  O.forEach((r) => { if (r.order_id) GX.codes[String(r.order_id).slice(0, 8)] = { id: r.order_id, name: r.customer || '', phone: r.phone || '', stage: r.stage }; });
   if (dsp.length) {
     const G = {};
     dsp.forEach((r) => { const k = !r.deliver_on ? TOMORROW : r.deliver_on < TODAY ? TODAY : r.deliver_on; (G[k] = G[k] || []).push(r); });
@@ -253,9 +259,10 @@ function renderOrders(DATA, QUERY) {
       const ok = rows.filter((r) => r.stock_ready_at || r.stock_ok);
       const tsv = ok.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
       const late = rows.filter((r) => r.deliver_on && r.deliver_on < TODAY).length;
+      GX.groups[k] = ok.map(gxRow);
       o('<h3>📅 ' + esc(dLabel(k)) + (late ? ' <span class="pill crit">' + late + ' хоцорсон</span>' : '') + ' <span class="cnt">' + ok.length + ' захиалга · ' + big(ok.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span>'
         + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '')
-        + (ok.length ? ' <button class="btn go cp" data-n="' + ok.length + '" data-tsv="' + esc(tsv).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;') + '">📋 ' + esc(k.slice(5).replace('-', '/')) + '-ны жагсаалт хуулах</button>' : '') + '</h3>');
+        + (ok.length ? ' <button class="btn go cp" data-n="' + ok.length + '" data-tsv="' + esc(tsv).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;') + '">📋 ' + esc(k.slice(5).replace('-', '/')) + '-ны жагсаалт хуулах</button> <button class="btn go gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 ' + esc(k.slice(5).replace('-', '/')) + ' Excel (Gyals)</button>' : '') + '</h3>');
       o('<div class="tw"><table class="ot"><colgroup><col style="width:16%"><col style="width:30%"><col style="width:26%"><col style="width:12%"><col style="width:16%"></colgroup><thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
       rows.forEach((r) => {
         const good = r.stock_ready_at || r.stock_ok;
@@ -269,6 +276,10 @@ function renderOrders(DATA, QUERY) {
     });
     o('</div>');
   }
+  o('<div class="gxbar"><b>Gyals:</b> '
+    + (!dsp.length && rShip.length ? '<button class="btn go gx-dl" data-k="' + TOMORROW + '">📥 Excel (орон нутаг, төлсөн)</button> ' : '')
+    + '<button class="btn gx-up">📤 Gyals тайлан оруулах</button><input type="file" id="gx-file" accept=".xlsx" hidden>'
+    + ' <span class="sm mut">Gyals буцааж явуулсан Excel-ийн «Хүргэлтийн төлөв» баганаар захиалгууд автоматаар Төлсөн / Хойшилсон / Цуцалсан болно (нөөц зөв тоологдоно, мэдэгдэл явахгүй).</span><div id="gx-prev"></div></div>');
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
   o('<div class="tchbar"><span>🟩 ногоон = залгасан/товч дарсан · <b>СҮҮЛД</b> = хамгийн сүүлд ажилласан мөр</span><button class="btn" id="tch-go">↓ Сүүлд залгасан руу очих</button><button class="btn" id="tch-clr" title="Өнөөдрийн тэмдэглэгээг арилгах">Тэмдэглэгээ арилгах</button></div>');
   table(addrMain, 'addressed', 'Шүүлтэд таарах хаягтай захиалга алга');
@@ -319,6 +330,7 @@ function renderOrders(DATA, QUERY) {
     + '(' + ssStockUI.toString() + ')(post,say,reload,e);'
     + '(' + ssTouchUI.toString() + ')();'
     + '(' + ssDeliverUI.toString() + ')(post,say,reload);'
+    + '(' + ssGyalsUI.toString() + ')(post,say,reload,e,' + JSON.stringify(GX).replace(/</g, '\\u003c').replace(/\u2028|\u2029/g, ' ') + ');'
     + '})();</script></body></html>');
   return out.join('');
 }
@@ -435,5 +447,114 @@ function ssDeliverUI(post, say, reload) {
         reload(700);
       }).catch(function () {});
     });
+  });
+}
+
+/* M9 (2026-10-20) · Gyals Excel: «📥 … Excel (Gyals)» — №, Код, огноо, нэр, утас, хаяг, тайлбар, бараа, дүн + «Хүргэлтийн төлөв» (Gyals бөглөнө).
+   «📤 Gyals тайлан оруулах» — буцаж ирсэн файлын Код + төлөвөөр order_action do=gyals (Хүргэсэн/Хойшилсон/Цуцалсан). ExcelJS-ийг cdnjs-ээс дарахад л ачаална. */
+function ssGyalsUI(post, say, reload, e, GX) {
+  var CDN = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+  function lib() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = CDN; s.onload = function () { res(window.ExcelJS); }; s.onerror = function () { rej(new Error('Excel сан ачаалсангүй — интернэтээ шалга')); }; document.head.appendChild(s); });
+  }
+  function parseAddr(a) {
+    a = String(a || ''); var kind = /Шуурхай/.test(a) ? 'Шуурхай' : 'Энгийн';
+    a = a.replace(/\s*\[[^\]]*\]/g, '').trim(); var note = '', extra = '';
+    var m = a.match(/\s*·\s*Тайлбар:\s*(.*)$/); if (m) { note = m[1].trim(); a = a.slice(0, m.index).trim(); }
+    if (/^\d{8}$/.test(note)) { extra = note; note = ''; } else if (/^[\d#*]+$/.test(note)) note = 'Орц/хаалганы код: ' + note; else note = note.replace(/^Код:\s*/, 'Орц/хаалганы код: ');
+    return { addr: a, note: note, extra: extra, kind: kind };
+  }
+  function ownerNote(t) { return String(t || '').split(' · ').filter(function (x) { return x && !/эзэн залгаж|урьдчилж төлсөн|Gyals хойшилсон|самбар/.test(x); }).join('; '); }
+  function cellv(c) { var v = c && c.value; if (v && typeof v === 'object') { if (v.richText) return v.richText.map(function (t) { return t.text; }).join(''); if ('result' in v) return v.result; if (v.text) return v.text; } return v == null ? '' : String(v); }
+  function download(k) {
+    var ub = (GX.groups[k] || []), paid = (Object.keys(GX.groups).sort()[0] === k || !Object.keys(GX.groups).length) ? GX.rship : [];
+    if (!ub.length && !paid.length) { say('out-o', 'Энэ өдөрт Gyals-д өгөх захиалга алга', true); return; }
+    lib().then(function (ExcelJS) {
+      var wb = new ExcelJS.Workbook(), ws = wb.addWorksheet(k.slice(5) + ' хүргэлт', { views: [{ state: 'frozen', xSplit: 2, ySplit: 4 }] });
+      var H = ['№', 'Код', 'Хүргэх огноо', 'Хүлээн авагч', 'Утас', 'Нэмэлт утас', 'Дүүрэг/хороо · аймаг', 'Дэлгэрэнгүй хаяг', 'Тайлбар (код, байршил)', 'Бараа', 'Өнгө/размер', 'Тоо', 'Авах дүн (₮)', 'Төлбөр', 'Хүргэлтийн төрөл', 'Хүргэлтийн төлөв (Gyals бөглөнө)', 'Gyals тайлбар'];
+      var W = [5, 10, 11, 18, 11, 11, 20, 36, 28, 22, 12, 6, 12, 15, 11, 18, 24], NC = H.length;
+      W.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+      var F = { name: 'Arial', size: 10 }, thin = { style: 'thin', color: { argb: 'FFBFBFBF' } }, B = { top: thin, left: thin, bottom: thin, right: thin };
+      var wd = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'][new Date(k + 'T12:00:00+08:00').getUTCDay()];
+      ws.mergeCells(1, 1, 1, NC); ws.getCell(1, 1).value = 'Starshopping → Gyals хүргэлт · Хүргэх огноо: ' + k + ' (' + wd + ')'; ws.getCell(1, 1).font = { name: 'Arial', size: 13, bold: true };
+      ws.mergeCells(2, 1, 2, NC); ws.getCell(2, 1).value = 'Илгээгч: Starshopping · 9550-5717 · ' + (paid.length ? '1-р хэсэг ТӨЛСӨН (мөнгө авахгүй) · 2-р хэсэг ТӨЛӨӨГҮЙ («Авах дүн»-г авна)' : 'Бүх захиалга хүргэлтээр төлнө — «Авах дүн»-г авна') + ' · Хүргэсний дараа «Хүргэлтийн төлөв»-ийг бөглөж буцааж явуулна уу: Хүргэсэн / Хойшилсон / Цуцалсан.'; ws.getCell(2, 1).font = { name: 'Arial', size: 10, italic: true };
+      var hr = ws.getRow(4); H.forEach(function (h, i) { var c = hr.getCell(i + 1); c.value = h; c.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i >= 15 ? 'FF7F6000' : 'FF1F4E78' } }; c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }; c.border = B; });
+      hr.height = 30;
+      var r = 4, num = 0, sums = [];
+      function section(t, color) { r++; ws.mergeCells(r, 1, r, NC); var c = ws.getCell(r, 1); c.value = t; c.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } }; }
+      function put(vals, fill) {
+        r++; var row = ws.getRow(r);
+        vals.forEach(function (v, i) { var c = row.getCell(i + 1); c.value = v; c.font = Object.assign({}, F, { bold: i === 0 || i === 4 || i === 12 }); c.alignment = { wrapText: true, vertical: 'top', horizontal: (i === 0 || i === 2 || i === 11 || i === 14) ? 'center' : 'left' }; c.border = B; if (fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; });
+        row.getCell(13).numFmt = '#,##0'; row.getCell(2).font = { name: 'Arial', size: 8, color: { argb: 'FF808080' } };
+        row.getCell(16).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Хүргэсэн,Хойшилсон,Цуцалсан"'] }; row.getCell(16).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF9E6' } };
+      }
+      function total(first, label) {
+        r++; ws.mergeCells(r, 1, r, 11); ws.getCell(r, 1).value = label; ws.getCell(r, 12).value = { formula: 'SUM(L' + first + ':L' + (r - 1) + ')' }; ws.getCell(r, 13).value = { formula: 'SUM(M' + first + ':M' + (r - 1) + ')' }; ws.getCell(r, 13).numFmt = '#,##0'; ws.getCell(r, 14).value = (r - first) + ' захиалга';
+        for (var i = 1; i <= NC; i++) { var c = ws.getCell(r, i); c.font = { name: 'Arial', size: 10, bold: true }; c.border = B; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } }; }
+        sums.push(r);
+      }
+      var first;
+      if (paid.length) {
+        section('1. ТӨЛБӨР ТӨЛСӨН — орон нутаг (мөнгө АВАХГҮЙ, унаанд тавина)', 'FF2E7D32'); first = r + 1;
+        paid.forEach(function (x) { var a = parseAddr(x.address); num++; put([num, x.id.slice(0, 8), k, x.customer || '—', x.phone, a.extra, x.district, a.addr || x.district, ['Урьдчилж төлсөн — мөнгө авахгүй', a.note, ownerNote(x.note)].filter(Boolean).join('; '), x.product, x.variant, x.qty, 0, 'ТӨЛСӨН ' + Number(x.prepaid || x.amount).toLocaleString('en-US') + '₮', 'Орон нутаг', '', ''], 'FFE2EFDA'); });
+        total(first, 'Төлсөн — дүн');
+      }
+      if (ub.length) {
+        section((paid.length ? '2. ' : '') + 'ТӨЛБӨР ТӨЛӨӨГҮЙ — Улаанбаатар (хүргэхдээ «Авах дүн»-г авна)', 'FFC55A11'); first = r + 1;
+        ub.forEach(function (x) { var a = parseAddr(x.address); num++; put([num, x.id.slice(0, 8), k, x.customer || '—', x.phone, a.extra, x.district, a.addr, [a.note, ownerNote(x.note)].filter(Boolean).join('; '), x.product, x.variant, x.qty, x.amount, 'Хүргэлтээр төлнө', a.kind, '', ''], a.kind === 'Шуурхай' ? 'FFFFF2CC' : null); });
+        total(first, 'Төлөөгүй — авах дүн');
+      }
+      r++; ws.mergeCells(r, 1, r, 11); ws.getCell(r, 1).value = 'НИЙТ';
+      ws.getCell(r, 12).value = { formula: sums.map(function (x) { return 'L' + x; }).join('+') }; ws.getCell(r, 13).value = { formula: sums.map(function (x) { return 'M' + x; }).join('+') }; ws.getCell(r, 13).numFmt = '#,##0'; ws.getCell(r, 14).value = num + ' захиалга';
+      for (var i = 1; i <= NC; i++) { var c = ws.getCell(r, i); c.font = { name: 'Arial', size: 11, bold: true }; c.border = B; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }; }
+      ws.getCell(r + 2, 1).value = '«Код» баганыг бүү өөрчил — тайланг буцааж оруулахад хэрэгтэй. Шар мөр = Шуурхай хүргэлт, ногоон = урьдчилж төлсөн.'; ws.getCell(r + 2, 1).font = { name: 'Arial', size: 9, italic: true };
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '4:4' };
+      return wb.xlsx.writeBuffer();
+    }).then(function (buf) {
+      if (!buf) return;
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = 'Starshopping-Gyals-' + k + '.xlsx'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      say('out-o', 'Excel татагдлаа: Starshopping-Gyals-' + k + '.xlsx — Gyals руу илгээ');
+    }).catch(function (x) { say('out-o', x.message || String(x), true); });
+  }
+  document.querySelectorAll('.gx-dl').forEach(function (b) { b.addEventListener('click', function () { download(b.dataset.k); }); });
+  var up = document.querySelector('.gx-up'), inp = document.getElementById('gx-file'), prev = document.getElementById('gx-prev');
+  if (!up || !inp || !prev) return;
+  up.addEventListener('click', function () { inp.value = ''; inp.click(); });
+  inp.addEventListener('change', function () {
+    var f = inp.files && inp.files[0]; if (!f) return;
+    prev.innerHTML = '<span class="sm mut">Уншиж байна…</span>';
+    Promise.all([lib(), f.arrayBuffer()]).then(function (z) { var wb = new z[0].Workbook(); return wb.xlsx.load(z[1]).then(function () { return wb; }); }).then(function (wb) {
+      var items = [], bad = [];
+      wb.worksheets.forEach(function (ws) {
+        var hdr = 0, col = {};
+        for (var i = 1; i <= Math.min(12, ws.rowCount) && !hdr; i++) {
+          var row = ws.getRow(i), c = {};
+          row.eachCell(function (cell, n) { var t = String(cellv(cell)).trim(); if (t === 'Код') c.code = n; if (/Хүргэлтийн төлөв/.test(t)) c.status = n; if (/Gyals тайлбар/.test(t)) c.note = n; if (t === 'Утас') c.phone = n; if (t === 'Хүлээн авагч') c.name = n; });
+          if (c.status && (c.code || c.phone)) { hdr = i; col = c; }
+        }
+        if (!hdr) return;
+        for (var j = hdr + 1; j <= ws.rowCount; j++) {
+          var rw = ws.getRow(j), st = String(cellv(rw.getCell(col.status)) || '').trim(); if (!st) continue;
+          var code = col.code ? String(cellv(rw.getCell(col.code)) || '').trim().toLowerCase() : '', ph = col.phone ? String(cellv(rw.getCell(col.phone)) || '').replace(/\D/g, '') : '';
+          if (!/^[0-9a-f]{8}$/.test(code) && ph.length !== 8) continue; // гарчиг/нийлбэр мөр
+          var hit = code && GX.codes[code];
+          if (!hit && ph) { var ks = Object.keys(GX.codes).filter(function (kk) { return String(GX.codes[kk].phone).replace(/\D/g, '') === ph && ['order', 'confirmed'].indexOf(GX.codes[kk].stage) >= 0; }); if (ks.length === 1) hit = GX.codes[ks[0]]; }
+          var note = col.note ? String(cellv(rw.getCell(col.note)) || '').trim() : '';
+          if (hit) items.push({ id: hit.id, name: hit.name, phone: hit.phone, status: st, note: note }); else bad.push((code || ph || ('мөр ' + j)) + ' · ' + st);
+        }
+      });
+      if (!items.length) { prev.innerHTML = '<span class="sm" style="color:#d64b4b">⚠️ Файлд «Хүргэлтийн төлөв» бөглөгдсөн мөр олдсонгүй' + (bad.length ? ' (танигдаагүй: ' + e(bad.join(', ')) + ')' : '') + '</span>'; return; }
+      var cnt = { d: 0, p: 0, c: 0, x: 0 }; items.forEach(function (it) { var s = it.status.toLowerCase(); if (/хүрг/.test(s)) cnt.d++; else if (/хойш/.test(s)) cnt.p++; else if (/цуц|татгал|буц/.test(s)) cnt.c++; else cnt.x++; });
+      prev.innerHTML = '<table><tr><th>Хэн</th><th>Утас</th><th>Gyals төлөв</th><th>Тайлбар</th></tr>' + items.map(function (it) { return '<tr><td>' + e(it.name || '—') + '</td><td>' + e(it.phone) + '</td><td><b>' + e(it.status) + '</b></td><td>' + e(it.note) + '</td></tr>'; }).join('') + '</table>'
+        + (bad.length ? '<div class="sm" style="color:#d64b4b">Танигдаагүй мөр: ' + e(bad.join(', ')) + '</div>' : '')
+        + '<div style="margin-top:6px"><button class="btn go" id="gx-apply">✓ ' + items.length + ' мөрийг оруулах</button> <span class="sm mut">Хүргэсэн ' + cnt.d + ' · Хойшилсон ' + cnt.p + ' · Цуцалсан ' + cnt.c + (cnt.x ? ' · танигдаагүй ' + cnt.x : '') + '</span></div>';
+      document.getElementById('gx-apply').addEventListener('click', function () {
+        var btn = this; btn.disabled = true; var ok = 0, fail = [];
+        items.reduce(function (pr, it) { return pr.then(function () { return post({ action: 'order', order_id: it.id, do: 'gyals', status: it.status, note: it.note || undefined, by: 'gyals тайлан' }, null, null).then(function () { ok++; }).catch(function (x) { fail.push((it.name || it.phone) + ': ' + (x.message || 'алдаа')); }); }); }, Promise.resolve())
+          .then(function () { say('out-o', 'Gyals тайлан: ' + ok + ' мөр орлоо' + (fail.length ? ' · алдаа ' + fail.length + ': ' + fail.join('; ') : ''), fail.length > 0); reload(1500); });
+      });
+    }).catch(function (x) { prev.innerHTML = '<span class="sm" style="color:#d64b4b">⚠️ ' + e(x.message || String(x)) + '</span>'; });
   });
 }
