@@ -240,9 +240,26 @@ function renderOrders(DATA, QUERY) {
   const isWait = (r) => !!r.deliver_sms_at && r.stage === 'order' && !r.shipped_at;
   const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r));
   const addrWait = addressed.filter((r) => !isAct(r) && isWait(r)).sort((a, b) => new Date(a.deliver_sms_at) - new Date(b.deliver_sms_at));
+  // M11 (2026-10-20): 📦 НӨӨЦ ЗАХИАЛГА — чатаар дууссан хувилбарыг ~10–14 хоногт захиалсан. Хувилбараар бүлэглэнэ (1688-д захиалах тоо).
+  // Бараа ирж хүлээн авмагц stock_reallocate оноож (stock_ok) — тэгэхэд л түгээлтэд орно.
+  const isBO = (r) => /нөөц захиалга/i.test(String(r.review_reason || '')) && ['lead', 'order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && !(r.stock_ready_at || r.stock_ok);
+  const bo = O.filter(isBO);
+  if (bo.length) {
+    const BG = {};
+    bo.forEach((r) => { const k = String(r.product || '').split(' · ')[0] + (r.variant ? ' · ' + r.variant : ''); (BG[k] = BG[k] || []).push(r); });
+    o('<div class="dsp"><h2 style="margin-top:10px">📦 Нөөц захиалга — бараа авчрах <span class="cnt">' + bo.length + ' захиалга · ' + bo.reduce((s, r) => s + (n(r.qty) || 1), 0) + 'ш</span></h2>');
+    o('<p class="sm mut">Чатаар дууссан хувилбарыг «ойролцоогоор 10–14 хоногт» гэж захиалсан. 1688-д захиалах тоо = «Ширхэг». Бараа ирж хүлээн авмагц систем автоматаар оноож, түгээлтэд оруулна.</p>');
+    o('<div class="tw"><table class="ot"><thead><tr><th>Хувилбар</th><th>Ширхэг</th><th>Хэн · хэзээ</th></tr></thead><tbody>');
+    Object.keys(BG).sort().forEach((k) => {
+      const rows = BG[k].slice().sort((a, b) => new Date(a.placed_at) - new Date(b.placed_at));
+      o('<tr data-keep="bo-' + esc(k) + '"><td><b>' + esc(k) + '</b></td><td>' + rows.reduce((s, r) => s + (n(r.qty) || 1), 0) + '</td><td>'
+        + rows.map((r) => esc(r.customer || '—') + ' <a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a> <span class="sm mut">' + esc(ago(r.placed_at)) + '</span>').join('<br>') + '</td></tr>');
+    });
+    o('</tbody></table></div></div>');
+  }
   // M6 · 📦 ТҮГЭЭЛТ: баталгаажсан, УБ, ачаагүй → хүргэх өдрөөр (хоосон/өнгөрсөн = маргааш). Gyals-д хуулах.
   // M7: эзэн баталсан ЭСВЭЛ нөөцтэй (live) бараа хаягтай захиалсан → дуудлагагүйгээр түгээлтэд. deliver_on-г DB тавина (өгсөн өдөр + 1).
-  const dsp = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')));
+  const dsp = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')) && !isBO(r));
   // M9 (2026-10-20): Gyals Excel (татах) + Gyals тайлан (оруулах) — өгөгдлийг клиент скрипт рүү дамжуулна
   const gxRow = (r) => ({ id: r.order_id, customer: r.customer || '', phone: r.phone || '', district: String(r.district || '').replace(/^Орон нутаг\s*/, ''), address: r.address || '',
     product: String(r.product || '').split(' · ')[0], variant: r.variant || '', qty: n(r.qty) || 1, amount: Math.round(n(r.amount_mnt)), note: r.confirm_note || '',
