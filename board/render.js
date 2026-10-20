@@ -322,6 +322,21 @@ draw();
     kpi('Чөлөөт мөнгө', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : '');
     kpi('Сарын тааз', over.length ? '🔴 давсан' : warn.length ? '🟡 80%+' : '✓', over.length ? over.join(', ') + ' давсан' : warn.length ? warn.join(', ') + ' 80%-д хүрсэн' : caps.map((c) => c.label + ' ' + short(c.spent) + (has(c.cap) ? '/' + short(c.cap) : '')).join(' · '), over.length ? 'crit' : warn.length ? 'warn' : 'good');
     P('</div>');
+    // M13 (2026-10-21): зорилгын сангууд — явц
+    const GV = EN.goals || null;
+    if (GV && Array.isArray(GV.goals) && GV.goals.length) {
+      const PV = GV.prev || {};
+      P('<div class="sec"><b>Зорилгын сангууд</b><span class="sd">ашиг → эргэлт ' + n((GV.split || {}).reinvest) + '% · нөөц ' + n((GV.split || {}).reserve) + '% · зорилго ' + n((GV.split || {}).invest) + '%'
+        + (PV.month && !PV.closed ? ' · <span class="warn">' + esc(String(PV.month).slice(0, 7)) + ' сар хаагдаагүй</span>' : '') + '</span></div>');
+      P('<div class="krow krow4">');
+      GV.goals.slice(0, 4).forEach((g) => {
+        const pct = has(g.pct) ? Math.max(0, Math.min(100, n(g.pct))) : null;
+        kpi((g.emoji || '🎯') + ' ' + g.name, (pct !== null ? pct + '%' : short(g.saved_mnt)),
+          (has(g.target_mnt) ? short(g.saved_mnt) + ' / ' + short(g.target_mnt) : 'хуримтлагдсан') + ' · энэ сард ~' + short(g.plan_this_month) + (has(g.months_left) ? ' · ~' + n(g.months_left) + ' сар' : '') + ' · ' + ((g.vehicle || {}).where || ''),
+          pct === null ? '' : pct >= 100 ? 'good' : pct >= 50 ? 'warn' : '');
+      });
+      P('</div>');
+    }
   }
   P('<script>(function(){var r=document.getElementById("mrow");if(!r)return;var K="ss_home_per";'
     + 'function set(p){r.setAttribute("data-per",p);var s=document.getElementById("perSeg");if(s)Array.prototype.forEach.call(s.querySelectorAll("button"),function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
