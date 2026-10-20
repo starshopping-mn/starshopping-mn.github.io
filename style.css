@@ -704,6 +704,9 @@ a { color: inherit; text-decoration: none; }
   transition: all 0.25s ease;
 }
 .chip.is-active { border-color: var(--fg); background: var(--fg); color: var(--on-fg); font-weight: 600; }
+/* M8: нөөцтэй барааны дууссан хувилбар — сонгогдохгүй */
+.chip.is-out { opacity: 0.4; text-decoration: line-through; border-style: dashed; cursor: not-allowed; }
+.chip.is-out.is-active { background: transparent; color: var(--fg-dim); }
 
 /* bundle picker — the saving has to be legible at a glance or it does not
    change what people buy */
