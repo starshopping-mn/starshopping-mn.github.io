@@ -20,6 +20,7 @@
     l.rel = rel; l.href = href;
     if (as) l.as = as;
     if (as === "image") { l.type = "image/webp"; l.setAttribute("fetchpriority", "high"); }
+    if (as === "font") { l.type = "font/woff2"; l.crossOrigin = ""; } // fonts are fetched anonymously; without this the preload is wasted
     if (rel === "preconnect") l.crossOrigin = "";
     head.appendChild(l);
   };
@@ -59,6 +60,9 @@
        only the front door scrolls into the lens, so only the front door
        fetches it; script.js attaches it once it is on hand (`loadMotion`). */
     hint("preload", "assets/hero-camera.webp", "image");
+    // the two words beside it are set in their own face on a phone (style.css,
+    // .hero__word); a product link never shows them, so only the door asks
+    hint("preload", "assets/fonts/anton-latin.woff2", "font");
   }
 })();
 </script>
