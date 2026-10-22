@@ -522,6 +522,30 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   // Товч = WF45 «Зар асаагч» webhook → DB хүсэлт → Meta аудит (нэр, AN, Advantage+, review) → зөвхөн ногоон бол ACTIVE.
   // Асаах нь мөнгө зарцуулах үйлдэл тул зөвхөн эзний товч; энд автомат асаалт байхгүй.
   cur = B.adsctl;
+  // ── «ТӨСӨВ НЭМЭХ ҮҮ?» (CC, 2026-10-22): budget_signal (board_read view=budget), ad set бүрт 4 төлөв.
+  //    Зөвхөн зөвлөнө — төсвийг эзэн Ads Manager-т өөрөө өөрчилнө (мөнгөний үйлдэл).
+  const BS = d.budget && Array.isArray(d.budget.items) ? d.budget.items : null;
+  const BSI = { grow: ['🟢', 'ok', 'g'], hold: ['🟡', 'warn', 'w'], stock: ['🟠', 'warn', 'w'], cut: ['🔴', 'crit', 'c'] };
+  const usd = (v) => (has(v) ? '$' + n(v).toFixed(2) : '—');
+  const bkv = (l, v, c) => '<div><span class="l">' + esc(l) + '</span><div class="v ' + (c || '') + '">' + esc(v) + '</div></div>';
+  if (BS && BS.length) {
+    P('<h3 class="h4">Төсөв нэмэх үү?</h3>');
+    BS.forEach((b) => {
+      const ic = BSI[b.state] || ['·', '', ''];
+      P('<div class="bud4 ' + esc(b.state) + '"><div class="bh"><b>' + ic[0] + ' ' + esc(b.title) + '</b><span>' + esc(b.product || b.adset || '') + '</span></div>');
+      P('<div class="bw">' + esc(b.why || '') + '</div>');
+      if (has(b.suggest_usd)) P('<div class="bs">Санал: өдрийн төсөв ' + esc(usd(b.budget_usd)) + ' → <b>' + esc(usd(b.suggest_usd)) + '</b> (≈ ' + esc(mnt(b.suggest_mnt)) + ') · Ads Manager-т та өөрөө өөрчилнө</div>');
+      P('<div class="k4">' + bkv('өдрийн төсөв', usd(b.budget_usd) + ' ≈ ' + mnt(b.budget_mnt))
+        + bkv('өнөөдөр', mnt(b.spend_today_mnt) + ' · ' + n(b.orders_today) + ' захиалга')
+        + bkv('3 хоног: зардал/захиалга', has(b.cpo3_mnt) ? mnt(b.cpo3_mnt) : '—', has(b.cpo3_mnt) && has(b.target_mnt) ? (n(b.cpo3_mnt) <= n(b.target_mnt) ? 'g' : (n(b.cpo3_mnt) > n(b.breakeven_mnt) ? 'c' : 'w')) : '')
+        + bkv('нөөц хүрэх', has(b.cover_days) ? b.cover_days + ' хоног' : '—', has(b.cover_days) ? (n(b.cover_days) >= 7 ? 'g' : (n(b.cover_days) < 5 ? 'c' : 'w')) : '') + '</div>');
+      P('<ul class="bc">' + (b.checks || []).map((c) => '<li class="' + (c.ok ? 'y' : 'x') + '">' + (c.ok ? '✓' : '✗') + ' ' + esc(c.text) + '</li>').join('') + '</ul>');
+      if (Array.isArray(b.key_sizes) && b.key_sizes.length) P('<div class="note4">Гол размер: ' + b.key_sizes.map((k) => esc(k.sku) + ' ' + n(k.avail) + 'ш (' + esc(k.days) + ' хоног)').join(' · ') + '</div>');
+      P('<div class="note4">Ашгийн босго ' + esc(mnt(b.breakeven_mnt)) + '/захиалга · өсгөх зорилт ' + esc(mnt(b.target_mnt)) + ' · хурд ' + esc(has(b.rate_per_day) ? b.rate_per_day : '—') + '/өдөр' + (n(b.in_transit) ? ' · замд ' + n(b.in_transit) + 'ш' : '') + '</div></div>');
+    });
+  } else if (d.budget && d.budget.ok) {
+    P('<div class="note4">Төсвийн дохио: идэвхтэй ad set алга (эсвэл n8n 18 хараахан ad set-ийн төсөв татаагүй — 3 цаг тутам).</div>');
+  }
   const AC = d.adsctl && Array.isArray(d.adsctl.ads) ? d.adsctl : null;
   if (!AC) {
     P('<div class="em">Зарын төлөв ачаалагдсангүй (board_read «adsctl» / ads_control).</div>');
@@ -966,6 +990,10 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     P('<li><span class="cnt ' + cls + '">' + c[1] + '</span><span class="tt4">' + esc(c[0]) + '</span>' + (c[1] > 0 ? '<a class="go4" href="' + c[3].replace(/&/g, '&amp;') + '">Нээх</a>' : '<span></span>') + '</li>');
   });
   if (acOn !== null) P('<li><span class="cnt ' + (acOn ? 'ok' : '') + '">' + acOn + '</span><span class="tt4">Зар асаалттай<small>' + (acWait ? acWait + ' товлосон · ' : '') + 'зардал 24ц ' + mnt(PU.spend_mnt) + '</small></span><button type="button" class="go4" data-open="crea">Удирдах</button></li>');
+  (BS || []).forEach((b) => {
+    const ic = BSI[b.state] || ['·', '', ''];
+    P('<li><span class="cnt ' + ic[1] + '">' + ic[0] + '</span><span class="tt4">Төсөв: ' + esc(b.title) + '<small>' + esc(b.why || '') + '</small></span><button type="button" class="go4" data-open="crea">Нээх</button></li>');
+  });
   P('</ol>');
   P('<div class="ph sub"><b>Хийх ажил</b><span class="n">' + NEXT.length + '</span></div>');
   if (!NEXT.length) P('<div class="em4">Хийх яаралтай зүйл алга.</div>');
