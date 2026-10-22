@@ -51,7 +51,7 @@ function renderBoard(DATA, QUERY) {
   const H = [];
   // Нүүр v3 (2026-10-22): хэсгүүдийг тусдаа буферт зурж, төгсгөлд нь бүсээр (Өнөөдөр → Зар → Мөнгө → Зураглал → …) эрэмбэлнэ.
   // Код хөдөлгөхгүй — зөвхөн cur-ийг сольж бичнэ. Мэдээлэл нэгийг ч хасаагүй, зөвхөн дараалал.
-  const B = { today: [], adsctl: [], ads: [], money: [], rep: [], map: [], ops: [], work: [], crea: [], prod: [] };
+  const B = { today: [], adsctl: [], ads: [], moneybar: [], money: [], rep: [], map: [], ops: [], work: [], tests: [], crea: [], prod: [] };
   let cur = H;
   const P = (s) => cur.push(s);
 
@@ -244,18 +244,20 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<!doctype html><html lang="mn"' + (themeQ ? ' data-theme="' + themeQ + '"' : '') + '><head><meta charset="utf-8">');
   P('<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">');
   P('<meta name="color-scheme" content="light dark">');
-  P('<title>Starshopping · Систем зураглал</title>');
+  P('<title>Starshopping · Самбар</title>');
+  P('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">');
   // Where storage does exist (a browser without the sandbox), it still restores
   // the last choice before first paint; the try/catch swallows the sandbox error.
   if (!themeQ) P('<script>(function(){try{var t=localStorage.getItem("ss_board_theme");'
     + 'if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>');
   P('<style>');
   P('.nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 6px}.nav a{padding:8px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}');
-  P('</style></head><body><div class="w">');
+  P('</style></head><body class="v4"><div class="w w4">');
 
   const gen = String(d.generated_at || '').replace('T', ' ').slice(0, 16);
   P('<header><div class="hd"><div class="bm">S</div><div>');
-  P('<div class="bt">Starshopping</div><div class="bs">Систем зураглал · ' + esc(gen) + ' UTC</div></div>');
+  P('<div class="bt">Starshopping</div><div class="bs">самбар · ' + esc(gen) + ' UTC</div></div>');
+  P(typeof ssNav === 'function' ? ssNav('home', themeQ) : '');
   P('<div class="sp"></div>');
   P('<a class="chip gold" href="/board/?view=tests' + (themeQ ? '&theme=' + themeQ : '') + '">▶ Тест</a>');
   const alive = n(PU.msg_in) > 0 || n(PU.orders) > 0;
@@ -272,7 +274,6 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<span class="chip">Meta · Supabase · Claude · Telegram</span>');
   P('<a class="rf" href="">Шинэчлэх</a>');
   P('</div></header>');
-  P(typeof ssNav === 'function' ? ssNav('home', themeQ) : '');
 
   function kpi(l, v, s, cls) {
     P('<div class="k ' + (cls || '') + '"><div class="kl">' + esc(l) + '</div><div class="kv">' + esc(v) + '</div>');
@@ -336,14 +337,23 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   }
   const mRange = (M) => (M ? esc(String(M.from || '').slice(5) + ' → ' + String(M.to || '').slice(5)) : '');
   cur = B.money;
-  P('<div id="mrow" data-per="m"><div class="sec"><b>Орлого · зардал · цэвэр</b>'
+  P('<div class="mrow2" data-per="m"><div class="sec"><b>Орлого · зардал · цэвэр</b>'
     + '<span class="sd per m">' + mRange(MM) + '</span><span class="sd per a">' + mRange(MA) + ' · эхнээс</span><span class="sp"></span>'
-    + '<span class="seg" id="perSeg"><button type="button" class="pt on" data-p="m">Энэ сар</button><button type="button" class="pt" data-p="a">Нийт</button></span></div>');
+    + '<span class="seg perseg"><button type="button" class="pt on" data-p="m">Энэ сар</button><button type="button" class="pt" data-p="a">Нийт</button></span></div>');
   P('<div class="krow krow3">');
   moneyTile('inc', 'Орлого');
   moneyTile('exp', 'Зардал');
   moneyTile('net', 'Цэвэр');
-  P('</div></div>');
+  P('</div>');
+  // v4: доод мөнгөний мөр — ижил moneyPer тоонууд (сар/нийт toggle #mrow-той хамт), дэлгэрэнгүй нь доорх «Мөнгө» хэсэгт
+  cur = B.moneybar;
+  const barTile = (kind, label) => {
+    const a = moneyPer(kind, MM, 'm'), b = moneyPer(kind, MA, 'a');
+    P('<div class="mb"><div class="l">' + esc(label) + (kind === 'inc' ? '<span class="seg perseg"><button type="button" class="pt on" data-p="m">сар</button><button type="button" class="pt" data-p="a">нийт</button></span>' : '') + '</div>' + a.s + b.s + '</div>');
+  };
+  P('<div class="money4" id="mrow" data-per="m">');
+  barTile('inc', 'Орлого (төлөгдсөн)'); barTile('exp', 'Зардал'); barTile('net', 'Цэвэр');
+  cur = B.money;
   // M12 (2026-10-20): Мөнгөний хөдөлгүүр — Мөнгө хуудасны engine-тэй ижил 4 тоо (бэлэн · нөөц сан · чөлөөт · тааз)
   const EN = (MM && MM.engine) || (MA && MA.engine) || null;
   if (EN) {
@@ -352,6 +362,13 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     const over = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= n(c.cap)).map((c) => c.label);
     const warn = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= 0.8 * n(c.cap) && n(c.spent) < n(c.cap)).map((c) => c.label);
     P('<div class="sec"><b>Мөнгөний хөдөлгүүр</b><span class="sd">бэлэн → нөөц сан → чөлөөт → хөрөнгө оруулалт · <a href="/board/?view=money' + (themeQ ? '&amp;theme=' + themeQ : '') + '">Мөнгө хуудас</a></span></div>');
+    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') : 'баланс оруулаагүй', ''],
+      ['нөөц сан', has(ER.pct) ? n(ER.pct) + '%' : '—', short(ER.now) + ' / ' + short(ER.target), n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit'],
+      ['чөлөөт', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : ''],
+      ['сарын тааз', over.length ? 'давсан' : warn.length ? '80%+' : '✓', over.length ? over.join(', ') : warn.length ? warn.join(', ') : 'хязгаарт', over.length ? 'crit' : warn.length ? 'warn' : 'good']];
+    cur = B.moneybar;
+    EB.forEach((e) => P('<div class="mb mini"><div class="l">' + esc(e[0]) + '</div><div class="kv ' + e[3] + '">' + esc(e[1]) + '</div><div class="ks">' + esc(e[2]) + '</div></div>'));
+    cur = B.money;
     P('<div class="krow krow4">');
     kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
     kpi('Нөөц сан', (has(ER.pct) ? n(ER.pct) + '%' : '—'), short(ER.now) + ' / ' + short(ER.target) + ' · ' + n(ER.months) + ' сарын систем + татан авалт', n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit');
@@ -374,10 +391,13 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       P('</div>');
     }
   }
-  P('<script>(function(){var r=document.getElementById("mrow");if(!r)return;var K="ss_home_per";'
-    + 'function set(p){r.setAttribute("data-per",p);var s=document.getElementById("perSeg");if(s)Array.prototype.forEach.call(s.querySelectorAll("button"),function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
+  P('</div>');
+  cur = B.moneybar;
+  P('</div>');
+  P('<script>(function(){var K="ss_home_per";var rs=document.querySelectorAll("[data-per]");if(!rs.length)return;'
+    + 'function set(p){rs.forEach(function(r){r.setAttribute("data-per",p)});document.querySelectorAll(".perseg button").forEach(function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
     + 'var p="m";try{p=localStorage.getItem(K)==="a"?"a":"m"}catch(e){}set(p);'
-    + 'var s=document.getElementById("perSeg");if(s)s.addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var q=b.getAttribute("data-p");try{localStorage.setItem(K,q)}catch(x){}set(q)})})();</script>');
+    + 'document.addEventListener("click",function(e){var b=e.target.closest(".perseg button");if(!b)return;var q=b.getAttribute("data-p");try{localStorage.setItem(K,q)}catch(x){}set(q)})})();</script>');
 
   cur = B.ops;
   P('<div class="krow krow5">');
@@ -641,7 +661,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   ];
 
   cur = B.map;   // 3D зураглал — эзний шаардлага: хэвээр үлдэнэ
-  P('<div class="stage"><div class="scene">');
+  P('<div class="stage"><div class="sbox"><div class="scene">');
   P('<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Системийн зураглал">');
   // Shared shading resources. Colour-free on purpose: they multiply whatever token
   // sits underneath, so the same defs serve both themes and every object.
@@ -735,19 +755,31 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     + (testAction ? '.5' : '0') + '">' + esc(testAction || 'тест алга') + '</text>');
   P('</g></svg>');
 
+  const chip = (t, c) => '<span class="' + (c || '') + '">' + esc(t) + '</span>';
+  const acOn = AC ? AC.ads.filter((a) => a.effective_status === 'ACTIVE').length : null;
+  const acWait = AC ? AC.ads.filter((a) => a.pending).length : 0;
+  const acRev = AC ? AC.ads.filter((a) => !a.pending && (a.effective_status === 'PENDING_REVIEW' || a.effective_status === 'IN_PROCESS')).length : 0;
+  const CHIPS = {
+    prod: chip(n(C.products) + ' амьд', 'on') + (lowStock.length ? chip(lowStock.length + ' нөөц бага', 'w') : chip('нөөц ✓')),
+    crea: (acOn === null ? '' : chip(acOn + ' on', acOn ? 'on' : '')) + (acWait ? chip(acWait + ' 07:00', 'w') : '') + (acRev ? chip(acRev + ' review', 'w') : ''),
+    chat: n(PU.msg_in) ? chip(n(PU.msg_in) + ' мессеж', 'on') : chip('чимээгүй'),
+    ordr: (n(C.needs_review) ? chip(n(C.needs_review) + ' шалгах', 'c') : '') + chip(n(PU.orders) + ' өнөөдөр', n(PU.orders) ? 'on' : ''),
+    conf: (n(C.awaiting_confirm) ? chip(n(C.awaiting_confirm) + ' хүлээж', 'w') : '') + (toCall.length ? chip(toCall.length + ' залгах', 'c') : ''),
+    delv: (stalled.length ? chip(stalled.length + ' гацсан', 'c') : '') + chip(has(DR.pct) ? 'бодит ' + DR.pct + '%' : 'хүргэсэн ' + n(PU.delivered))
+  };
   pos.forEach((o, i) => {
     const p = o.p, cd = CARD[i], cols = ST[p.st];
     const stl = 'left:' + cd.l + '%;' + (cd.b === undefined ? 'top:' + cd.t : 'bottom:' + cd.b)
       + '%;width:' + cd.w + '%;--st:' + cols[3];
-    P(p.href ? '<a class="pc" target="_blank" rel="noopener" href="' + BASE + p.href + '" style="' + stl + '">'
-             : '<div class="pc" style="' + stl + '">');
+    // v4: карт = станц. Дарвал баруун талын дэлгэрэнгүй цонх нээгдэнэ (маягтын холбоос цонхонд).
+    P('<button type="button" class="pc" data-id="' + p.id + '" style="' + stl + '">');
     P('<div class="pct"><span class="pcd"></span>' + esc(p.t) + '</div>');
     P('<div class="pcv">' + esc(short(p.v)) + '<em>' + esc(p.u) + '</em></div>');
     p.rows.forEach((r) => P('<div class="pcr"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'));
-    if (p.act) P('<div class="pca">' + esc(p.act) + ' →</div>');
-    P(p.href ? '</a>' : '</div>');
+    if (CHIPS[p.id]) P('<div class="pcb">' + CHIPS[p.id] + '</div>');
+    P('</button>');
   });
-  P('</div>');
+  P('</div></div>');
 
   P('<div class="legend">');
   [['idle', STN.idle], ['flow', STN.flow], ['wait', STN.wait], ['block', STN.block]].forEach((L2) => {
@@ -759,13 +791,12 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<div class="stack">');
   pos.forEach((o) => {
     const p = o.p, cols = ST[p.st];
-    if (p.href) P('<a class="sp2" target="_blank" rel="noopener" href="' + BASE + p.href + '">');
-    else P('<div class="sp2">');
+    P('<button type="button" class="sp2" data-open="' + p.id + '">');
     P('<span class="d" style="background:' + cols[0] + '"></span><div class="tt">');
     P('<div class="n1">' + esc(p.t) + '</div><div class="n2">' + esc(p.u) + ' · '
       + esc(p.rows[0][0]) + ' ' + esc(p.rows[0][1]) + '</div></div>');
     P('<div class="vv">' + esc(short(p.v)) + '</div>');
-    P(p.href ? '</a>' : '</div>');
+    P('</button>');
   });
   P('</div>');
 
@@ -875,7 +906,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<div class="note">Орлого = мөнгө нь орж ирсэн захиалга. Хүргэгдсэн ч төлбөр бүртгэгдээгүй захиалга орлогод ороогүй — Gyals-ын тооцоо ирмэгц «Төлсөн» болгоно.</div>');
   P('</div></div>');
 
-  cur = B.work;
+  cur = B.tests;
   const tone = (a) => (a === 'ЗОГСОО' ? 'stop' : a === 'ӨРГӨТГӨ' ? 'go' : a === 'ХЭМЖИЛТ ЗАС' ? 'fix' : 'wait');
   const ico = (a) => (a === 'ЗОГСОО' ? '■' : a === 'ӨРГӨТГӨ' ? '▲' : a === 'ХЭМЖИЛТ ЗАС' ? '⚠' : '●');
   if (tests.length) {
@@ -920,26 +951,101 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     P('</table></div>');
   }
 
-  // ── Бүсүүдийг эрэмбэлж нэгтгэх (Нүүр v3). Дээрээс: хийх ажил → зар → мөнгө → зураглал → үйл ажиллагаа → бусад.
+  // ── Нүүр v4 «Нэг дэлгэц» (2026-10-22, эзний баталсан mockup): зүүн «Өнөөдөр» · төв 3D зураглал (станц = товч) ·
+  //    баруун дэлгэрэнгүй цонх (станц бүрт) · доод мөнгөний мөр · доошоо хураангуй хэсгүүд. Мэдээлэл нэгийг ч хасаагүй.
   cur = H;
-  const ZONES = [
-    ['today', 'Өнөөдөр', 'залгах · хүргэлт · шалгах · хийх ажил', B.today],
-    ['ads', 'Зар удирдах', 'төлөв · асаах · 07:00-д товлох · үзүүлэлт', B.adsctl.concat(B.ads)],
-    ['money', 'Мөнгө', 'орлого · зардал · цэвэр · хөдөлгүүр · сангууд · тайлан', B.money.concat(B.rep)],
-    ['map', 'Систем зураглал', 'бараа → креатив → чат → захиалга → баталгаажуулалт → хүргэлт', B.map],
-    ['ops', 'Үйл ажиллагаа', 'хүргэлт · хэмжилтийн гинж · сизон · зах зээл · захиалгын маягт', B.ops],
-    ['work', 'Ажил · үйлдэл', 'маягтууд · судалгаа · гараар хийх ажил · шийдвэр', B.work],
-    ['crea', 'Креатив · 30 хоног', creatives.length + ' креатив', B.crea],
-    ['prod', 'Бараа', products.length + ' бараа', B.prod]
-  ].filter((z) => z[3].length);
+  const fl = (href, label, ext) => '<a class="go4' + (ext ? '' : ' p') + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + ' href="' + href.replace(/&/g, '&amp;') + '">' + esc(label) + '</a>';
+  const ordersQ = (extra) => '/board/?view=orders' + (extra || '') + tq0;
   const cntBad = CNT.filter((c) => c[1] > 0).length;
-  const zoneBadge = { today: cntBad ? '<em class="zb crit">' + cntBad + '</em>' : '<em class="zb ok">✓</em>', ads: AC ? '<em class="zb">' + AC.ads.filter((a) => a.effective_status === 'ACTIVE').length + ' on</em>' : '' };
-  P('<nav class="jump" aria-label="Хэсгүүд">' + ZONES.map((z) => '<a href="#' + z[0] + '">' + esc(z[1]) + (zoneBadge[z[0]] || '') + '</a>').join('') + '</nav>');
-  ZONES.forEach((z) => {
-    P('<section class="zone" id="' + z[0] + '"><div class="zt"><b>' + esc(z[1]) + '</b><span class="zs">' + esc(z[2]) + '</span></div>');
-    H.push(...z[3]);
-    P('</section>');
+
+  P('<div class="st4" id="st4">');
+  // Зүүн: Өнөөдөр
+  P('<aside class="rail4" aria-label="Өнөөдөр"><div class="ph"><b>Өнөөдөр</b><span class="n">' + (cntBad ? cntBad + ' анхаарах' : 'бүгд хэвийн') + '</span></div><ol class="todo4">');
+  CNT.forEach((c) => {
+    const cls = c[1] > 0 ? c[2] : '';
+    P('<li><span class="cnt ' + cls + '">' + c[1] + '</span><span class="tt4">' + esc(c[0]) + '</span>' + (c[1] > 0 ? '<a class="go4" href="' + c[3].replace(/&/g, '&amp;') + '">Нээх</a>' : '<span></span>') + '</li>');
   });
+  if (acOn !== null) P('<li><span class="cnt ' + (acOn ? 'ok' : '') + '">' + acOn + '</span><span class="tt4">Зар асаалттай<small>' + (acWait ? acWait + ' товлосон · ' : '') + 'зардал 24ц ' + mnt(PU.spend_mnt) + '</small></span><button type="button" class="go4" data-open="crea">Удирдах</button></li>');
+  P('</ol>');
+  P('<div class="ph sub"><b>Хийх ажил</b><span class="n">' + NEXT.length + '</span></div>');
+  if (!NEXT.length) P('<div class="em4">Хийх яаралтай зүйл алга.</div>');
+  else {
+    P('<ol class="todo4 nx">');
+    NEXT.forEach((t) => {
+      const act = t.action && t.action !== 'board' ? t.action : null;
+      P('<li><span class="pri p' + n(t.p) + '"></span><span class="tt4">' + esc(t.text) + '</span>' + (act && t.label ? fl(BASE + '/form/' + esc(act), t.label, true) : '<span></span>') + '</li>');
+    });
+    P('</ol>');
+  }
+  P('<div class="foot">Дээд мөр = хамгийн яаралтай. Тоон дээр дарвал тухайн захиалгууд. Жагсаалт 2 минут тутам өөрөө шинэчлэгдэнэ.</div></aside>');
+
+  // Төв: 3D зураглал
+  P('<main class="map4"><span class="hint4">станц дээр дарвал баруун талд дэлгэрэнгүй</span><button class="reopen" type="button" id="reopen">Дэлгэрэнгүй ›</button>');
+  H.push(...B.map);
+  P('</main>');
+
+  // Баруун: дэлгэрэнгүй цонх — станц бүрт нэг pane
+  const PT = { prod: ['Бараа · Шүүр', n(C.products) + ' идэвхтэй бараа'], crea: ['Креатив · Зар', 'зар удирдах · үзүүлэлт'], chat: ['Чат · Сэтгэгдэл', n(PU.msg_in) + ' мессеж 24ц'],
+    ordr: ['Захиалга', n(C.orders) + ' нийт'], conf: ['Баталгаажуулалт', n(C.awaiting_confirm) + ' хүлээгдэж буй'], delv: ['Хүргэлт', (stalled.length ? stalled.length + ' гацсан' : 'хэвийн')], brain: ['Тархи', 'тест · шийдвэр · тайлан'] };
+  const kv4 = (l, v, c) => '<div><span class="l">' + esc(l) + '</span><div class="v ' + (c || '') + '">' + esc(v) + '</div></div>';
+  P('<aside class="drw4" id="drw" aria-label="Дэлгэрэнгүй"><div class="ph"><b id="dtitle">' + esc(PT.crea[0]) + '</b><span class="n" id="dsub">' + esc(PT.crea[1]) + '</span><button class="x" type="button" title="Хаах">×</button></div>');
+  P('<script type="application/json" id="paneTitles">' + JSON.stringify(PT).replace(/</g, '\\u003c') + '</script>');
+  // crea
+  P('<section class="pane4" data-pane="crea">');
+  H.push(...B.adsctl); H.push(...B.ads);
+  P('<div class="acts4">' + fl(BASE + '/form/creative', 'Креатив бүртгэх', true) + fl(BASE + '/form/spend', 'Зарын зардал', true) + '</div>');
+  if (creatives.length) { P('<h3 class="h4">Креатив · 30 хоног</h3>'); H.push(...B.crea); }
+  P('</section>');
+  // prod
+  P('<section class="pane4" data-pane="prod"><div class="k4">' + kv4('идэвхтэй бараа', n(C.products)) + kv4('нөөц бага', lowStock.length, lowStock.length ? 'c' : 'g') + '</div>');
+  if (lowStock.length) P('<div class="note4">Нөөц бага: ' + lowStock.map((x) => esc(x.name || x.slug || x.product || JSON.stringify(x))).join(' · ') + '</div>');
+  P('<div class="acts4">' + fl(BASE + '/form/product', 'Бараа бүртгэх', true) + fl('/board/?view=ops' + tq0, 'Нөөц · PO хуудас') + '</div>');
+  H.push(...B.prod);
+  P('</section>');
+  // chat
+  P('<section class="pane4" data-pane="chat"><div class="k4">' + kv4('мессеж 24ц', n(PU.msg_in)) + kv4('бот хариу', n(PU.msg_out)) + kv4('яриа 30 хоног', n(fConv.n)) + kv4('операторын дараалал', n(C.operator_queue), n(C.operator_queue) ? 'c' : '') + '</div>');
+  P('<div class="note4">Сүүлийн мессеж ' + esc(ago(PU.last_inbound)) + ' өмнө. Чат SendPulse → Supabase bot-ingest-ээр ирдэг; «хүнтэй ярих» гэвэл Telegram-д ирнэ.</div></section>');
+  // ordr
+  P('<section class="pane4" data-pane="ordr"><div class="k4">' + kv4('захиалга 24ц', n(PU.orders)) + kv4('шалгах', n(C.needs_review), n(C.needs_review) ? 'c' : '') + kv4('нийт', n(C.orders)) + kv4('сүүлийн захиалга', ago(PU.last_order) + ' өмнө') + '</div>');
+  P('<div class="acts4">' + fl(ordersQ(''), 'Захиалга хуудас') + fl(ordersQ('&tab=dsp'), 'Түгээлт · Gyals') + fl(BASE + '/form/order', 'Гар захиалга', true) + '</div></section>');
+  // conf
+  P('<section class="pane4" data-pane="conf"><div class="k4">' + kv4('хүлээгдэж буй', n(C.awaiting_confirm), n(C.awaiting_confirm) ? 'w' : '') + kv4('утсаар залгах', toCall.length, toCall.length ? 'c' : '') + kv4('баталгаажсан %', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—') + kv4('хаяг дутуу', n(CF.to_call)) + '</div>');
+  if (toCall.length) P('<div class="note4">Залгах: ' + toCall.slice(0, 8).map((x) => esc(x.phone || x.customer || x.order_id || '')).filter(Boolean).join(' · ') + (toCall.length > 8 ? ' …' : '') + '</div>');
+  P('<div class="acts4">' + fl(ordersQ('&stage=order'), 'Батлах захиалгууд') + fl(BASE + '/form/confirm', 'Утсаар баталгаажуулах', true) + '</div></section>');
+  // delv
+  P('<section class="pane4" data-pane="delv"><div class="k4">' + kv4('хүргэсэн 24ц', n(PU.delivered)) + kv4('гацсан 5+ хоног', stalled.length, stalled.length ? 'c' : 'g') + kv4('бодит хүргэлт', has(DR.pct) ? DR.pct + '%' : '—') + kv4('30 хоног', n(E30.delivered) + ' / ' + n(E30.placed)) + '</div>');
+  P('<div class="acts4">' + fl(ordersQ('&tab=dsp'), 'Маргаашийн түгээлт · Excel') + fl(ordersQ('&stage=confirmed'), 'Гацсан хүргэлт') + fl(BASE + '/form/delivery', 'Статус оруулах', true) + '</div></section>');
+  // brain
+  P('<section class="pane4" data-pane="brain">');
+  H.push(...B.tests);
+  H.push(...B.rep);
+  P('</section>');
+  P('</aside></div>');
+
+  // Доод: мөнгөний мөр
+  H.push(...B.moneybar);
+
+  // Доошоо: хураангуй хэсгүүд (бүгд хэвээр)
+  P('<div class="more4"><h2 class="mh">Дэлгэрэнгүй — хэрэгтэй үедээ нээнэ</h2><div class="acc4">');
+  const acc = (id, title, sub, buf) => { if (!buf.length) return; P('<details class="ac" data-keep="ac-' + id + '"><summary><b>' + esc(title) + '</b><span class="n">' + esc(sub) + '</span></summary><div class="acb">'); H.push(...buf); P('</div></details>'); };
+  acc('money', 'Мөнгө', 'орлого · зардал · хөдөлгүүр · сангууд', B.money);
+  acc('ops', 'Үйл ажиллагаа', 'хүргэлт · гинж · сизон · скан · маягт', B.ops);
+  acc('work', 'Ажил · үйлдэл', 'маягтууд · судалгаа · гараар хийх ажил', B.work);
+  P('</div></div>');
+
+  // v4 харилцан үйлдэл: станц → цонх, хаах/нээх, 3D-г багтаах масштаб
+  P('<script>(function(){'
+    + 'var st=document.getElementById("st4"),drw=document.getElementById("drw");if(!st||!drw)return;var K="ss_home_pane",PT={};try{PT=JSON.parse(document.getElementById("paneTitles").textContent)}catch(e){}'
+    + 'var box=st.querySelector(".sbox"),sc=st.querySelector(".scene");'
+    + 'function fit(){if(!box||!sc)return;var w=box.clientWidth,h=(box.parentElement.clientHeight||600)-16,k=Math.min(1.12,Math.max(.58,Math.min(w/1000,h/600)));sc.style.transform="scale("+k+")";box.style.height=Math.round(600*k)+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px"}'
+    + 'function open(id,save){st.classList.remove("closed");st.querySelectorAll(".pc").forEach(function(c){c.classList.toggle("sel",c.dataset.id===id)});'
+    + 'drw.querySelectorAll(".pane4").forEach(function(p){p.classList.toggle("on",p.dataset.pane===id)});var t=PT[id]||["",""];document.getElementById("dtitle").textContent=t[0];document.getElementById("dsub").textContent=t[1];'
+    + 'if(save){try{localStorage.setItem(K,id)}catch(e){}}drw.scrollTop=0;fit()}'
+    + 'var cur="crea";try{cur=localStorage.getItem(K)||"crea"}catch(e){}if(cur==="closed"){st.classList.add("closed");drw.querySelectorAll(".pane4").forEach(function(p){p.classList.remove("on")})}else open(cur,false);'
+    + 'st.addEventListener("click",function(e){var c=e.target.closest(".pc");if(c){open(c.dataset.id,true);return}var b=e.target.closest("[data-open]");if(b){open(b.dataset.open,true);return}'
+    + 'if(e.target.closest(".drw4 .x")){st.classList.add("closed");try{localStorage.setItem(K,"closed")}catch(x){}fit();return}if(e.target.closest("#reopen")){open("crea",true)}});'
+    + 'var svg=st.querySelector(".scene svg");if(svg)svg.addEventListener("click",function(e){var r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;if(Math.abs(x-.5)<.08&&Math.abs(y-.5)<.14)open("brain",true)});'
+    + 'window.addEventListener("resize",fit);fit();setTimeout(fit,80);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})();</script>');
 
   P('<footer>');
   [['Бараа', n(C.products)], ['Креатив', n(C.creatives)],
