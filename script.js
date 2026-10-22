@@ -245,6 +245,39 @@ const OWNER_TEST_PHONES = ["95505717"];
    an order that has not been handed to the courier yet. */
 const SET_ADDRESS = `${SUPABASE_URL}/rest/v1/rpc/set_order_address`;
 
+/* Блок CA (2026-10-22) · Meta Conversions API. Пиксель iPhone / апп доторх хөтөч дээр
+   захиалгын ~40%-ийг алддаг (10/22: 9 захиалгаас Meta 5-ыг л харсан). Сервер нь захиалгыг
+   өөрөө Meta руу явуулна (event_id = order_id → пикселийн Purchase-тэй давхар тоологдохгүй);
+   Meta тэр хүнийг танихад хөтчийн _fbp/_fbc cookie, user agent хэрэгтэй — алхам 1 амжилттай
+   болмогц энд нэг удаа хадгална. Утас, нэр илгээхгүй (серверт аль хэдийн бий). Унавал юу ч
+   болохгүй — захиалга, пиксель хэвээр. */
+const CAPI_CTX = `${SUPABASE_URL}/rest/v1/rpc/capi_ctx_set`;
+const cookieVal = (n) => {
+  try {
+    const m = document.cookie.match(new RegExp("(?:^|; )" + n + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch (e) { return null; }
+};
+try {
+  const fbclidM = (location.search + location.hash).match(/[?&]fbclid=([^&#]+)/);
+  if (fbclidM) sessionStorage.setItem("ss_fbclid", fbclidM[1]);
+} catch (e) { /* private window */ }
+function capiCtx(orderId) {
+  if (!orderId) return;
+  let fbc = cookieVal("_fbc");
+  if (!fbc) {
+    try { const id = sessionStorage.getItem("ss_fbclid"); if (id) fbc = "fb.1." + Date.now() + "." + id; } catch (e) { /* none */ }
+  }
+  try {
+    fetch(CAPI_CTX, {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+      body: JSON.stringify({ p: { order_id: orderId, fbp: cookieVal("_fbp"), fbc, ua: navigator.userAgent, url: location.origin + location.pathname + location.search } }),
+    }).catch(() => {});
+  } catch (e) { /* never blocks the order */ }
+}
+
 /* Ordering by chat. In Mongolia people order by talking far more than by
    filling in forms: 159 opened the form in 62 hours and none sent it. The ref
    rides along so the bot knows which advert brought them — the same value the
@@ -2841,6 +2874,7 @@ async function renderOrder() {
          first; the address belongs on the first, the one the operator works. */
       const target = String((out.is_duplicate && out.duplicate_of) || out.order_id || "");
       placed = { slug: d.slug, orderId: target, qty: Number(out.quantity) || qty, goods: total, ownerTest, dup: !!out.is_duplicate };
+      if (!ownerTest) capiCtx(target);
       try { sessionStorage.setItem(STEP2_KEY, JSON.stringify(placed)); } catch (e2) { /* refresh returns to step one */ }
       saveDone({
         code: String(out.order_id || ""),
