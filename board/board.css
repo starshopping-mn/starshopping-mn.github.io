@@ -11,3 +11,41 @@ select{background-color:var(--s2);color:var(--ink)}select option{background:var(
 a.k.cnt{display:block;transition:border-color .15s}a.k.cnt:hover{border-color:var(--gold)}a.k.cnt.zero .kv{color:var(--mut)}a.k.cnt.crit .kv{color:var(--crit)}a.k.cnt.warn .kv{color:var(--warn)}
 #metaw details.ads{margin-top:4px}#metaw details.ads>summary{cursor:pointer;color:var(--ink2);font-size:12.5px;padding:6px 2px}#metaw .sc{margin-top:6px}#metaw .dh{color:var(--mut);font-size:11px;margin-top:3px;line-height:1.4}
 .repf{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--ln)}.repf input[type=date]{font:inherit;font-size:12px;padding:4px 7px;border:1px solid var(--ln2);border-radius:var(--r-s);background:var(--s2);color:var(--ink);flex:1;min-width:120px}
+
+/* ── НҮҮР v3 (2026-10-22): бүсүүд + хадаастай хэсгийн цэс + «Зар удирдах». Мэдээлэл хасаагүй — зөвхөн дараалал, толгой. ── */
+.jump{position:sticky;top:64px;z-index:25;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:4px -18px 10px;padding:6px 18px;background:var(--hdr);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--ln)}
+.jump::-webkit-scrollbar{display:none}
+.jump a{flex:0 0 auto;font-size:12px;font-weight:600;color:var(--ink2);text-decoration:none;padding:5px 11px;border-radius:999px;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px}
+.jump a:hover{background:var(--s1);border-color:var(--ln)}
+.jump .zb{font-style:normal;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:999px;background:var(--s2);color:var(--mut)}
+.jump .zb.crit{background:var(--crit-a);color:var(--crit)}.jump .zb.ok{background:var(--good-a);color:var(--good)}
+.zone{scroll-margin-top:118px;margin:0 0 26px;padding:0 0 18px;border-bottom:1px solid var(--ln)}
+.zone:last-of-type{border-bottom:0}
+.zt{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:6px 0 10px}
+.zt b{font-size:17px;letter-spacing:-.01em}
+.zt .zs{font-size:11.5px;color:var(--mut)}
+.zone h2{margin-top:18px}
+.zone .sec:first-child{margin-top:0}
+/* Мөнгө бүс: тайлан + тэмдэглэл хоёр багана (хуучин баруун багана энд) */
+.mgrid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:var(--gap);align-items:start;margin-top:12px}
+.repcard{position:static}
+.k.notes .note{padding:8px 0 0;border-top:0}
+@media(max-width:900px){.mgrid{grid-template-columns:1fr}.jump{top:0;margin:4px -12px 10px;padding:6px 12px}.zone{scroll-margin-top:56px}}
+/* Зар удирдах */
+.adc{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:10px 12px 8px;margin-bottom:12px}
+.adh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px}
+.adc .sc{border-radius:var(--r-s)}
+.adc .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--s2);color:var(--ink2);white-space:nowrap}
+.adc .pill.st-on{background:var(--good-a);color:var(--good)}.adc .pill.st-wait{background:var(--blue-a);color:var(--blue)}.adc .pill.st-rev{background:var(--warn-a);color:var(--warn)}.adc .pill.st-bad{background:var(--crit-a);color:var(--crit)}.adc .pill.st-off,.adc .pill.st-up,.adc .pill.st-none{background:var(--s2);color:var(--mut)}
+table.adt{font-size:12.5px}table.adt th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);background:var(--s2)}
+table.adt td{vertical-align:middle;white-space:normal}table.adt td:first-child,table.adt th:first-child{width:26px;padding-right:0}
+table.adt tr.adg td{background:var(--s2);padding:6px 12px;font-size:12px}
+table.adt tr.ak-on td{background:rgba(15,122,31,.04)}table.adt tr.ak-wait td{background:rgba(31,95,176,.05)}
+.adc .btn{padding:5px 9px;border:1px solid var(--ln2);border-radius:8px;background:var(--s1);color:var(--ink);font:600 12px system-ui,sans-serif;cursor:pointer;margin:1px 3px 1px 0}
+.adc .btn.go{background:var(--ink);color:var(--bg);border-color:var(--ink)}.adc .btn:disabled{opacity:.5;cursor:default}
+.adsel[hidden]{display:none}.adsel{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--gold-a);border:1px solid var(--gold-ln);font-size:12px}
+.adc .out{display:none;margin:0 0 8px;padding:9px 12px;border-radius:var(--r-s);background:var(--good-a);font-size:12.5px;line-height:1.45}
+.adc .out.on{display:block}.adc .out.bad{background:var(--warn-a)}
+.adc .out [class^="adr-"]{padding:3px 0}.adc .out .adr-bad{color:var(--crit)}
+.adold{margin-top:8px}.adold>summary{cursor:pointer;font-size:12px;color:var(--mut);padding:6px 2px}
+.adc .si.sn{margin-top:8px}
