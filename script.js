@@ -257,6 +257,59 @@ const onPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgen
    An m.me `ref` alone arrives from Meta as a separate referral event with no
    text, which bridge 29 skips (it only forwards messages that carry text), so
    the code also rides in the text, where 29 reads it back out as the referral. */
+/* ===== Барааны хуудас v4 (2026-10-22, эзний баталсан mockup) — туслахууд =====
+   Тайлбарын мөрүүдийг картуудад хуваана: «Гарчиг — тайлбар» хэлбэртэй эхний 4 мөр = онцлогийн карт,
+   үлдсэн нь «Дэлгэрэнгүй» задаргаанд. Бүтэцгүй тайлбар бол хуучин descBlock хэвээр. */
+function descLines(desc) {
+  let lines = String(desc || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 1) lines = emojiBullets(lines[0]) || lines;
+  return lines;
+}
+const FEAT_ICONS = [
+  [/mah|power ?bank|батерей|цэнэг/i, "🔋"], [/шатлал|°|градус|халуун|температур/i, "🌡"], [/халаа|бүс|дулаа/i, "🧥"],
+  [/угаа|усанд|цэвэрл/i, "🫧"], [/өнгө/i, "🎨"], [/хэмжээ|размер|тойрог|урт/i, "📏"], [/жин|хөнгөн/i, "🪶"],
+  [/хугацаа|цаг|минут/i, "⏱"], [/материал|даавуу|торго|хөвөн/i, "🧵"], [/аюулгүй|хамгаалал/i, "🛡"], [/бэлэг|хайрцаг|багц/i, "🎁"],
+];
+const featIcon = (t) => (FEAT_ICONS.find(([re]) => re.test(t)) || [null, "✔︎"])[1];
+function splitFeatures(desc) {
+  const lines = descLines(desc);
+  if (lines.length < 3) return null;
+  const head = lines[0].length <= 30 && !/[.!?…]$/.test(lines[0]) ? lines[0] : "";
+  const body = head ? lines.slice(1) : lines;
+  const items = body.map((l) => {
+    const dash = l.split(/\s+—\s+/);
+    if (dash.length > 1) return { t: dash[0], d: dash.slice(1).join(" — ") };
+    const colon = l.match(/^(.{4,48}?):\s+(.+)$/);
+    if (colon) return { t: colon[1], d: colon[2] };
+    return { t: "", d: l };
+  });
+  const titled = items.filter((x) => x.t);
+  if (titled.length < 2) return null;
+  /* нэртэй давхцсан эхний мөрийг («Халаагчтай хантааз · Power bank дагалдана») хасна */
+  const cards = titled.filter((x) => !/дагалдана$/.test(x.t) || x.d).slice(0, 4);
+  const rest = items.filter((x) => !cards.includes(x));
+  return { head, cards, rest };
+}
+/* Өнгөний нэр → дөрвөлжин дээж. Мэдэхгүй нэр бол нэрээ л харуулна. */
+const SWATCH = [
+  [/хар хөх|navy|тэнгис/i, "#1f2f5c"], [/хар|black/i, "#1b1b1d"], [/цагаан|white/i, "#ffffff"], [/улаан|red/i, "#c0392b"],
+  [/цэнхэр|хөх|blue/i, "#2f6fc0"], [/ногоон|green/i, "#2e7d4f"], [/саарал|grey|gray/i, "#8a8a86"], [/бор|brown|шоколад/i, "#6b4a2b"],
+  [/шар|yellow|алт/i, "#e0b43a"], [/ягаан|pink/i, "#e98bb6"], [/нил|violet|purple/i, "#7a5bc4"], [/улбар|orange/i, "#e8762b"],
+  [/бэж|beige|элс/i, "#d8c7a8"], [/мөнгө|silver/i, "#c9ccd1"],
+];
+const swatchOf = (name) => (SWATCH.find(([re]) => re.test(String(name))) || [null, ""])[1];
+/* Хэмжээний чип доорх нөөцийн шошго (data-st → CSS ::after; textContent-д орохгүй — liveGuard чипийн текстийг уншдаг). */
+function paintSizeStock(p, color) {
+  if (!p) return;
+  const on = liveIsOn(p);
+  document.querySelectorAll('.opt__row[data-opt="size"] .chip').forEach((ch) => {
+    if (!on) { ch.removeAttribute("data-st"); return; }
+    const a = skuAvail(p.slug, color, ch.textContent.trim());
+    ch.dataset.st = a === null ? "" : a <= 0 ? "дууссан" : a <= 5 ? `${a} үлдсэн` : "бэлэн";
+    ch.classList.toggle("is-low", a !== null && a > 0 && a <= 5);
+  });
+}
+
 const messengerLink = (productName, slug) => {
   const PAGE = pageFor(slug);
   const ref = creativeId();
@@ -432,6 +485,7 @@ function applyStockLine() {
   const m = location.hash.match(/^#\/p\/([^/?#]+)/);
   const p = m ? productBy(decodeURIComponent(m[1])) : null;
   paintSkuWait();
+  if (p) { const ac = document.querySelector('.opt__row[data-opt="color"] .chip.is-active'); paintSizeStock(p, ac ? ac.textContent.trim() : ""); }
   if (!el || !p) return;
   el.textContent = preorderLabel(p);
 }
@@ -1640,28 +1694,37 @@ function renderProduct(slug) {
     showFrame(gallery, idx + vOff);
   };
 
+  /* v4: нэр, амлалт, үнэ зургийн ДЭЭР (hero). tagline талбар байвал тэр нь том гарчиг, нэр нь жижиг дээр нь. */
+  const F = splitFeatures(p.desc);
+  const tagline = String(p.tagline || p.headline || "").trim();
+  left.classList.add("pdp4__hero");
+  const over = document.createElement("div");
+  over.className = "pdp4__over";
+  over.innerHTML = `
+    ${tagline ? `<p class="pdp4__eyebrow">${esc(p.name)}</p><h1 class="pdp__name pdp4__name">${esc(tagline)}</h1>` : `<h1 class="pdp__name pdp4__name">${esc(p.name)}</h1>`}
+    ${F && F.head && F.head !== p.name ? `<p class="pdp4__sub">${esc(F.head)}</p>` : ""}
+    <div class="pdp4__priceline"><div class="pdp__prices" id="pdpPrices"></div>
+      <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p></div>`;
+  gallery.appendChild(over);
   wrap.appendChild(left);
 
   /* ---- info + options ---- */
   const right = document.createElement("div");
+  right.className = "pdp4__info";
   right.innerHTML = `
-    <h1 class="pdp__name">${esc(p.name)}</h1>
-    ${descBlock(p.desc)}
-    <div class="pdp__prices" id="pdpPrices"></div>
-    <p class="shipline${deliveryIncluded(p) ? " shipline--in" : ""}">${esc(deliveryLine(p))}</p>
     ${showsWait(p) ? `<p class="preline">${esc(preorderLabel(p))}</p><p class="precancel">${esc(PREORDER_CANCEL)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 ? `<p class="fastline">${esc(FAST_LINE)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${dl ? `<div class="carbox" id="carBox"></div>` : ""}
-    ${colors.length ? `<div class="opt"><span class="opt__label">ӨНГӨ</span>
-      <div class="opt__row" data-opt="color">
-        ${colors.map((c, i) => `<button class="chip${i === 0 ? " is-active" : ""}" data-i="${i}">${esc(c)}</button>`).join("")}
+    ${colors.length ? `<div class="opt opt--sw"><span class="opt__label">Өнгө <b id="colorName">${esc(colors[0])}</b></span>
+      <div class="opt__row opt__row--sw" data-opt="color">
+        ${colors.map((c, i) => { const sw = swatchOf(c); return `<button class="chip${sw ? " chip--sw" : ""}${i === 0 ? " is-active" : ""}" data-i="${i}" title="${esc(c)}"${sw ? ` style="--sw:${sw}"` : ""}>${esc(c)}</button>`; }).join("")}
       </div></div>` : ""}
 
-    ${sizes.length ? `<div class="opt"><span class="opt__label">ХЭМЖЭЭ</span>
-      <div class="opt__row" data-opt="size">
-        ${sizes.map((s, i) => `<button class="chip${i === 0 ? " is-active" : ""}" data-i="${i}">${esc(s)}</button>`).join("")}
+    ${sizes.length ? `<div class="opt"><span class="opt__label">Хэмжээ${F && F.rest.some((x) => /тойрог|урт|см/i.test(x.t + x.d)) ? ` <a class="opt__link" href="#pdpMore">Аль хэмжээ надад?</a>` : ""}</span>
+      <div class="opt__row opt__row--sz" data-opt="size">
+        ${sizes.map((s, i) => `<button class="chip chip--sz${i === 0 ? " is-active" : ""}" data-i="${i}">${esc(s)}</button>`).join("")}
       </div></div>` : ""}
     <p class="skuwait" id="skuWait" hidden></p>
 
@@ -1714,20 +1777,31 @@ function renderProduct(slug) {
            <!-- The people this shop sells to are used to ordering by talking to
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
-           <a class="callbuy" href="tel:95505717">Залгаж захиалах · 9550-5717</a>
-           ${chatButton(p.name, p.slug)}
-           <p class="assure">Хүргэлтээр төлнө · урьдчилгаа шаардахгүй · 9550-5717</p>`
+           <p class="pdp4__trust"><span>${deliveryIncluded(p) ? "хүргэлт үнэгүй" : "хүргэлт " + esc(deliverySummary())}</span><span>${isPreorder(p) ? "урьдчилгаагүй" : "хүлээж аваад төлнө"}</span><span>${esc(leadTime)}</span></p>
+           <p class="pdp4__alt">Асуух зүйл байна уу? <a class="callbuy" href="tel:95505717">9550-5717</a> · ${chatButton(p.name, p.slug)}</p>`
     }
 
-    <div class="trust">
-      <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэгүй · Монгол даяар" : deliverySummary() + " · тусдаа төлнө"}</div>
-      <div><b>${isPreorder(p) ? "Хаяг" : "Хугацаа"}</b>${esc(leadTime)}</div>
-      <div><b>Төлбөр</b>${isPreorder(p) ? "Бараа ирэхэд, хүргэлтээр" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
-      <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
+    ${F ? `<div class="pdp4__feat">${F.cards.map((c) => `<div class="pdp4__fcard"><i>${featIcon(c.t + " " + c.d)}</i><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div>`).join("")}</div>` : descBlock(p.desc)}
+
+    <section class="pdp4__steps">
+      <h2 class="pdp4__h">Яаж явагддаг вэ</h2>
+      <div class="pdp4__step"><i>1</i><div><b>Утасны дугаараа үлдээнэ</b><span>30 секунд. Дараагийн алхамд хаяг.</span></div></div>
+      <div class="pdp4__step"><i>2</i><div><b>${isPreorder(p) ? "Бид залгаж баталгаажуулна" : "Баталгаажуулна"}</b><span>${isPreorder(p) ? esc(leadTime) : "нөөцтэй бол шууд маргаашийн хүргэлтэд"}</span></div></div>
+      <div class="pdp4__step"><i>3</i><div><b>Хүлээж аваад төлнө</b><span>${isPreorder(p) ? "бараа ирэхэд, хүргэлтээр" : "өглөө 08:00–12:00 · бэлэн эсвэл шилжүүлэг"}</span></div></div>
+    </section>
+
+    <div class="pdp4__acc" id="pdpMore">
+      ${F && F.rest.length ? `<details class="pdp4__d" open><summary>Дэлгэрэнгүй</summary><ul class="pdp__desc-list">${F.rest.map((x) => `<li>${x.t ? `<b>${esc(x.t)}</b> — ` : ""}${esc(x.d)}</li>`).join("")}</ul></details>` : ""}
+      <details class="pdp4__d"><summary>Хүргэлт ба төлбөр</summary>
+        <div class="trust">
+          <div><b>Хүргэлт</b>${deliveryIncluded(p) ? "Үнэгүй · Монгол даяар" : deliverySummary() + " · тусдаа төлнө"}</div>
+          <div><b>${isPreorder(p) ? "Хаяг" : "Хугацаа"}</b>${esc(leadTime)}</div>
+          <div><b>Төлбөр</b>${isPreorder(p) ? "Бараа ирэхэд, хүргэлтээр" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
+          <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
+        </div>
+        <p class="leadnote">${esc(leadNote)}</p></details>
+      <details class="pdp4__d"><summary>Буцаалт, солилт</summary><p class="pdp4__p">Хэмжээ таараагүй бол хүргэлтээс хойш 7 хоногийн дотор сольж өгнө. Гэмтэлтэй ирсэн бол мөнгийг буцаана. <a href="#/policy/return">Буцаалтын бодлого →</a></p></details>
     </div>
-    <!-- full width rather than inside the grid above: the explanation runs long
-         and would leave one cell towering over the other three -->
-    <p class="leadnote">${esc(leadNote)}</p>
     <button class="share" type="button" data-slug="${esc(p.slug)}">Холбоос хуулах</button>`;
   wrap.appendChild(right);
   pdp.appendChild(wrap);
@@ -1826,7 +1900,7 @@ function renderProduct(slug) {
   let size = sizes[0] || "";
   const qtyVal = right.querySelector("#qtyVal");
   const buyTotal = right.querySelector("#buyTotal");
-  const priceBox = right.querySelector("#pdpPrices");
+  const priceBox = wrap.querySelector("#pdpPrices"); // v4: үнэ hero дээр (left талд)
 
   /* A bundle is a fixed total for a fixed count, so once one is chosen it
      overrides the per-unit maths entirely. `pack === null` means the plain
@@ -1889,6 +1963,7 @@ function renderProduct(slug) {
   };
   refreshPrice();
   paintSkuWait();
+  paintSizeStock(p, color);
   if (dl) {
     right.classList.add("car-locked");
     mountCarPicker(p, right, (st) => {
@@ -1905,7 +1980,10 @@ function renderProduct(slug) {
       row.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === chip));
       if (row.dataset.opt === "color") {
         color = colors[i];
+        const cn = right.querySelector("#colorName");
+        if (cn) cn.textContent = color;
         showVariantImage(colorImgs[i]);
+        paintSizeStock(p, color);
       } else {
         size = sizes[i];
         sizeIdx = i;
