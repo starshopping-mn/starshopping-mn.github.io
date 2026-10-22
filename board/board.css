@@ -12,25 +12,100 @@ a.k.cnt{display:block;transition:border-color .15s}a.k.cnt:hover{border-color:va
 #metaw details.ads{margin-top:4px}#metaw details.ads>summary{cursor:pointer;color:var(--ink2);font-size:12.5px;padding:6px 2px}#metaw .sc{margin-top:6px}#metaw .dh{color:var(--mut);font-size:11px;margin-top:3px;line-height:1.4}
 .repf{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--ln)}.repf input[type=date]{font:inherit;font-size:12px;padding:4px 7px;border:1px solid var(--ln2);border-radius:var(--r-s);background:var(--s2);color:var(--ink);flex:1;min-width:120px}
 
-/* ── НҮҮР v3 (2026-10-22): бүсүүд + хадаастай хэсгийн цэс + «Зар удирдах». Мэдээлэл хасаагүй — зөвхөн дараалал, толгой. ── */
-.jump{position:sticky;top:64px;z-index:25;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:4px -18px 10px;padding:6px 18px;background:var(--hdr);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--ln)}
-.jump::-webkit-scrollbar{display:none}
-.jump a{flex:0 0 auto;font-size:12px;font-weight:600;color:var(--ink2);text-decoration:none;padding:5px 11px;border-radius:999px;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px}
-.jump a:hover{background:var(--s1);border-color:var(--ln)}
-.jump .zb{font-style:normal;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:999px;background:var(--s2);color:var(--mut)}
-.jump .zb.crit{background:var(--crit-a);color:var(--crit)}.jump .zb.ok{background:var(--good-a);color:var(--good)}
-.zone{scroll-margin-top:118px;margin:0 0 26px;padding:0 0 18px;border-bottom:1px solid var(--ln)}
-.zone:last-of-type{border-bottom:0}
-.zt{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:6px 0 10px}
-.zt b{font-size:17px;letter-spacing:-.01em}
-.zt .zs{font-size:11.5px;color:var(--mut)}
-.zone h2{margin-top:18px}
-.zone .sec:first-child{margin-top:0}
-/* Мөнгө бүс: тайлан + тэмдэглэл хоёр багана (хуучин баруун багана энд) */
-.mgrid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:var(--gap);align-items:start;margin-top:12px}
-.repcard{position:static}
-.k.notes .note{padding:8px 0 0;border-top:0}
-@media(max-width:900px){.mgrid{grid-template-columns:1fr}.jump{top:0;margin:4px -12px 10px;padding:6px 12px}.zone{scroll-margin-top:56px}}
+/* ── НҮҮР v4 «Нэг дэлгэц» (2026-10-22, эзний баталсан mockup): зүүн Өнөөдөр · төв 3D · баруун цонх · доод мөнгө · доошоо хураангуй.
+   Фонт: Manrope (UI) + JetBrains Mono (тоо, шошго). Өнгө — дээрх токенууд хэвээр. ── */
+body.v4{font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13.5px;padding-bottom:env(safe-area-inset-bottom)}
+body.v4 .w4{max-width:none;padding:0}
+body.v4 header{margin-bottom:0;padding:8px 0}
+body.v4 header .hd{padding:0 16px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+body.v4 header .hd::-webkit-scrollbar{display:none}
+body.v4 .bm{width:26px;height:26px;border-radius:7px;font-size:12px}
+body.v4 .bt{font-size:14px;font-weight:800}body.v4 .bs{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;white-space:nowrap}
+body.v4 .nav{margin:0 0 0 14px;gap:2px;flex-wrap:nowrap}body.v4 .nav a{padding:6px 11px;border-color:transparent;background:transparent;font-size:12.5px}body.v4 .nav a.on{background:var(--ink);color:var(--bg)}
+body.v4 .chip{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px}
+body.v4 .em{padding:10px}
+.st4{display:grid;grid-template-columns:280px minmax(0,1fr) 460px;position:relative;height:calc(100vh - 170px);min-height:560px;max-height:880px;border-top:1px solid var(--ln)}
+.st4.closed{grid-template-columns:280px minmax(0,1fr) 0}.st4.closed .drw4{display:none}
+.rail4,.drw4{background:var(--s1);min-height:0;overflow:auto;display:flex;flex-direction:column;min-width:0}
+.rail4{border-right:1px solid var(--ln)}.drw4{border-left:1px solid var(--ln)}
+.ph{padding:13px 16px 9px;display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--ln3);position:sticky;top:0;background:var(--s1);z-index:2}
+.ph.sub{position:static;margin-top:6px;border-top:1px solid var(--ln3)}
+.ph b{font-size:15px;font-weight:800;letter-spacing:-.01em}.ph .n{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--mut)}
+.ph .x{margin-left:auto;border:0;background:transparent;color:var(--mut);font-size:18px;cursor:pointer;line-height:1;padding:0 2px}
+.todo4{list-style:none;margin:0;padding:6px 8px;display:flex;flex-direction:column;gap:1px}
+.todo4 li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 8px;border-radius:10px}
+.todo4 li:hover{background:var(--s2)}
+.todo4 .cnt{font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:700;font-size:18px;letter-spacing:-.03em;text-align:right;font-variant-numeric:tabular-nums;color:var(--mut)}
+.todo4 .cnt.crit{color:var(--crit)}.todo4 .cnt.warn{color:var(--warn)}.todo4 .cnt.ok{color:var(--good)}
+.todo4 .tt4{font-size:13px;line-height:1.35;min-width:0;overflow-wrap:anywhere}.todo4 .tt4 small{display:block;color:var(--mut);font-size:11px;margin-top:1px}
+.todo4.nx li{grid-template-columns:10px minmax(0,1fr);row-gap:6px}.todo4.nx .pri{grid-column:1;grid-row:1/3;align-self:start;display:block;width:4px;min-width:4px;height:26px;border-radius:2px}.todo4.nx .tt4{grid-column:2;grid-row:1}.todo4.nx .go4{grid-column:2;grid-row:2;justify-self:start}.todo4.nx li>span:empty{display:none}.todo4 .pri{width:4px;height:26px;border-radius:2px;background:var(--ln2)}.todo4 .pri.p1{background:var(--crit)}.todo4 .pri.p2{background:var(--warn)}
+.go4{font:600 11.5px "Manrope",system-ui,sans-serif;color:var(--ink);background:var(--s2);border:1px solid var(--ln);border-radius:8px;padding:5px 9px;text-decoration:none;white-space:nowrap;cursor:pointer}
+.go4.p{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rail4 .foot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--ln3);font-size:11.5px;color:var(--mut);line-height:1.5}
+.em4{padding:10px 16px;color:var(--mut);font-size:12.5px}
+.map4{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column}
+.map4 .stage{border:0;border-radius:0;flex:1;display:flex;flex-direction:column;justify-content:center;padding:0;overflow:hidden;min-height:0}
+.map4 .sbox{position:relative;width:100%;height:600px;overflow:hidden}
+.map4 .scene{position:absolute;left:0;top:0;width:1000px;height:600px;transform-origin:top left}
+.map4 .scene svg{width:1000px;height:600px;display:block}
+.map4 .legend{position:absolute;left:14px;bottom:10px;margin:0;background:var(--pc-bg);border:1px solid var(--ln);border-radius:999px;padding:5px 12px;font-size:10.5px}
+.map4 .stack{display:none}
+.hint4,.reopen{position:absolute;right:14px;top:10px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;color:var(--mut);background:var(--pc-bg);border:1px solid var(--ln);border-radius:999px;padding:4px 10px;z-index:2}
+.reopen{display:none;font:600 12px "Manrope",system-ui,sans-serif;color:var(--ink);cursor:pointer;top:36px}
+.st4.closed .reopen{display:block}
+button.pc{font:inherit;text-align:left;color:inherit;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+button.pc:focus-visible,button.pc.sel{outline:2px solid var(--gold);outline-offset:2px}
+.pc .pcb{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.pc .pcb span{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:9.5px;padding:1px 6px;border-radius:999px;background:var(--s2);color:var(--ink2)}
+.pc .pcb span.on{background:var(--good-a);color:var(--good)}.pc .pcb span.w{background:var(--warn-a);color:var(--warn)}.pc .pcb span.c{background:var(--crit-a);color:var(--crit)}
+.pane4{display:none;padding:12px 16px 20px}.pane4.on{display:block}
+.pane4 h2,.pane4 .h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:16px 0 8px;font-weight:700}
+.pane4 h2:after{display:none}
+.k4{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 12px}
+.k4 div{background:var(--s2);border-radius:10px;padding:9px 11px;min-width:0}
+.k4 .l{font-size:10.5px;color:var(--mut);font-family:"JetBrains Mono",ui-monospace,monospace}
+.k4 .v{font-weight:800;font-size:18px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.k4 .v.c{color:var(--crit)}.k4 .v.g{color:var(--good)}.k4 .v.w{color:var(--warn)}
+.note4{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:8px}
+.acts4{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.drw4 .krow,.drw4 .krow4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.drw4 .mgrid{grid-template-columns:1fr;margin-top:8px}
+.drw4 .adc{padding:10px 10px 8px}.drw4 .adc .sc{overflow-x:auto}
+.drw4 table.adt th:nth-child(6),.drw4 table.adt td:nth-child(6){display:none}
+.drw4 table.adt td{white-space:nowrap}.drw4 table.adt td:nth-child(2) .sm{display:block;max-width:150px;overflow:hidden;text-overflow:ellipsis}.drw4 table.adt tr.adg td{white-space:normal}
+.drw4 #metaw .sec{margin-top:14px}
+.drw4 .t{margin-bottom:10px}
+.money4{display:grid;grid-template-columns:repeat(3,minmax(0,1.25fr)) repeat(4,minmax(0,1fr));border-top:1px solid var(--ln);border-bottom:1px solid var(--ln);background:var(--s1)}
+.money4 .mb{padding:12px 16px;border-right:1px solid var(--ln3);min-width:0}
+.money4 .mb:last-child{border-right:0}
+.money4 .l{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;color:var(--mut);display:flex;gap:6px;align-items:center}
+.money4 .l .seg{margin-left:auto}.money4 .pt{font-size:10px;padding:1px 8px}
+.money4 .kv{font-size:24px;margin-top:3px}.money4 .mini .kv{font-size:17px}
+.money4 .ks{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.money4 .per{display:block}
+.money4 .kv.good{color:var(--good)}.money4 .kv.crit{color:var(--crit)}.money4 .kv.warn{color:var(--warn)}
+.more4{padding:26px 16px 40px;max-width:1440px;margin:0 auto}
+.more4 .mh{font-size:13px;letter-spacing:.02em;color:var(--mut);margin:0 0 10px;font-weight:700;text-transform:none}.more4 .mh:after{display:none}
+.acc4{display:grid;grid-template-columns:1fr;gap:10px}
+.acc4 details.ac{background:var(--s1);border:1px solid var(--ln);border-radius:12px;overflow:hidden}
+.acc4 details.ac>summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:8px;font-size:13px}
+.acc4 details.ac>summary::-webkit-details-marker{display:none}
+.acc4 details.ac>summary .n{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--mut);margin-left:auto}
+.acc4 .acb{padding:0 14px 14px}
+.acc4 .acb h2{margin-top:16px}
+body.v4 footer{padding:0 16px}
+@media(max-width:1280px){.st4{grid-template-columns:250px minmax(0,1fr) 400px}.st4.closed{grid-template-columns:250px minmax(0,1fr) 0}}
+@media(max-width:980px){
+  .st4,.st4.closed{display:block;height:auto;min-height:0}
+  .rail4,.drw4{border:0;border-bottom:1px solid var(--ln);display:flex}.st4.closed .drw4{display:none}
+  .map4 .legend{position:static;display:inline-flex;margin:8px 16px}
+  .money4{grid-template-columns:repeat(3,1fr)}.money4 .mini{display:none}
+  .ph{position:static}
+}
+@media(max-width:620px){
+  .map4 .sbox,.hint4,.reopen{display:none}.map4 .stack{display:block;padding:10px 12px}button.sp2{width:100%;font:inherit;text-align:left;cursor:pointer}
+  .money4{grid-template-columns:1fr 1fr}.money4 .mb:nth-child(3){grid-column:1/-1}
+}
 /* Зар удирдах */
 .adc{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:10px 12px 8px;margin-bottom:12px}
 .adh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px}
