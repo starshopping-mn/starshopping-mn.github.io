@@ -366,7 +366,7 @@ function renderOrders(DATA, QUERY) {
   ].filter((t) => t[4]);
   const defTab = Q.tab && TABS.some((t) => t[0] === Q.tab) ? Q.tab : (nUrg ? 'rural' : (anyFilter ? 'main' : ''));
   o('<div class="otabs" id="otabs" role="tablist" data-def="' + esc(defTab) + '">');
-  TABS.forEach((t) => o('<button type="button" class="otb" role="tab" data-tab="' + t[0] + '"' + (t[0] === 'rural' && nUrg ? ' data-urg="1"' : '') + '>' + esc(t[1]) + ' <b>' + t[2] + '</b>' + (t[3] ? '<span class="sm">' + esc(t[3]) + '</span>' : '') + '</button>'));
+  TABS.forEach((t) => o('<button type="button" class="otb" role="tab" data-tab="' + t[0] + '"' + (t[0] === 'rural' && nUrg ? ' data-urg="1"' : '') + '>' + esc(t[1]) + ' <b>' + t[2] + '</b>' + (t[3] ? '<span class="sm">· ' + esc(t[3]) + '</span>' : '') + '</button>'));
   o('</div>');
   TABS.forEach((t) => { o('<section class="pane" data-pane="' + t[0] + '">'); out.push(...T[t[0]]); o('</section>'); });
   o('<datalist id="dl-d"></datalist>');
