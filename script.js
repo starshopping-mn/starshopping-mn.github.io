@@ -223,6 +223,16 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
    carried by Гялс хүргэлт, and "where is my parcel" is theirs to answer. What
    was ordered, changing or cancelling it, is the shop's own order line. The
    header pop-up in index.html names the same two numbers — change both. */
+/* Урьдчилгаа хүлээн авах данс (эзэн 2026-10-22-нд ХХБ-наас Хаан банк руу шилжүүлсэн). IBAN-ы шалгах
+   цифр 63 нь 10 оронтой 5916140034 дансанд л таардаг (mod-97 шалгасан). Солих бол энд + Supabase
+   `app_text.prepay_account` (самбарын «Төлбөрийн SMS») хоёуланг зэрэг. Sheet-ийн `shop.account`-ыг сайт уншихаа больсон. */
+const PREPAY_BANK = {
+  bank: "Хаан банк",
+  account: "5916140034",
+  iban: "MN630005005916140034",
+  holder: "Аюурзана Ариунболд",
+};
+
 const COURIER = { name: "Гялс хүргэлт", tel: "94944855", text: "9494-4855" };
 const ORDER_LINE = { tel: "95505717", text: "9550-5717" };
 /* Numbers whose orders are the owner testing the shop, never a customer. */
@@ -2372,7 +2382,7 @@ async function renderOrder() {
               <span class="pick__dot"></span>
               <span class="pick__body">
                 <span class="pick__title">Шилжүүлгээр төлөх</span>
-                <span class="pick__sub">Дансны мэдээлэл дараагийн алхамд</span>
+                <span class="pick__sub">Хаан банк · данс, утга дараагийн алхамд</span>
               </span>
             </div>
           </div>
@@ -3050,8 +3060,15 @@ function renderDone() {
   const s = DB.shop || {};
   const transfer = info.payment === "Шилжүүлгээр төлөх" && !info.test && !info.preorder;
 
-  const acct = String(s.account || "");
-  const iban = "MN" + acct;
+  /* Урьдчилгааны данс (эзэн 2026-10-22): Хаан банк. Sheet-ийн `shop.account` (ХХБ) нь зээлийн данс тул
+     энд ХЭРЭГЛЭХГҮЙ — PREPAY_BANK дарна. Самбар/SMS-ийн `app_text.prepay_account`-тай ижил байх ёстой. */
+  const bk = PREPAY_BANK;
+  const acct = bk.account;
+  const iban = bk.iban;
+  /* Гүйлгээний утга = ЗӨВХӨН утасны дугаар (8 орон). Банкны SMS-ээс утгын дугаарыг уншиж, тэр утастай
+     төлөөгүй захиалгыг дүнгээр нь тааруулж автоматаар «мөнгө орсон» болгодог (bank_tx_classify). Код, нэр,
+     өөр үг бичвэл автомат таарахгүй. */
+  const utga = String(info.phone || "").replace(/\D/g, "").slice(-8);
   /* The intake names an order with a long identifier. Nobody can read that
      down a phone or type it into a transfer, so the first eight characters
      stand for it on screen; the whole of it stays on the copy of record. */
@@ -3115,17 +3132,17 @@ function renderDone() {
       ${
         transfer
           ? `<div class="warn">
-              <b>Гүйлгээний утга дээр <u>${esc(code)}</u> код болон утасны дугаараа бичнэ үү.</b><br>
-              Утга буруу бичигдвэл шилжүүлгийг захиалгатай тааруулахад хүндрэлтэй.
-              Дээрх товчоор хуулбал алдахгүй.
+              <b>Гүйлгээний утга дээр ЗӨВХӨН утасны дугаараа бичнэ үү: <u>${esc(utga)}</u></b><br>
+              Утга дээр утасны дугаар байвал төлбөр тань захиалгатайгаа шууд холбогдож, бараа маргааш нь унаанд гарна.
+              Өөр үг, код бичвэл бид гараар шалгах тул хоцорч болно.
             </div>
 
             <div class="pay">
               <div class="pay__head">
-                <img class="pay__logo" src="assets/bank-tdb.png" alt="">
+                <img class="pay__logo" src="assets/bank-khan.webp" alt="">
                 <div>
-                  <div class="pay__bank">${esc(s.bank || "")}</div>
-                  <div class="pay__holder">${esc(s.holder || "")}</div>
+                  <div class="pay__bank">${esc(bk.bank)}</div>
+                  <div class="pay__holder">${esc(bk.holder)}</div>
                 </div>
                 <div class="pay__amount">
                   <span>Шилжүүлэх дүн</span>
@@ -3138,6 +3155,14 @@ function renderDone() {
                 <div class="acct__row">
                   <span class="acct__no">${esc(acct)}</span>
                   <button class="copy copy--sm" data-copy="${esc(acct)}">Хуулах</button>
+                </div>
+              </div>
+
+              <div class="acct">
+                <div class="acct__label">Гүйлгээний утга <em>(зөвхөн энэ дугаар)</em></div>
+                <div class="acct__row">
+                  <span class="acct__no">${esc(utga)}</span>
+                  <button class="copy copy--sm" data-copy="${esc(utga)}">Хуулах</button>
                 </div>
               </div>
 
