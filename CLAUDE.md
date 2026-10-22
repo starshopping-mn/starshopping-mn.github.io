@@ -1505,3 +1505,9 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - Push: CLI-ийн keychain токен 2026-10-22-нд хүчингүй болсон (GitHub татгалзаад git устгасан).
   Одоо §22-ын журмаар: Claude `~/Documents/GitHub/starshopping-mn.github.io`-д commit хийнэ,
   эзэн GitHub Desktop-оос **Push origin**.
+
+## 34. Meta Conversions API (CAPI) — сайтын хэсэг (2026-10-22, блок CA/CB)
+- `script.js` → `capiCtx(order_id)`: алхам 1 OK болмогц (эзний тест утсанд биш) Supabase `capi_ctx_set` (anon) руу `_fbp`, `_fbc` cookie (байхгүй бол `fb.1.<ms>.<fbclid>`; fbclid-ийг ачаалахад `sessionStorage.ss_fbclid`), `navigator.userAgent`, url-г `keepalive` fetch-ээр явуулна; IP-г сервер толгойноос авна. Утас, нэр ЭНЭ хүсэлтэд явахгүй. Унавал юу ч болохгүй.
+- Пикселийн `Purchase` eventID = order_id **хэвээр байх ёстой** — сервер (n8n 46) мөн order_id-аар явуулдаг тул Meta давхар тоолохгүй (dedup). eventID-г өөрчилбөл захиалга бүр 2 тоологдоно.
+- Сервер тал: вэб захиалга district_full авмагц trigger → `capi_events` → n8n 46 (`capi-drain-5e2a`); чатын захиалга `capi_sweep` (pg_cron 15 мин) → Auto Tools page бол Messenger ID-аар (business_messaging, n8n 48 SendPulse-ээс татна), бусад page бол утсаар (chat). Унтраах: `app_text` `capi_enabled` / `capi_chat_enabled` / `capi_bm_enabled` = '0'. Meta: нэг dataset = нэг page (Starshopping Web ↔ Auto Tools; Official, Family тус тусдаа хоосон dataset-тэй).
+- Туршилт: Events Manager → Test events кодыг `app_text.capi_test_event_code`-д тавиад `capi_test()`; дууссаны дараа ЗААВАЛ хоосол. Хугацаа нь дууссан код тавьбал Meta эвентийг БОДИТ гэж тоолно (10/22-нд нэг удаа ингэж алдсан).
