@@ -1511,3 +1511,16 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - Пикселийн `Purchase` eventID = order_id **хэвээр байх ёстой** — сервер (n8n 46) мөн order_id-аар явуулдаг тул Meta давхар тоолохгүй (dedup). eventID-г өөрчилбөл захиалга бүр 2 тоологдоно.
 - Сервер тал: вэб захиалга district_full авмагц trigger → `capi_events` → n8n 46 (`capi-drain-5e2a`); чатын захиалга `capi_sweep` (pg_cron 15 мин) → Auto Tools page бол Messenger ID-аар (business_messaging, n8n 48 SendPulse-ээс татна), бусад page бол утсаар (chat). Унтраах: `app_text` `capi_enabled` / `capi_chat_enabled` / `capi_bm_enabled` = '0'. Meta: нэг dataset = нэг page (Starshopping Web ↔ Auto Tools; Official, Family тус тусдаа хоосон dataset-тэй).
 - Туршилт: Events Manager → Test events кодыг `app_text.capi_test_event_code`-д тавиад `capi_test()`; дууссаны дараа ЗААВАЛ хоосол. Хугацаа нь дууссан код тавьбал Meta эвентийг БОДИТ гэж тоолно (10/22-нд нэг удаа ингэж алдсан).
+
+## 35. «Төсөв нэмэх үү?» дохио (2026-10-22, блок CC)
+
+Эзэн зөвшөөрсөн. Самбарын нүүр: зүүн «Өнөөдөр» жагсаалтад ad set бүрт нэг мөр + «Креатив · Зар» цонхонд карт (нөхцөл бүр ✓/✗). Өгөгдөл = `board_read` view=`budget` → `budget_signal()`; `app.js` home/board extras-д `budget: 'budget'`.
+
+- 4 төлөв: 🟢 grow (+20%, санал болгох төсөв $-аар 0.5-д тоймлоно) · 🟡 hold (суралцаж байна / нөхцөл дутуу) · 🟠 stock (нөөц +20% хурдаар <5 хоног, эсвэл гол размер <3 хоног) · 🔴 cut (3 хоногт зардал ≥ босго×1.5, нэг захиалгын зардал > ашгийн босго).
+- Ногоон = бүгд: 3 бүтэн хоног зар явсан · ≥5 жинхэнэ захиалга (order/confirmed/delivered, бүх суваг) · зардал/захиалга ≤ босго×`scale_cpa_ratio` · нөөц ≥7 хоног · 7 хоногийн frequency <2.5 · төсөв өөрчилснөөс ≥3 хоног.
+- Ашгийн босго = (үнэ − өртөг − `delivery_cost_mnt` − үнэ×5%) × `assumed_delivery_pct` (reorder_signal-тэй ижил). Хантааз: 29,225₮, зорилт 17,535₮.
+- Нөөцийн хурд = 7 хоногийн эрэлт (`reorder_signal` new7) ÷ сүүлийн 7 хоногт зар явсан хоног (зар дөнгөж эхэлсэн бол цөөн хоногт хуваана). Зарагдах = on_hand − firm − pending. Урьдчилсан/тест бараанд нөөцийн шалгалт алгасна.
+- Ad set-ийн төсөв + 7 хоногийн frequency: n8n **18** (3 цаг тутам, шинэ ажиллагаа нэмээгүй) → «Ad set төсөв (Meta)» → `ad_budget_sync` → `ad_adset_state` (төсөв өөрчлөгдөхөд `budget_changed_at`) + `ad_budget_log`.
+- **Дохио зөвхөн зөвлөнө.** Төсвийг эзэн Ads Manager-т өөрөө өөрчилнө — автомат төсөв өөрчлөлт БҮҮ нэм.
+- Буцаах: `main/sql/2026-10-22-CC-ROLLBACK.sql`.
+- Нүүр/категори хуудасны visual pass: эзэн 10/22 татгалзсан («Website-ийг өөрчлөхгүй — зар шууд барааны хуудас руу ордог»). Дахин санал болгохгүй.
