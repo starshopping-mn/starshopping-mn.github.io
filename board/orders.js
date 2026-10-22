@@ -41,7 +41,10 @@ function renderOrders(DATA, QUERY) {
   const anyFilter = ['slug', 'product_id', 'page_id', 'creative_id', 'source', 'test_id', 'stage', 'q', 'from', 'to', 'include_test'].some((k) => has(Q[k]));
 
   const out = [];
-  const o = (s) => out.push(s);
+  // v3 (2026-10-22): хэсгүүдийг таб болгоно — буферт зурж, төгсгөлд нэг л таб харагдана. Хэсэг бүрийн агуулга хэвээр.
+  const T = { main: [], dsp: [], rural: [], wait: [], lead: [], other: [] };
+  let cur = out;
+  const o = (s) => cur.push(s);
   o('<!doctype html><html lang="mn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Starshopping · Захиалга</title>');
   o('<style>'
     + '.w{max-width:1240px;margin:0 auto;padding:14px 16px 60px}'
@@ -59,6 +62,14 @@ function renderOrders(DATA, QUERY) {
     + 'details.more{margin-top:4px}details.more summary{cursor:pointer;font-size:11.5px;color:var(--mut)}details.more div{font-size:11.5px;color:var(--ink2);margin-top:3px}'
     + '.callbox{background:rgba(31,95,176,.08);border:1px solid rgba(31,95,176,.35);border-radius:12px;padding:10px 12px;margin:8px 0 12px;font-size:13px}.callbox b{display:block;margin-bottom:4px}'
     + 'footer{margin:26px 0 10px;font-size:12px;color:var(--mut)}'
+    /* v3 (2026-10-22): тоо = холбоос, шүүлт хураангуй, табууд, нэг гол товч + ⋯ цэс, хаяг 2 мөр */
+    + '.kp a{display:block;color:inherit;text-decoration:none;transition:border-color .15s}.kp a:hover{border-color:var(--ln2)}.kp a.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}'
+    + '.fbox{margin:8px 0 12px}.fbox>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.fbox>summary::-webkit-details-marker{display:none}.fbox .chips{display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center}.fbox[open] .flt{margin-top:8px}'
+    + '.otabs{display:flex;gap:4px;flex-wrap:wrap;margin:12px 0 10px;padding:4px;background:var(--s2);border-radius:12px}.otb{flex:1 1 auto;min-width:120px;padding:9px 12px;border:0;border-radius:9px;background:transparent;color:var(--ink2);font:600 13px system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}.otb b{font-size:14px;color:var(--ink)}.otb .sm{font-weight:500;color:var(--mut)}.otb.on{background:var(--s1);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}.otb[data-urg] b{color:#d64b4b}'
+    + '.pane{display:none}.pane.on{display:block}'
+    + '.menu{display:inline-block;vertical-align:top}.menu>summary{list-style:none;display:inline-block;padding:5px 9px}.menu>summary::-webkit-details-marker{display:none}.menu .mi{display:flex;flex-wrap:wrap;gap:2px;margin-top:4px;padding:5px;background:var(--s2);border-radius:8px}'
+    + '.adr{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}.adr.open{display:block;-webkit-line-clamp:unset}'
+    + '@media(max-width:620px){.otb{min-width:46%}}'
     + '</style></head><body><div class="w">');
 
   // ── толгой + навигаци (C0: Нүүр·Тест / Захиалга / Мөнгө / Нөөц·PO / Судалгаа)
@@ -68,13 +79,16 @@ function renderOrders(DATA, QUERY) {
   o(ssNav('orders', themeQ));
 
   // ── тоонууд (шүүсэн олонлог)
+  // v3: тоо бүр шүүлтүүр — дарвал тэр захиалгууд (URL дээр үлдэнэ). Идэвхтэй нь тодорно.
+  const kpLink = (stage, tab) => { const ps = new URLSearchParams(); Object.keys(Q).forEach((k) => { if (k !== 'stage' && k !== 'tab' && k !== 'view' && Q[k] !== '') ps.set(k, Q[k]); }); ps.set('view', 'orders'); if (stage) ps.set('stage', stage); if (tab) ps.set('tab', tab); return '/board/?' + ps.toString().replace(/&/g, '&amp;'); };
+  const kpTile = (cls, v, label, stage, tab) => '<a class="' + cls + (Q.stage === stage && stage ? ' on' : '') + '" href="' + kpLink(stage, tab) + '"><b>' + v + '</b><span>' + label + '</span></a>';
   o('<div class="kp">'
-    + '<div class="ok"><b>' + n(C.addressed) + '</b><span>хаягтай захиалга · ' + big(C.amount_addressed) + '₮</span></div>'
-    + '<div class="' + (n(C.lead) ? 'warn' : '') + '"><b>' + n(C.lead) + '</b><span>сонирхол (утас/нэр л)</span></div>'
-    + '<div><b>' + n(C.confirmed) + '</b><span>баталгаажсан</span></div>'
-    + '<div class="info"><b>' + n(C.paid) + '</b><span>төлсөн · ' + big(C.amount_paid) + '₮</span></div>'
-    + '<div class="' + (n(C.cancelled) ? 'crit' : '') + '"><b>' + n(C.cancelled) + '</b><span>цуцлагдсан</span></div>'
-    + (n(C.call_ready) ? '<div class="info"><b>' + n(C.call_ready) + '</b><span>залгах (WIN/амьд бараа)</span></div>' : '')
+    + kpTile('ok', n(C.addressed), 'хаягтай захиалга · ' + big(C.amount_addressed) + '₮', 'addressed', 'main')
+    + kpTile(n(C.lead) ? 'warn' : '', n(C.lead), 'сонирхол (утас/нэр л)', 'lead', 'lead')
+    + kpTile('', n(C.confirmed), 'баталгаажсан', 'confirmed', 'main')
+    + kpTile('info', n(C.paid), 'төлсөн · ' + big(C.amount_paid) + '₮', 'paid', 'main')
+    + kpTile(n(C.cancelled) ? 'crit' : '', n(C.cancelled), 'цуцлагдсан', 'cancelled', 'other')
+    + (n(C.call_ready) ? kpTile('info', n(C.call_ready), 'залгах (WIN/амьд бараа)', 'lead', 'lead') : '')
     + '</div>');
 
   // ── шүүлт (GET маягт — URL дээр үлдэнэ, хуваалцаж болно)
@@ -83,6 +97,10 @@ function renderOrders(DATA, QUERY) {
     items.forEach((it) => { const v = it.v, t = it.t; h += '<option value="' + esc(v) + '"' + (String(val || '') === String(v) ? ' selected' : '') + '>' + esc(t) + '</option>'; });
     return h + '</select></label>';
   };
+  // v3: шүүлт хураангуй хэлбэрт — идэвхтэй шүүлт байвал нээлттэй, нэрс нь гарчигт.
+  const FLBL = { slug: 'бараа', page_id: 'page', creative_id: 'AD', source: 'эх үүсвэр', test_id: 'тест', stage: 'шат', q: 'хайлт', from: 'эхлэх', to: 'дуусах', include_test: 'тест харуулах' };
+  const actF = Object.keys(FLBL).filter((k) => has(Q[k])).map((k) => FLBL[k] + ': ' + (k === 'stage' ? (STG[Q[k]] || Q[k]) : Q[k]));
+  o('<details class="fbox" data-keep="flt"' + (anyFilter ? ' open' : '') + '><summary><span class="btn">⚙ Шүүлт' + (actF.length ? ' <b>' + actF.length + '</b>' : '') + '</span>' + (actF.length ? '<span class="chips">' + actF.map((x) => '<span class="pill gold">' + esc(x) + '</span>').join('') + '<a class="btn" href="/board/?view=orders' + tq + '" style="text-decoration:none">Цэвэрлэх</a></span>' : '<span class="sm mut">бараа · page · AD · эх үүсвэр · тест · шат · огноо · хайлт</span>') + '</summary>');
   o('<form class="flt" method="get" action="/board/"><input type="hidden" name="view" value="orders">' + (themeQ ? '<input type="hidden" name="theme" value="' + themeQ + '">' : ''));
   o(sel('slug', 'Бараа', A(F.products).map((p) => ({ v: p.slug, t: String(p.name || p.slug).split(' · ')[0] + ' (' + n(p.n) + ')' })), Q.slug));
   o(sel('page_id', 'Page', A(F.pages).map((p) => ({ v: p.page_id, t: p.name + ' (' + n(p.n) + ')' })), Q.page_id));
@@ -93,7 +111,7 @@ function renderOrders(DATA, QUERY) {
   o('<label>Огноо <input type="date" name="from" value="' + esc(Q.from || '') + '"> – <input type="date" name="to" value="' + esc(Q.to || '') + '"></label>');
   o('<label>Хайх <input name="q" value="' + esc(Q.q || '') + '" placeholder="утас / нэр / хаяг" size="16"></label>');
   o('<label><input type="checkbox" name="include_test" value="true"' + (Q.include_test === 'true' ? ' checked' : '') + '> тест харуулах</label>');
-  o('<button class="btn go">Шүүх</button>' + (anyFilter ? ' <a class="btn" href="/board/?view=orders' + tq + '" style="text-decoration:none">Цэвэрлэх</a>' : '') + '<span class="sm mut" style="margin-left:auto">сүүлийн ' + n(FL.days || 60) + ' хоног' + (Q.from || Q.to ? ' (огноогоор)' : '') + '</span></form>');
+  o('<button class="btn go">Шүүх</button>' + (anyFilter ? ' <a class="btn" href="/board/?view=orders' + tq + '" style="text-decoration:none">Цэвэрлэх</a>' : '') + '<span class="sm mut" style="margin-left:auto">сүүлийн ' + n(FL.days || 60) + ' хоног' + (Q.from || Q.to ? ' (огноогоор)' : '') + '</span></form></details>');
   o('<div class="out" id="out-o"></div>');
 
   // ── мөрийн туслахууд
@@ -152,21 +170,32 @@ function renderOrders(DATA, QUERY) {
       + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a>' + (kind === 'other' ? '' : '<br><button class="btn tchb" title="Залгасан/ярьсан гэж тэмдэглэх (зөвхөн энэ төхөөрөмжид)">☐ залгасан</button>') + '</td>'
       + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '<br><span class="sm mut">' + mnt(r.amount_mnt) + '</span></td>'
       + stkCell(r)
-      + '<td>' + addr + '</td><td>' + st.join('') + more(r) + '</td><td class="acts">';
+      + '<td><div class="adr" title="Дарвал бүтнээр">' + addr + '</div></td><td>' + st.join('') + more(r) + '</td><td class="acts">';
     const id = esc(r.order_id);
+    // v3 (2026-10-22): мөр бүрт НЭГ гол товч (дараагийн алхам) + «⋯» цэсэнд бусад нь. Товчнууд, үйлдлүүд хэвээр — зөвхөн байрлал.
+    const menu = (items) => (items.length ? '<details class="menu" data-keep="mn-' + id + '"><summary class="btn mb" title="Бусад үйлдэл">⋯</summary><div class="mi">' + items.join('') + '</div></details>' : '');
     if (kind === 'lead') {
       h += callBtn(r) + '<button class="btn go oa" data-id="' + id + '" data-do="addr">Хаяг оруулах</button>'
-        + '<button class="btn stop oa" data-id="' + id + '" data-do="cancel" title="Авахгүй гэвэл">Цуцлах</button>' + skuBtn(r) + addrForm(r);
+        + menu(['<button class="btn stop oa" data-id="' + id + '" data-do="cancel" title="Авахгүй гэвэл">Цуцлах</button>', skuBtn(r)]) + addrForm(r);
     } else if (kind === 'addressed') {
-      if (r.stage === 'order') h += '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж баталгаажуулсан">Батлах</button>';
-      if (['order', 'confirmed'].indexOf(r.stage) >= 0) {
-        if (!r.shipped_at) h += '<button class="btn oa" data-id="' + id + '" data-do="shipped" title="Гялс/хүргэгчид өгсөн">Ачсан</button>';
-        if (!r.shipped_at && !r.is_rural) h += '<button class="btn oa" data-id="' + id + '" data-do="deliver_sms" title="Утас холбогдоогүй бол: хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS (M5)">💬 ' + (r.deliver_sms_at ? 'SMS дахин' : 'Хүргэлтийн SMS') + '</button>';
-        h += '<button class="btn oa" data-id="' + id + '" data-do="paid" title="Хүргэгдэж төлбөр авсан (COD)">' + (r.prepaid_at ? 'Хүлээн авсан' : 'Төлсөн') + '</button>';
+      const live = ['order', 'confirmed'].indexOf(r.stage) >= 0;
+      const bShip = '<button class="btn oa" data-id="' + id + '" data-do="shipped" title="Гялс/хүргэгчид өгсөн">Ачсан</button>';
+      const bSms = '<button class="btn oa" data-id="' + id + '" data-do="deliver_sms" title="Утас холбогдоогүй бол: хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS (M5)">💬 ' + (r.deliver_sms_at ? 'SMS дахин' : 'Хүргэлтийн SMS') + '</button>';
+      const bPaid = '<button class="btn oa" data-id="' + id + '" data-do="paid" title="Хүргэгдэж төлбөр авсан (COD)">' + (r.prepaid_at ? 'Хүлээн авсан' : 'Төлсөн') + '</button>';
+      const rest = [];
+      if (r.stage === 'order') {
+        h += '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж баталгаажуулсан">Батлах</button>';
+        if (!r.shipped_at && !r.is_rural) rest.push(bSms);
+        if (!r.shipped_at) rest.push(bShip);
+        rest.push(bPaid);
+      } else if (r.stage === 'confirmed') {
+        if (!r.shipped_at) { h += bShip.replace('class="btn oa"', 'class="btn go oa"'); if (!r.is_rural) rest.push(bSms); rest.push(bPaid); }
+        else h += bPaid.replace('class="btn oa"', 'class="btn go oa"');
+      } else if (r.stage === 'delivered') {
+        h += '<button class="btn go oa" data-id="' + id + '" data-do="paid">Төлбөр бүртгэх</button>';
       }
-      if (r.stage === 'delivered') h += '<button class="btn go oa" data-id="' + id + '" data-do="paid">Төлбөр бүртгэх</button>';
-      if (['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0) h += '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button><button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>';
-      h += skuBtn(r) + addrForm(r);
+      if (['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0) rest.push('<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button>', skuBtn(r), '<button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>');
+      h += menu(rest.filter(Boolean)) + addrForm(r);
     }
     return h + '</td></tr>';
   };
@@ -215,6 +244,7 @@ function renderOrders(DATA, QUERY) {
     rows.forEach((r) => o(rRow(r, mode)));
     o('</tbody></table></div>');
   };
+  cur = T.rural;
   if (ruralAct.length) {
     o('<div class="rural"><h2 style="margin-top:10px">🚚 Орон нутаг — 100% урьдчилж төлнө <span class="cnt">' + ruralAct.length + '</span></h2>');
     o('<p class="sm mut">Бараа ирмэгц залгаж хаяг авна → «шилжүүлээрэй» гэж ярина → <b>💬 Төлбөрийн SMS</b> → мөнгө орвол <b>✓ Мөнгө орсон</b> → доорх «Gyals-д өгөх» жагсаалтад орно. Төлөөгүйг унаанд тавихгүй.</p>');
@@ -244,6 +274,7 @@ function renderOrders(DATA, QUERY) {
   // Бараа ирж хүлээн авмагц stock_reallocate оноож (stock_ok) — тэгэхэд л түгээлтэд орно.
   const isBO = (r) => /нөөц захиалга/i.test(String(r.review_reason || '')) && ['lead', 'order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && !(r.stock_ready_at || r.stock_ok);
   const bo = O.filter(isBO);
+  cur = T.dsp;
   if (bo.length) {
     const BG = {};
     bo.forEach((r) => { const k = String(r.product || '').split(' · ')[0] + (r.variant ? ' · ' + r.variant : ''); (BG[k] = BG[k] || []).push(r); });
@@ -297,9 +328,11 @@ function renderOrders(DATA, QUERY) {
     + (!dsp.length && rShip.length ? '<button class="btn go gx-dl" data-k="' + TOMORROW + '">📥 Excel (орон нутаг, төлсөн)</button> ' : '')
     + '<button class="btn gx-up">📤 Gyals тайлан оруулах</button><input type="file" id="gx-file" accept=".xlsx" hidden>'
     + ' <span class="sm mut">Gyals буцааж явуулсан Excel-ийн «Хүргэлтийн төлөв» баганаар захиалгууд автоматаар Төлсөн / Хойшилсон / Цуцалсан болно (нөөц зөв тоологдоно, мэдэгдэл явахгүй).</span><div id="gx-prev"></div></div>');
+  cur = T.main;
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
   o('<div class="tchbar"><span>🟩 ногоон = залгасан/товч дарсан · <b>СҮҮЛД</b> = хамгийн сүүлд ажилласан мөр</span><button class="btn" id="tch-go">↓ Сүүлд залгасан руу очих</button><button class="btn" id="tch-clr" title="Өнөөдрийн тэмдэглэгээг арилгах">Тэмдэглэгээ арилгах</button></div>');
   table(addrMain, 'addressed', 'Шүүлтэд таарах хаягтай захиалга алга');
+  cur = T.wait;
   if (addrWait.length) {
     o('<h2>⏳ Хүлээлэг — SMS явуулсан, хариу хүлээж буй <span class="cnt">' + addrWait.length + ' · ' + big(addrWait.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
     o('<p class="sm mut">Утсаа аваагүй хүмүүс. Утсандаа ирсэн хариуг шалгаад: «Тийм» гэсэн бол <b>Батлах</b>, авахгүй гэсэн бол <b>Цуцлах</b>. Хариу ирээгүй бол дахин залга эсвэл <b>SMS дахин</b>.</p>');
@@ -307,17 +340,35 @@ function renderOrders(DATA, QUERY) {
   }
 
   // ── 2 · Сонирхол (хаяггүй). WIN/амьд бараа руу залгах жагсаалт дээр нь
+  cur = T.lead;
   o('<h2>Сонирхол — утас/нэр үлдээсэн, хаяггүй <span class="cnt">' + leads.length + '</span></h2>');
   if (CALL.length) o('<div class="callbox"><b>📞 Залгах жагсаалт · ' + CALL.length + ' хүн (WIN эсвэл амьд бараа)</b>Залгаад хаягаа өгвөл «Хаяг оруулах» → захиалга болж баталгаажна. Авахгүй гэвэл «Цуцлах». Мөр бүрийн «📞 Залгах» товч дугаарыг хуулж, залгана. SMS автоматаар явахгүй — эзэн өөрөө залгана.</div>');
   else o('<p class="sm mut">Залгах жагсаалт хоосон: эдгээр бараа WIN болоогүй / бараа ирээгүй. LOSS барааны сонирхогчид юу ч илгээхгүй.</p>');
   table(leads.slice().sort((a, b) => (b.call_ready ? 1 : 0) - (a.call_ready ? 1 : 0) || new Date(b.placed_at) - new Date(a.placed_at)), 'lead', 'Хаяггүй сонирхол алга');
 
   // ── 3 · Цуцлагдсан / тест (нуусан)
+  cur = T.other;
   if (others.length) {
     o('<details data-keep="others"><summary style="cursor:pointer;font-size:13.5px;font-weight:600;margin:18px 0 8px">Цуцлагдсан · тест · давхардал (' + others.length + ')</summary>');
     table(others, 'other', '');
     o('</details>');
   }
+  // ── Табууд: Хаягтай · Түгээлт · Орон нутаг · Хүлээлэг · Сонирхол · Бусад. Яаралтай орон нутаг байвал тэр нь эхэнд нээгдэнэ.
+  cur = out;
+  const nUrg = rPay.filter((r) => r.placed_mode === 'live').length;
+  const TABS = [
+    ['main', 'Хаягтай', addrMain.length, '', true],
+    ['dsp', 'Түгээлт', dsp.length, bo.length ? bo.length + ' нөөц' : '', true],
+    ['rural', 'Орон нутаг', ruralAct.length, nUrg ? nUrg + ' яаралтай' : '', ruralAct.length > 0],
+    ['wait', 'Хүлээлэг SMS', addrWait.length, '', addrWait.length > 0],
+    ['lead', 'Сонирхол', leads.length, CALL.length ? CALL.length + ' залгах' : '', leads.length > 0],
+    ['other', 'Бусад', others.length, 'цуцлагдсан · тест', others.length > 0]
+  ].filter((t) => t[4]);
+  const defTab = Q.tab && TABS.some((t) => t[0] === Q.tab) ? Q.tab : (nUrg ? 'rural' : (anyFilter ? 'main' : ''));
+  o('<div class="otabs" id="otabs" role="tablist" data-def="' + esc(defTab) + '">');
+  TABS.forEach((t) => o('<button type="button" class="otb" role="tab" data-tab="' + t[0] + '"' + (t[0] === 'rural' && nUrg ? ' data-urg="1"' : '') + '>' + esc(t[1]) + ' <b>' + t[2] + '</b>' + (t[3] ? '<span class="sm">' + esc(t[3]) + '</span>' : '') + '</button>'));
+  o('</div>');
+  TABS.forEach((t) => { o('<section class="pane" data-pane="' + t[0] + '">'); out.push(...T[t[0]]); o('</section>'); });
   o('<datalist id="dl-d"></datalist>');
   o('<footer>Блок C1 · захиалга = дүүрэг/хороо + хаяг (B1). Хаяг оруулах = захиалга + баталгаажсан. Төлсөн = хүргэгдэж мөнгөө авсан (COD); орон нутаг = 100% урьдчилж төлнө (S8). Цуцлах → нөөц дэвтэрт буцна. Шүүлт URL дээр хадгалагдана — хуваалцаж болно.</footer></div>');
 
@@ -330,6 +381,12 @@ function renderOrders(DATA, QUERY) {
     + '.then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(j){if(!j||j.ok===false){var x=new Error((j&&(j.error||j.message))||"алдаа");x.j=j;throw x}return j})'
     + '.catch(function(x){if(btn){btn.disabled=false;btn.textContent=btn.dataset.tx}if(out)say(out,x.message,true);throw x})}'
     + 'function reload(ms){setTimeout(function(){if(window.ssRefresh)window.ssRefresh();else location.reload()},ms||500)}'
+    /* v3: табууд (localStorage ss_orders_tab; ?tab= / яаралтай орон нутаг давуу) + хаяг дарвал бүтнээр */
+    + '(function(){var bar=document.getElementById("otabs");if(!bar)return;var KT="ss_orders_tab",bs=bar.querySelectorAll(".otb"),has={};bs.forEach(function(b){has[b.dataset.tab]=1});'
+    + 'var t=bar.dataset.def;if(!t){try{t=localStorage.getItem(KT)||""}catch(x){}}if(!has[t])t="main";'
+    + 'function set(v,save){bs.forEach(function(b){b.classList.toggle("on",b.dataset.tab===v)});document.querySelectorAll(".pane").forEach(function(p){p.classList.toggle("on",p.dataset.pane===v)});if(save){try{localStorage.setItem(KT,v)}catch(x){}}}'
+    + 'set(t,false);bar.addEventListener("click",function(ev){var b=ev.target.closest(".otb");if(b)set(b.dataset.tab,true)})})();'
+    + 'document.addEventListener("click",function(ev){var a=ev.target.closest&&ev.target.closest(".adr");if(a&&!ev.target.closest("a,button"))a.classList.toggle("open")});'
     + 'document.querySelectorAll(".oa").forEach(function(b){b.addEventListener("click",function(){var id=b.dataset.id,d=b.dataset.do;'
     + 'if(d==="addr"){var f=document.getElementById("f-"+id);f.classList.toggle("on");if(f.classList.contains("on")){var s=document.getElementById("d-"+id);if(s&&!s.value)s.focus()}return}'
     + 'var note;if(d==="cancel"){note=prompt("Цуцлах шалтгаан (сонголттой):","");if(note===null)return}'
