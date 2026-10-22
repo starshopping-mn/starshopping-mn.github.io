@@ -124,3 +124,13 @@ table.adt tr.ak-on td{background:rgba(15,122,31,.04)}table.adt tr.ak-wait td{bac
 .adc .out [class^="adr-"]{padding:3px 0}.adc .out .adr-bad{color:var(--crit)}
 .adold{margin-top:8px}.adold>summary{cursor:pointer;font-size:12px;color:var(--mut);padding:6px 2px}
 .adc .si.sn{margin-top:8px}
+
+/* CC 2026-10-22: «Төсөв нэмэх үү?» карт */
+.bud4{border:1px solid var(--line,rgba(0,0,0,.12));border-left-width:1px;border-radius:12px;padding:10px 12px;margin:0 0 12px;background:var(--s1,transparent)}
+.bud4 .bh{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.bud4 .bh b{font-size:15px}.bud4 .bh span{font-size:11.5px;color:var(--mut)}
+.bud4 .bw{font-size:12.5px;margin:4px 0 8px;line-height:1.45}
+.bud4.grow .bh b{color:var(--good)}.bud4.cut .bh b{color:var(--crit)}.bud4.stock .bh b,.bud4.hold .bh b{color:var(--warn)}
+.bud4 .bs{font-size:12.5px;background:var(--s2);border-radius:8px;padding:7px 9px;margin:0 0 8px}
+.bud4 .bc{list-style:none;margin:4px 0 0;padding:0;font-size:12px;line-height:1.6}
+.bud4 .bc .y{color:var(--good)}.bud4 .bc .x{color:var(--mut)}
