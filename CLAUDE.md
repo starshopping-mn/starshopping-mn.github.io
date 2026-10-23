@@ -1528,3 +1528,13 @@ localStorage-д хадгална. Хуудас `noindex`. Засвар = энд 
 - **Дохио зөвхөн зөвлөнө.** Төсвийг эзэн Ads Manager-т өөрөө өөрчилнө — автомат төсөв өөрчлөлт БҮҮ нэм.
 - Буцаах: `main/sql/2026-10-22-CC-ROLLBACK.sql`.
 - Нүүр/категори хуудасны visual pass: эзэн 10/22 татгалзсан («Website-ийг өөрчлөхгүй — зар шууд барааны хуудас руу ордог»). Дахин санал болгохгүй.
+
+## 36. Meta зар = API-аар (2026-10-23, эзний дүрэм)
+
+Кампанит ажил / ad set / зар угсрах, засах ажлыг **Marketing API-аар** хийнэ (Ads Manager-ийн UI-г зөвхөн API-д байхгүй зүйлд). n8n **42** (zsQvjACr4uNQ9jTH, unpublished, зөвхөн MCP-ээр гараар): «Meta GET (MCP)» body `{path}` · «Meta POST (MCP)» body `{path, data}`. Credential TNIzvIZmvVtd8HYU (ads_management).
+- Угсрахдаа ҮРГЭЛЖ `status: PAUSED` — асаах, төсөв нэмэх нь эзний товч.
+- Ad set загвар (хуучинтай ижил): OFFSITE_CONVERSIONS · pixel 1409055724744932 PURCHASE · IMPRESSIONS · LOWEST_COST_WITHOUT_CAP · daily_budget центээр (1250 = $12.50) · УБ city key 1493147 radius 40 · age 20–65 · `targeting_automation.advantage_audience=1` · publisher_platforms facebook+instagram ЗӨВХӨН (AN орохгүй) · attribution 7d click / 1d view / 1d engaged view.
+- Зар (одоо байгаа пост): creative `{object_story_id: "<page>_<post>", instagram_user_id: "17841446839741278", degrees_of_freedom_spec: бүгд OPT_OUT}` — **`standard_enhancements` ТАВИХГҮЙ** (deprecated, алдаа 3858504). Постын CTA «Shop now» + `?ref=<creative_id>` URL нь постон дээр өөрт нь (Ads Manager «Change call to action») байх ёстой; API-аар постыг уншиж чадахгүй (page token хэрэгтэй) → ref ажилласныг `checkout_events.creative`-ээс шалга.
+- `?ids=` параметр v26-д устсан; нэг объект = нэг дуудлага. Page пост/feed унших боломжгүй (user token).
+- Кампанит ажлын spend_cap (центээр) — дүүрвэл зар чимээгүй зогсдог; n8n 18 «Таг 90% үү» анхааруулна.
+- Нөөц кампанит ажил «hantaaz · 2026-10 · live-2» 120249770852260470 (ad set 120249770856030470, r4b/r2b зар) PAUSED — хуучин 120249413169060470 зогсвол асаана.
