@@ -300,34 +300,73 @@ function renderOrders(DATA, QUERY) {
     rural: !!r.is_rural, prepaid: Math.round(n(r.prepaid_mnt)), paid: !!(r.is_rural && r.prepaid_at) });
   const GX = { groups: {}, codes: {} };
   O.forEach((r) => { if (r.order_id) GX.codes[String(r.order_id).slice(0, 8)] = { id: r.order_id, name: r.customer || '', phone: r.phone || '', stage: r.stage }; });
-  if (dsp.length) {
-    const G = {};
-    dsp.forEach((r) => { const k = !r.deliver_on ? TOMORROW : r.deliver_on < TODAY ? TODAY : r.deliver_on; (G[k] = G[k] || []).push(r); });
-    o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт — баталгаажсан, ачаагүй <span class="cnt">' + dsp.length + (rShip.length ? ' · ' + rShip.length + ' орон нутаг (төлсөн)' : '') + '</span></h2>');
-    o('<p class="sm mut">Gyals өглөө <b>10:00</b>-д захиалга авч дуусдаг → тухайн өдрийн жагсаалтыг 10:00-аас өмнө бүртгэ. Хаягтай захиалга өгсөн өдрийнхөө маргааш автоматаар орно (нөөцтэй бараа бол дуудлагагүй). Өдөр бүрийн жагсаалтыг «📋 хуулах» дараад Gyals руу paste хий. Бараа оноогдоогүй (⚠) мөр жагсаалтад орохгүй. Өдрийг мөрийн «📅 хүргэх» талбараас солино. <b>Орон нутаг:</b> мөнгө орсон захиалга энд автоматаар орно (ногоон мөр, авах дүн 0) — унаанд/Gyals-д өгөөд «Gyals-д өглөө» дар.</p>');
-    Object.keys(G).sort().forEach((k) => {
-      const rows = G[k].slice().sort((a, b) => (a.is_rural ? 1 : 0) - (b.is_rural ? 1 : 0) || String(a.district || '').localeCompare(String(b.district || '')));
-      const ok = rows.filter(dspOk);
-      const tsv = ok.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), r.is_rural && r.prepaid_at ? '0 (ТӨЛСӨН)' : Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
-      const late = rows.filter((r) => r.deliver_on && r.deliver_on < TODAY).length;
-      GX.groups[k] = ok.map(gxRow);
-      o('<h3>📅 ' + esc(dLabel(k)) + (late ? ' <span class="pill crit">' + late + ' хоцорсон</span>' : '') + ' <span class="cnt">' + ok.length + ' захиалга · ' + big(ok.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span>'
-        + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '')
-        + (ok.length ? ' <button class="btn go cp" data-n="' + ok.length + '" data-tsv="' + esc(tsv).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;') + '">📋 ' + esc(k.slice(5).replace('-', '/')) + '-ны жагсаалт хуулах</button> <button class="btn go gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 ' + esc(k.slice(5).replace('-', '/')) + ' Excel (Gyals)</button>' : '') + '</h3>');
-      o('<div class="tw"><table class="ot"><colgroup><col style="width:16%"><col style="width:30%"><col style="width:26%"><col style="width:12%"><col style="width:16%"></colgroup><thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
-      rows.forEach((r) => {
-        const good = dspOk(r);
-        const rp = !!(r.is_rural && r.prepaid_at);
-        o('<tr data-keep="d-' + esc(r.order_id) + '"' + (rp ? ' style="background:rgba(22,101,52,.07)"' : '') + '><td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>'
-          + '<td>' + esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '') + '</td>'
-          + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>'
-          + '<td>' + (rp ? '<span class="pill ok">төлсөн ' + mnt(r.prepaid_mnt) + '</span><br><span class="sm mut">авах дүн 0</span>' : mnt(r.amount_mnt)) + '</td>'
-          + '<td>' + (rp ? '<span class="pill ok">🚚 орон нутаг · урьдчилж төлсөн ' + day(r.prepaid_at) + '</span> <button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="shipped" title="Gyals/унаанд өгсөн">Gyals-д өглөө</button>' : (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>')) + (r.stage === 'order' && !rp ? '<span class="pill">автомат (дуудлагагүй)</span>' : '') + (r.deliver_on ? '<span class="pill info">📅 ' + esc(r.deliver_on.slice(5).replace('-', '/')) + '</span>' : '') + '</td></tr>');
-      });
-      o('</tbody></table></div>');
-    });
-    o('</div>');
+  // M13 (2026-10-24, эзэн): ТҮГЭЭЛТ = 3 алхам. ① Өдрийн жагсаалт → «Хуулах + Gyals-д өгсөн» (do=shipped) → мөр жагсаалтаас гарна, дахин явахгүй.
+  // ② 🚚 Gyals дээр (shipped, төлбөргүй) → «Хүргэгдсэн / Хойшилсон / Буцсан» (do=gyals). ③ Хүргэх өдөр өнгөрсөн, өгсөн гэж тэмдэглээгүй мөрийг
+  // өнөөдрийнх рүү чимээгүй чихэхгүй — «Өгсөн үү?» гэж тусад нь асууна (10/23-нд өгсөн 5 захиалга 10/24-ний жагсаалтад дахин орсон алдааны засвар).
+  const onGyals = O.filter((r) => r.shipped_at && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0)
+    .sort((a, b) => new Date(a.shipped_at) - new Date(b.shipped_at));
+  const rowsTsv = (rows) => rows.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), r.is_rural && r.prepaid_at ? '0 (ТӨЛСӨН)' : Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+  const attr = (s) => esc(s).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;');
+  const dShort = (iso) => dLabel(iso).replace(/ · .*$/, '');
+  const whoTd = (r) => '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>';
+  const addrTd = (r) => '<td>' + esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '') + '</td>';
+  const goodsTd = (r) => '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>';
+  const amtTd = (r) => '<td>' + (r.is_rural && r.prepaid_at ? '<span class="pill ok">төлсөн ' + mnt(r.prepaid_mnt) + '</span><br><span class="sm mut">авах дүн 0</span>' : mnt(r.amount_mnt)) + '</td>';
+  const COLS = '<colgroup><col style="width:16%"><col style="width:30%"><col style="width:24%"><col style="width:12%"><col style="width:18%"></colgroup>';
+  const late = [], G = {};
+  dsp.forEach((r) => {
+    if (r.deliver_on && r.deliver_on < TODAY) { late.push(r); return; }
+    const k = r.deliver_on || (r.is_rural && r.prepaid_at ? TODAY : TOMORROW);
+    (G[k] = G[k] || []).push(r);
+  });
+  o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт</h2>');
+  o('<div class="callbox" style="margin-bottom:10px"><b>Урсгал — 3 алхам</b>'
+    + '① <b>Өдрийн жагсаалт</b>: өнөөдрийн хаягтай захиалга маргаашийн жагсаалтад автоматаар орно. Gyals-д өгөхдөө «📋 … хуулах + Gyals-д өгсөн» дар → тэр мөрүүд жагсаалтаас гарна, <b>дахин явахгүй</b>.<br>'
+    + '② <b>🚚 Gyals дээр</b>: өгсөн захиалга хүргэгдтэл энд байна. Дүн ирэхээр «✓ Хүргэгдсэн» (мөнгө авсан) / «Хойшилсон» / «↩ Буцсан» дар, эсвэл доорх «📤 Gyals тайлан оруулах».<br>'
+    + '③ Хүргэх өдөр нь өнгөрсөн ч «өгсөн» гэж тэмдэглээгүй мөр байвал дээр нь «⚠ Gyals-д өгсөн үү?» гэж асууна. Gyals өглөө <b>10:00</b>-д захиалга авч дуусгадаг.</div>');
+  if (late.length) {
+    o('<h3>⚠ Өмнөх өдрийн жагсаалт — Gyals-д өгсөн үү? <span class="cnt">' + late.length + '</span></h3>');
+    o('<p class="sm mut">Хүргэх өдөр нь өнгөрсөн ч «Gyals-д өгсөн» гэж тэмдэглэгдээгүй. Өгсөн бол «Өгсөн» → 🚚 Gyals дээр хэсэгт шилжинэ. Өгөөгүй бол «Өнөөдөр өгнө» → өнөөдрийн жагсаалтад орно.</p>');
+    o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Шийдэх</th></tr></thead><tbody>');
+    late.forEach((r) => o('<tr data-keep="dl-' + esc(r.order_id) + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
+      + '<td><span class="pill crit">📅 ' + esc(r.deliver_on.slice(5).replace('-', '/')) + '</span><br><button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="shipped">Өгсөн</button> <button class="btn dtoday" data-id="' + esc(r.order_id) + '" data-d="' + TODAY + '">Өнөөдөр өгнө</button></td></tr>'));
+    o('</tbody></table></div>');
   }
+  const gkeys = Object.keys(G).sort();
+  if (!gkeys.length && !late.length) o('<p class="sm mut">Gyals-д өгөх захиалга алга.</p>');
+  gkeys.forEach((k) => {
+    const rows = G[k].slice().sort((a, b) => (a.is_rural ? 1 : 0) - (b.is_rural ? 1 : 0) || String(a.district || '').localeCompare(String(b.district || '')));
+    const ok = rows.filter(dspOk);
+    GX.groups[k] = ok.map(gxRow);
+    const kk = esc(k.slice(5).replace('-', '/'));
+    const head = k === TODAY ? '📋 Өнөөдөр Gyals-д өгөх' : k === TOMORROW ? '🕓 Маргааш өгөх — бүрдэж байна' : '📅 Дараа өгөх';
+    o('<h3>' + head + ' · ' + esc(dShort(k)) + ' <span class="cnt">' + ok.length + ' захиалга · авах ' + big(ok.reduce((s, r) => s + (r.is_rural && r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
+      + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '') + '</h3>');
+    if (k === TOMORROW) o('<p class="sm mut">Өнөөдөр орж ирж буй захиалгууд энд нэмэгдсээр байна. Орой хаяггүй хүмүүс рүү залгаж шийдээд маргааш өглөө (10:00-аас өмнө) Gyals-д өгнө.</p>');
+    if (ok.length) o('<div style="margin:4px 0 8px"><button class="btn go cpm" data-k="' + kk + '" data-ids="' + esc(ok.map((r) => r.order_id).join(',')) + '" data-tsv="' + attr(rowsTsv(ok)) + '">📋 ' + kk + ' жагсаалт хуулах + Gyals-д өгсөн гэж тэмдэглэх</button> <button class="btn gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 Excel (Gyals)</button> <button class="btn cp" data-n="' + ok.length + '" data-tsv="' + attr(rowsTsv(ok)) + '" title="Тэмдэглэхгүй, зөвхөн хуулна">зөвхөн хуулах</button></div>');
+    o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
+    rows.forEach((r) => {
+      const good = dspOk(r), rp = !!(r.is_rural && r.prepaid_at);
+      o('<tr data-keep="d-' + esc(r.order_id) + '"' + (rp ? ' style="background:rgba(22,101,52,.07)"' : '') + '>' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
+        + '<td>' + (rp ? '<span class="pill ok">🚚 орон нутаг · төлсөн ' + day(r.prepaid_at) + '</span>' : (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>'))
+        + (r.stage === 'order' && !rp ? '<span class="pill">дуудлагагүй</span>' : '') + '<br><button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="shipped" title="Зөвхөн энэ захиалгыг Gyals-д өгсөн гэж тэмдэглэх">Gyals-д өгсөн</button></td></tr>');
+    });
+    o('</tbody></table></div>');
+  });
+  o('<h3 style="margin-top:18px">🚚 Gyals дээр — хүргэлтэнд яваа <span class="cnt">' + onGyals.length + ' захиалга · авах ' + big(onGyals.reduce((s, r) => s + (r.is_rural && r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
+    + (onGyals.length > 1 ? ' <button class="btn go gyall" data-ids="' + esc(onGyals.map((r) => r.order_id).join(',')) + '">✓ Бүгд хүргэгдсэн</button>' : '') + '</h3>');
+  if (!onGyals.length) o('<p class="sm mut">Одоогоор Gyals дээр хүргэлт хүлээж буй захиалга алга.</p>');
+  else {
+    o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Авах дүн</th><th>Дүн ирэхэд</th></tr></thead><tbody>');
+    onGyals.forEach((r) => {
+      const id = esc(r.order_id), held = /хойшилсон/i.test(String(r.confirm_note || ''));
+      o('<tr data-keep="g-' + id + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
+        + '<td><span class="pill info">өгсөн ' + day(r.shipped_at) + '</span>' + (held ? '<span class="pill warn">хойшилсон</span>' : '') + '<br>'
+        + '<button class="btn go gyr" data-id="' + id + '" data-st="Хүргэсэн">✓ Хүргэгдсэн</button> <button class="btn gyr" data-id="' + id + '" data-st="Хойшилсон">Хойшилсон</button> <button class="btn stop gyr" data-id="' + id + '" data-st="Цуцалсан">↩ Буцсан</button></td></tr>');
+    });
+    o('</tbody></table></div>');
+  }
+  o('</div>');
   o('<div class="gxbar"><b>Gyals:</b> '
     + '<button class="btn gx-up">📤 Gyals тайлан оруулах</button><input type="file" id="gx-file" accept=".xlsx" hidden>'
     + ' <span class="sm mut">Gyals буцааж явуулсан Excel-ийн «Хүргэлтийн төлөв» баганаар захиалгууд автоматаар Төлсөн / Хойшилсон / Цуцалсан болно (нөөц зөв тоологдоно, мэдэгдэл явахгүй).</span><div id="gx-prev"></div></div>');
@@ -361,7 +400,7 @@ function renderOrders(DATA, QUERY) {
   const nUrg = rPay.filter((r) => r.placed_mode === 'live').length;
   const TABS = [
     ['main', 'Хаягтай', addrMain.length, '', true],
-    ['dsp', 'Түгээлт', dsp.length, [rShip.length ? rShip.length + ' орон нутаг' : '', bo.length ? bo.length + ' нөөц' : ''].filter(Boolean).join(' · '), true],
+    ['dsp', 'Түгээлт', dsp.length, [onGyals.length ? onGyals.length + ' Gyals дээр' : '', rShip.length ? rShip.length + ' орон нутаг' : '', bo.length ? bo.length + ' нөөц' : ''].filter(Boolean).join(' · '), true],
     ['rural', 'Орон нутаг', ruralAct.length, nUrg ? nUrg + ' яаралтай' : '', ruralAct.length > 0],
     ['wait', 'Хүлээлэг SMS', addrWait.length, '', addrWait.length > 0],
     ['lead', 'Сонирхол', leads.length, CALL.length ? CALL.length + ' залгах' : '', leads.length > 0],
@@ -404,6 +443,10 @@ function renderOrders(DATA, QUERY) {
     + 'function cp(t){try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t)}catch(x){}return new Promise(function(res){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy")}catch(x){}a.remove();res()})}'
     + 'document.querySelectorAll(".cb").forEach(function(b){b.addEventListener("click",function(){var t=b.dataset.tel;cp(t).then(function(){say("out-o","Дугаар хуулагдлаа: "+t+" — залгаж байна…")});setTimeout(function(){location.href="tel:"+t.replace(/[^0-9+]/g,"")},150)})});'
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр) — Gyals руу paste хий")})})});'
+    + 'document.querySelectorAll(".cpm").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean),k=b.dataset.k;cp(b.dataset.tsv).then(function(){if(!confirm(k+" жагсаалт ("+ids.length+" захиалга) хуулагдлаа — Gyals руу paste хий.\\n\\nЭдгээрийг Gyals-д ӨГСӨН гэж тэмдэглэх үү? Тэмдэглэсэн мөр жагсаалтаас гарч «Gyals дээр» хэсэгт шилжинэ, дахин явахгүй.")){say("out-o","Жагсаалт хуулагдлаа (тэмдэглээгүй)");return}b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"shipped",by:"самбар · түгээлт"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Gyals-д өгсөн гэж тэмдэглэгдлээ ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})})});'
+    + 'document.querySelectorAll(".gyr").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st,note;if(st==="Цуцалсан"){note=prompt("Буцсан шалтгаан (сонголттой):","");if(note===null)return}else if(st==="Хүргэсэн"&&!confirm("Хүргэгдэж мөнгө авсан гэж бүртгэх үү?"))return;post({action:"order",order_id:b.dataset.id,do:"gyals",status:st,note:note||undefined,by:"самбар · Gyals дээр"},b,"out-o").then(function(){say("out-o",st==="Хүргэсэн"?"Хүргэгдсэн ✓":st==="Хойшилсон"?"Хойшилсон гэж тэмдэглэв":"Буцсан — захиалга цуцлагдаж бараа нөөцөд буцлаа");reload(900)}).catch(function(){})})});'
+    + 'document.querySelectorAll(".gyall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг бүгдийг нь хүргэгдсэн (мөнгө авсан) гэж бүртгэх үү?"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"gyals",status:"Хүргэсэн",by:"самбар · Gyals дээр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга хүргэгдсэн ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
+    + 'document.querySelectorAll(".dtoday").forEach(function(b){b.addEventListener("click",function(){post({action:"order",order_id:b.dataset.id,do:"deliver_on",date:b.dataset.d,by:"самбар"},b,"out-o").then(function(){say("out-o","Өнөөдрийн жагсаалтад орлоо");reload(900)}).catch(function(){})})});'
     + '(' + ssStockUI.toString() + ')(post,say,reload,e);'
     + '(' + ssTouchUI.toString() + ')();'
     + '(' + ssDeliverUI.toString() + ')(post,say,reload);'
