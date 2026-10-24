@@ -202,7 +202,7 @@ function renderOrders(DATA, QUERY) {
   // M4 (2026-10-19): «Нөөц» багана — тухайн хувилбарын сул үлдэгдэл + өөр сонголт (stock_public-аас хуудсан дээр бөглөнө)
   const canSwap = (r) => has(r.slug) && (r.stage === 'lead' || (['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at));
   const stkCell = (r) => canSwap(r)
-    ? '<td class="stk" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" data-al="' + (r.stock_ready_at ? 1 : 0) + '" data-qty="' + (n(r.qty) || 1) + '" data-lead="' + (r.stage === 'lead' ? 1 : 0) + '"><span class="mut">…</span></td>'
+    ? '<td class="stk" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" data-al="' + ((r.stock_ready_at || r.stock_ok) ? 1 : 0) + '" data-qty="' + (n(r.qty) || 1) + '" data-lead="' + (r.stage === 'lead' ? 1 : 0) + '"><span class="mut">…</span></td>'
     : '<td class="stk"><span class="mut">—</span></td>';
   const skuBtn = (r) => (canSwap(r) ? '<button class="btn osku" data-id="' + esc(r.order_id) + '" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" title="Өнгө/размерыг солих (мэдэгдэл явахгүй)">🔁 Бараа солих</button><div class="frm sku" id="k-' + esc(r.order_id) + '"></div>' : '');
   const table = (rows, kind, empty) => {
@@ -414,6 +414,8 @@ function renderOrders(DATA, QUERY) {
 
 /* M4 (2026-10-19) · «Нөөц» багана + «Бараа солих». Хуудсан дээр stock_public (anon, нийтийн RPC) уншина.
    available = агуулах(+зам) − хаягтай захиалгууд → сонирхогч (хаяггүй) мөрөнд «сул N» = түүнд өгч болох тоо.
+   10/24 засвар: онооллыг stock_ready_at-аас гадна stock_ok (sale move бий)-оор таньдаг болгов — live бараанд захиалга орох мөчид
+   нөөц оноогдож хасагддаг тул сонирхогчийн өөрийн ширхэг аль хэдийн түүнийх; өмнө нь XL 0 болмогц 5 XL сонирхогч «дууссан» гэж буруу харагдаж байсан.
    Солих = POST action=order do=sku {color,size} → order_action M4: хуучин оноолтыг чөлөөлж, шинэд нөөц байвал онооно. Мэдэгдэл явахгүй (notify_silent). */
 function ssStockUI(post, say, reload, e) {
   var URL = 'https://tdnjnqftxschbliumwwm.supabase.co/rest/v1/rpc/stock_public?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkbmpucWZ0eHNjaGJsaXVtd3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNzExNTgsImV4cCI6MjEwNDk0NzE1OH0.lND_YBbjyCNT-yIa27OZ3V-1_fn76i9JUYrOfrXbC1w';
