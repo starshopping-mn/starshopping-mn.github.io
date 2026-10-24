@@ -307,6 +307,31 @@ function renderOrders(DATA, QUERY) {
     .sort((a, b) => new Date(a.shipped_at) - new Date(b.shipped_at));
   const rowsTsv = (rows) => rows.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), r.is_rural && r.prepaid_at ? '0 (ТӨЛСӨН)' : Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
   const attr = (s) => esc(s).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;');
+  // 10/24 (эзэн): хуулах текст = Gyals-д шууд paste хийх уншигдахуйц жагсаалт (УБ бэлнээр · УБ төлсөн · орон нутаг төлсөн, дугаарласан, нийт дүнтэй).
+  const gyalsText = (k, rows) => {
+    const paidR = (r) => !!r.prepaid_at;
+    const secs = [
+      ['— УЛААНБААТАР (бараагаа авахдаа төлнө) —', rows.filter((r) => !r.is_rural && !paidR(r))],
+      ['— УЛААНБААТАР (ТӨЛБӨР ТӨЛСӨН · авах дүн 0₮) —', rows.filter((r) => !r.is_rural && paidR(r))],
+      ['— ОРОН НУТАГ (ТӨЛБӨР ТӨЛСӨН · авах дүн 0₮) —', rows.filter((r) => r.is_rural && paidR(r))],
+      ['— ОРОН НУТАГ (ТӨЛӨӨГҮЙ) —', rows.filter((r) => r.is_rural && !paidR(r))]
+    ].filter((x) => x[1].length);
+    const clean = (x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    let i = 0, due = 0;
+    const lines = [k.slice(5).replace('-', '/') + ' · Starshopping · Gyals хүргэлт'];
+    secs.forEach((x) => {
+      lines.push('', x[0]);
+      x[1].forEach((r) => {
+        const paid = paidR(r), amt = Math.round(n(r.amount_mnt));
+        if (!paid) due += amt;
+        lines.push((++i) + '. ' + clean(r.phone) + ' · ' + [clean(String(r.district || '').replace(/^Орон нутаг\s*/, '')), clean(r.address)].filter(Boolean).join(', ')
+          + (r.customer ? ' (' + clean(r.customer) + ')' : '') + ' · ' + clean(String(r.product || '').split(' · ')[0]) + (r.variant ? ' ' + clean(r.variant) : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '')
+          + ' · ' + (paid ? '0₮ (ТӨЛСӨН)' : amt.toLocaleString('en-US') + '₮'));
+      });
+    });
+    lines.push('', 'Нийт ' + i + ' захиалга · авах дүн ' + due.toLocaleString('en-US') + '₮');
+    return lines.join('\n');
+  };
   const dShort = (iso) => dLabel(iso).replace(/ · .*$/, '');
   const whoTd = (r) => '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>';
   const addrTd = (r) => '<td>' + esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '') + '</td>';
@@ -343,7 +368,7 @@ function renderOrders(DATA, QUERY) {
     o('<h3>' + head + ' · ' + esc(dShort(k)) + ' <span class="cnt">' + ok.length + ' захиалга · авах ' + big(ok.reduce((s, r) => s + (r.is_rural && r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
       + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '') + '</h3>');
     if (k === TOMORROW) o('<p class="sm mut">Өнөөдөр орж ирж буй захиалгууд энд нэмэгдсээр байна. Орой хаяггүй хүмүүс рүү залгаж шийдээд маргааш өглөө (10:00-аас өмнө) Gyals-д өгнө.</p>');
-    if (ok.length) o('<div style="margin:4px 0 8px"><button class="btn go cpm" data-k="' + kk + '" data-ids="' + esc(ok.map((r) => r.order_id).join(',')) + '" data-tsv="' + attr(rowsTsv(ok)) + '">📋 ' + kk + ' жагсаалт хуулах + Gyals-д өгсөн гэж тэмдэглэх</button> <button class="btn gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 Excel (Gyals)</button> <button class="btn cp" data-n="' + ok.length + '" data-tsv="' + attr(rowsTsv(ok)) + '" title="Тэмдэглэхгүй, зөвхөн хуулна">зөвхөн хуулах</button></div>');
+    if (ok.length) o('<div style="margin:4px 0 8px"><button class="btn go cpm" data-k="' + kk + '" data-ids="' + esc(ok.map((r) => r.order_id).join(',')) + '" data-tsv="' + attr(gyalsText(k, ok)) + '">📋 ' + kk + ' жагсаалт хуулах + Gyals-д өгсөн гэж тэмдэглэх</button> <button class="btn gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 Excel (Gyals)</button> <button class="btn cp" data-n="' + ok.length + '" data-tsv="' + attr(gyalsText(k, ok)) + '" title="Тэмдэглэхгүй, зөвхөн хуулна">зөвхөн хуулах</button></div>');
     o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
     rows.forEach((r) => {
       const good = dspOk(r), rp = !!(r.is_rural && r.prepaid_at);
