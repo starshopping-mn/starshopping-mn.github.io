@@ -179,10 +179,15 @@ function renderMoney(DATA, QUERY) {
     + '<span class="sm mut" style="margin-left:auto">' + esc(day(d.from)) + ' – ' + esc(day(d.to)) + ' · ханш $' + n(FX.usd).toLocaleString('en-US') + ' · ¥' + n(FX.cny) + '</span></form>');
 
   // ── цонх: зардал vs орлого → цэвэр
+  // CH (2026-10-25, эзэн): НИЙТ ОРЛОГО = данс руу бодит орсон мөнгө − Gyals-ын хүргэлтийн хөлс; НИЙТ ЗАРЛАГА = бусад бүх зардал; НИЙТ АШИГ = орлого − зарлага.
+  const gyFee = n(C.delivery), revNet = has(R.net) ? n(R.net) : revReal - gyFee, costEx = costTotal - gyFee;
   o('<div class="hero">'
-    + '<div class="cost"><b>−' + big(costTotal) + '</b><span>нийт зардал ₮ · хэрэгсэл ' + big(T.total) + ' · зар ' + big(AD.total) + ' · бараа ' + big(G.total) + '</span></div>'
-    + '<div class="' + (revReal > 0 ? 'pos' : '') + '"><b>+' + big(revReal) + '</b><span>орлого бодит (төлсөн ' + n(R.paid_n) + ' захиалга)' + (revDelivUnpaid ? ' · хүргэсэн төлөгдөөгүй ' + big(revDelivUnpaid) : '') + '</span></div>'
-    + '<div class="' + (n(N.real) < 0 ? 'neg' : 'pos') + '"><b>' + sign(N.real) + '</b><span>ЦЭВЭР БОДИТ = төлсөн − зардал</span></div>'
+    + '<div class="' + (revNet > 0 ? 'pos' : '') + '"><b>+' + big(revNet) + '</b><span>НИЙТ ОРЛОГО (цэвэр) · данс руу орсон ' + n(R.paid_n) + ' захиалга ' + big(revReal) + ' − Gyals хүргэлтийн хөлс ' + big(gyFee)
+      + (n(R.prepaid_n) ? ' · үүнээс урьдчилж төлсөн ' + n(R.prepaid_n) + ' (' + big(R.prepaid) + ')' : '')
+      + (revDelivUnpaid ? ' · <b style="display:inline;font-size:inherit">Gyals-аас ирэх ' + big(revDelivUnpaid) + '</b> (' + n(R.delivered_unpaid_n) + ' хүргэгдсэн, тооцоо нийлээгүй)' : '') + '</span></div>'
+    + '<div class="cost"><b>−' + big(costEx) + '</b><span>НИЙТ ЗАРЛАГА · бараа+карго ' + big(G.total) + ' · зар ' + big(AD.total) + ' · хэрэгсэл ' + big(T.total) + (n(C.other) ? ' · бусад ' + big(C.other) : '') + '</span></div>'
+    + '<div class="' + (n(N.real) < 0 ? 'neg' : 'pos') + '"><b>' + sign(N.real) + '</b><span>НИЙТ АШИГ = цэвэр орлого − бүх зарлага</span></div>'
+    + (has(R.inventory_mnt) ? '<div><b>' + big(n(R.inventory_mnt) + n(R.in_transit_mnt)) + '</b><span>БАРАА (өртгөөр) · агуулахад ' + n(R.inventory_units) + ' ш ' + big(R.inventory_mnt) + (n(R.in_transit_mnt) ? ' · замд ' + big(R.in_transit_mnt) : '') + ' · ашиг + бараа = ' + sign(N.with_stock) + '</span></div>' : '')
     + '<div class="' + (n(N.expected) < 0 ? 'neg' : 'pos') + '"><b>' + sign(N.expected) + '</b><span>цэвэр хүлээгдэж буй · хаягтай ' + n(R.pipeline_n) + ' зах. ' + big(R.pipeline_gross) + ' × ' + ratioPct + '% = ' + big(revExp) + (n(R.leads_n) ? ' · сонирхол ' + n(R.leads_n) + ' (тооцоонд ороогүй)' : '') + '</span></div>'
     + '</div>');
 
