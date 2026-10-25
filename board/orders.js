@@ -184,7 +184,8 @@ function renderOrders(DATA, QUERY) {
       const live = ['order', 'confirmed'].indexOf(r.stage) >= 0;
       const bShip = '<button class="btn oa" data-id="' + id + '" data-do="shipped" title="Гялс/хүргэгчид өгсөн">Ачсан</button>';
       const bSms = '<button class="btn oa" data-id="' + id + '" data-do="deliver_sms" title="Утас холбогдоогүй бол: хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS (M5)">💬 ' + (r.deliver_sms_at ? 'SMS дахин' : 'Хүргэлтийн SMS') + '</button>';
-      const bPaid = '<button class="btn oa" data-id="' + id + '" data-do="paid" title="Хүргэгдэж төлбөр авсан (COD)">' + (r.prepaid_at ? 'Хүлээн авсан' : 'Төлсөн') + '</button>';
+      // CH (2026-10-25, эзэн): «төлсөн» = мөнгө данс руу орсон. Энд зөвхөн «Хүргэгдсэн» (do=delivered); мөнгө Түгээлт → «💰 Gyals тооцоо»-оор бүртгэгдэнэ.
+      const bPaid = r.shipped_at ? '<button class="btn oa" data-id="' + id + '" data-do="delivered" title="Gyals хүргэсэн — мөнгө хараахан ирээгүй">✓ Хүргэгдсэн</button>' : '';
       const rest = [];
       if (r.stage === 'order') {
         h += '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж баталгаажуулсан">Батлах</button>';
@@ -195,7 +196,7 @@ function renderOrders(DATA, QUERY) {
         if (!r.shipped_at) { h += bShip.replace('class="btn oa"', 'class="btn go oa"'); if (!r.is_rural) rest.push(bSms); rest.push(bPaid); }
         else h += bPaid.replace('class="btn oa"', 'class="btn go oa"');
       } else if (r.stage === 'delivered') {
-        h += '<button class="btn go oa" data-id="' + id + '" data-do="paid">Төлбөр бүртгэх</button>';
+        h += '<span class="pill info" title="Gyals мөнгө шилжүүлэхэд Түгээлт таб → «💰 Gyals тооцоо нийлэх»">💰 мөнгө Gyals тооцоогоор</span>';
       }
       if (['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0) rest.push('<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button>', skuBtn(r), '<button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>');
       h += menu(rest.filter(Boolean)) + addrForm(r);
@@ -382,7 +383,7 @@ function renderOrders(DATA, QUERY) {
     o('</tbody></table></div>');
   });
   o('<h3 style="margin-top:18px">🚚 Gyals дээр — хүргэлтэнд яваа <span class="cnt">' + onGyals.length + ' захиалга · авах ' + big(onGyals.reduce((s, r) => s + (r.is_rural && r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
-    + (onGyals.length > 1 ? ' <button class="btn go gyall" data-ids="' + esc(onGyals.map((r) => r.order_id).join(',')) + '">✓ Бүгд хүргэгдсэн</button>' : '') + '</h3>');
+    + (onGyals.filter((r) => r.stage !== 'delivered').length > 1 ? ' <button class="btn go gyall" data-ids="' + esc(onGyals.filter((r) => r.stage !== 'delivered').map((r) => r.order_id).join(',')) + '">✓ Бүгд хүргэгдсэн</button>' : '') + '</h3>');
   if (!onGyals.length) o('<p class="sm mut">Одоогоор Gyals дээр хүргэлт хүлээж буй захиалга алга.</p>');
   else {
     o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Авах дүн</th><th>Дүн ирэхэд</th></tr></thead><tbody>');
@@ -390,14 +391,35 @@ function renderOrders(DATA, QUERY) {
       const id = esc(r.order_id), held = /хойшилсон/i.test(String(r.confirm_note || ''));
       o('<tr data-keep="g-' + id + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
         + '<td><span class="pill info">өгсөн ' + day(r.shipped_at) + '</span>' + (held ? '<span class="pill warn">хойшилсон</span>' : '') + '<br>'
-        + '<button class="btn go gyr" data-id="' + id + '" data-st="Хүргэсэн">✓ Хүргэгдсэн</button> <button class="btn gyr" data-id="' + id + '" data-st="Хойшилсон">Хойшилсон</button> <button class="btn stop gyr" data-id="' + id + '" data-st="Цуцалсан">↩ Буцсан</button></td></tr>');
+        + (r.stage === 'delivered'
+          ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span><span class="pill warn">мөнгө ирээгүй</span>'
+          : '<button class="btn go gyr" data-id="' + id + '" data-st="Хүргэсэн">✓ Хүргэгдсэн</button> <button class="btn gyr" data-id="' + id + '" data-st="Хойшилсон">Хойшилсон</button> <button class="btn stop gyr" data-id="' + id + '" data-st="Цуцалсан">↩ Буцсан</button>') + '</td></tr>');
     });
     o('</tbody></table></div>');
+    // CH (2026-10-25, эзэн): «💰 Gyals тооцоо нийлэх» — Gyals мөнгө шилжүүлэхэд. Авах дүн − ирсэн дүн = Gyals-ын хүргэлтийн хөлс, захиалга бүрт тэнцүү.
+    // Захиалга бүр do=paid: paid_mnt = бүтэн үнэ (урьдчилж төлсөн бол тэр дүн), delivery_cost_mnt = хөлсний хувь → орлого цэвэр дүнгээр бүртгэгдэнэ.
+    const gsGross = (r) => Math.round(r.is_rural && r.prepaid_at ? n(r.prepaid_mnt) || n(r.amount_mnt) : n(r.amount_mnt));
+    const gsDue = (r) => (r.is_rural && r.prepaid_at ? 0 : Math.round(n(r.amount_mnt)));
+    const gs = onGyals.slice().sort((a, b) => (a.stage === 'delivered' ? 0 : 1) - (b.stage === 'delivered' ? 0 : 1) || new Date(a.shipped_at) - new Date(b.shipped_at));
+    o('<details class="gsx-box" data-keep="gsettle" style="margin-top:14px;border:1px solid var(--bd,#ddd);border-radius:10px;padding:8px 10px"' + (gs.some((r) => r.stage === 'delivered') ? ' open' : '') + '><summary><b>💰 Gyals тооцоо нийлэх</b> <span class="sm mut">— Gyals мөнгө шилжүүлэхэд энд бүртгэнэ</span></summary>'
+      + '<p class="sm mut">Мөнгөнд нь орсон захиалгуудыг чагтлаад (хүргэгдсэн нь анхнаасаа чагттай), данс руу орсон дүнг бичнэ. <b>Авах дүн − ирсэн дүн = Gyals-ын хүргэлтийн хөлс</b>, захиалга бүрт тэнцүү хуваагдана. Дарахад захиалга бүр «төлсөн» болж, Мөнгө хуудсанд орлого хөлс хассан цэвэр дүнгээр орно.</p>'
+      + '<div class="tw"><table class="ot"><thead><tr><th></th><th>Хэн</th><th>Бараа</th><th>Авах дүн</th><th>Төлөв</th></tr></thead><tbody>');
+    gs.forEach((r) => {
+      const dl = r.stage === 'delivered';
+      o('<tr><td><input type="checkbox" class="gsx" data-id="' + esc(r.order_id) + '" data-due="' + gsDue(r) + '" data-gross="' + gsGross(r) + '"' + (dl ? ' checked' : '') + '></td>'
+        + whoTd(r) + goodsTd(r) + '<td>' + (gsDue(r) ? mnt(gsDue(r)) : '<span class="pill ok">0 · урьдчилж ' + mnt(gsGross(r)) + '</span>') + '</td>'
+        + '<td>' + (dl ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span>' : '<span class="pill info">замд · өгсөн ' + day(r.shipped_at) + '</span>') + '</td></tr>');
+    });
+    o('</tbody></table></div>'
+      + '<div style="margin-top:6px;line-height:2">Сонгосон <b id="gs-n">0</b> захиалга · авах дүн <b id="gs-due">—</b><br>'
+      + 'Gyals-аас данс руу орсон: <input id="gs-recv" type="number" min="0" step="1000" inputmode="numeric" placeholder="жишээ 820000" style="width:140px"> ₮<br>'
+      + 'Gyals хөлс: <b id="gs-fee">—</b> · нэг захиалгад <b id="gs-per">—</b> · цэвэр орлого <b id="gs-net">—</b><br>'
+      + '<button class="btn go" id="gs-go" disabled>💰 Тооцоо нийлэх — сонгосныг «төлсөн» болгох</button></div></details>');
   }
   o('</div>');
   o('<div class="gxbar"><b>Gyals:</b> '
     + '<button class="btn gx-up">📤 Gyals тайлан оруулах</button><input type="file" id="gx-file" accept=".xlsx" hidden>'
-    + ' <span class="sm mut">Gyals буцааж явуулсан Excel-ийн «Хүргэлтийн төлөв» баганаар захиалгууд автоматаар Төлсөн / Хойшилсон / Цуцалсан болно (нөөц зөв тоологдоно, мэдэгдэл явахгүй).</span><div id="gx-prev"></div></div>');
+    + ' <span class="sm mut">Gyals буцааж явуулсан Excel-ийн «Хүргэлтийн төлөв» баганаар захиалгууд автоматаар Хүргэгдсэн / Хойшилсон / Цуцалсан болно (мөнгийг «💰 Gyals тооцоо»-оор) (нөөц зөв тоологдоно, мэдэгдэл явахгүй).</span><div id="gx-prev"></div></div>');
   cur = T.main;
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
   o('<div class="tchbar"><span>🟩 ногоон = залгасан/товч дарсан · <b>СҮҮЛД</b> = хамгийн сүүлд ажилласан мөр</span><button class="btn" id="tch-go">↓ Сүүлд залгасан руу очих</button><button class="btn" id="tch-clr" title="Өнөөдрийн тэмдэглэгээг арилгах">Тэмдэглэгээ арилгах</button></div>');
@@ -481,9 +503,10 @@ function renderOrders(DATA, QUERY) {
     + 'if(d==="addr"){var f=document.getElementById("f-"+id);f.classList.toggle("on");if(f.classList.contains("on")){var s=document.getElementById("d-"+id);if(s&&!s.value)s.focus()}return}'
     + 'var note;if(d==="cancel"){note=prompt("Цуцлах шалтгаан (сонголттой):","");if(note===null)return}'
     + 'if(d==="paid"&&!confirm("Хүргэгдсэн (төлбөр бүрэн) гэж бүртгэх үү?"))return;'
+    + 'if(d==="delivered"&&!confirm("Хүргэгдсэн гэж тэмдэглэх үү? Мөнгө Gyals-аас ирэхэд Түгээлт → «💰 Gyals тооцоо нийлэх»-ээр бүртгэнэ."))return;'
     + 'if(d==="prepaid"&&!confirm("Мөнгө данс руу орсныг шалгасан уу?"))return;'
     + 'if(d==="deliver_sms"&&!confirm("Энэ хүнд хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS явуулах уу?"))return;'
-    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
+    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",delivered:"Хүргэгдсэн ✓ — мөнгө Gyals тооцоогоор",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
     + 'document.querySelectorAll(".osave").forEach(function(b){b.addEventListener("click",function(){var id=b.dataset.id,dv=(document.getElementById("d-"+id).value||"").trim(),av=(document.getElementById("a-"+id).value||"").trim(),nv=(document.getElementById("n-"+id).value||"").trim();'
     + 'if(!dv||!av){say("out-o","Дүүрэг/хороо ба байр-тоот хоёулаа хэрэгтэй",true);return}'
     + 'post({action:"order",order_id:id,do:"address",district_full:dv,address_detail:av,note:nv||undefined,by:"самбар"},b,"out-o").then(function(){say("out-o","Хаяг хадгалагдлаа — захиалга баталгаажлаа ✓");reload()})'
@@ -493,8 +516,21 @@ function renderOrders(DATA, QUERY) {
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр) — Gyals руу paste хий")})})});'
     + '(function(){var bs=function(){return [].slice.call(document.querySelectorAll(".lsel"))};var upd=function(){var n=bs().filter(function(x){return x.checked}).length,c=document.getElementById("lsel-n"),b=document.getElementById("lsel-arch");if(c)c.textContent=n;if(b)b.disabled=!n};document.addEventListener("change",function(ev){if(ev.target&&ev.target.classList&&ev.target.classList.contains("lsel"))upd()});var all=document.getElementById("lsel-all");if(all)all.addEventListener("change",function(){bs().forEach(function(x){x.checked=all.checked});upd()});var h48=document.getElementById("lsel-48");if(h48)h48.addEventListener("click",function(){var lim=Date.now()-48*3600e3;bs().forEach(function(x){var t=Date.parse(x.dataset.t||"");x.checked=!isNaN(t)&&t<lim});upd()});var ab=document.getElementById("lsel-arch");if(ab)ab.addEventListener("click",function(){var ids=bs().filter(function(x){return x.checked}).map(function(x){return x.dataset.id});if(!ids.length)return;if(!confirm(ids.length+" сонирхлыг архивлах уу?\\n\\nТэдний түгжсэн бараа нөөцөд буцаж сайт дээр нээгдэнэ. Бүртгэл устахгүй — «Архив»-аас сэргээж болно."))return;ab.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"cancel",note:"архив: сонирхол (залгасан, авахгүй/хариугүй)",by:"самбар · архив"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" сонирхол архивлагдлаа — бараа нөөцөд буцлаа ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})});document.querySelectorAll(".orst").forEach(function(b){b.addEventListener("click",function(){if(!confirm("Энэ хүнийг Сонирхол руу сэргээх үү? Размер нөөцөд байвал дахин түгжинэ."))return;post({action:"order",order_id:b.dataset.id,do:"restore",by:"самбар"},b,"out-o").then(function(j){say("out-o",j&&j.error==="unknown_do"?"Сэргээх SQL хараахан суугаагүй байна (main/sql/2026-10-25-CF файлыг paste хий)":"Сэргээгдлээ — Сонирхол руу буцлаа ✓");reload(900)}).catch(function(){})})})})();'
     + 'document.querySelectorAll(".cpm").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean),k=b.dataset.k;cp(b.dataset.tsv).then(function(){if(!confirm(k+" жагсаалт ("+ids.length+" захиалга) хуулагдлаа — Gyals руу paste хий.\\n\\nЭдгээрийг Gyals-д ӨГСӨН гэж тэмдэглэх үү? Тэмдэглэсэн мөр жагсаалтаас гарч «Gyals дээр» хэсэгт шилжинэ, дахин явахгүй.")){say("out-o","Жагсаалт хуулагдлаа (тэмдэглээгүй)");return}b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"shipped",by:"самбар · түгээлт"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Gyals-д өгсөн гэж тэмдэглэгдлээ ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})})});'
-    + 'document.querySelectorAll(".gyr").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st,note;if(st==="Цуцалсан"){note=prompt("Буцсан шалтгаан (сонголттой):","");if(note===null)return}else if(st==="Хүргэсэн"&&!confirm("Хүргэгдэж мөнгө авсан гэж бүртгэх үү?"))return;post({action:"order",order_id:b.dataset.id,do:"gyals",status:st,note:note||undefined,by:"самбар · Gyals дээр"},b,"out-o").then(function(){say("out-o",st==="Хүргэсэн"?"Хүргэгдсэн ✓":st==="Хойшилсон"?"Хойшилсон гэж тэмдэглэв":"Буцсан — захиалга цуцлагдаж бараа нөөцөд буцлаа");reload(900)}).catch(function(){})})});'
-    + 'document.querySelectorAll(".gyall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг бүгдийг нь хүргэгдсэн (мөнгө авсан) гэж бүртгэх үү?"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"gyals",status:"Хүргэсэн",by:"самбар · Gyals дээр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга хүргэгдсэн ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
+    + 'document.querySelectorAll(".gyr").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st,note;if(st==="Цуцалсан"){note=prompt("Буцсан шалтгаан (сонголттой):","");if(note===null)return}else if(st==="Хүргэсэн"&&!confirm("Хүргэгдсэн гэж тэмдэглэх үү? Мөнгө Gyals-аас ирэхэд «💰 Gyals тооцоо нийлэх»-ээр бүртгэнэ."))return;post({action:"order",order_id:b.dataset.id,do:"gyals",status:st,note:note||undefined,by:"самбар · Gyals дээр"},b,"out-o").then(function(){say("out-o",st==="Хүргэсэн"?"Хүргэгдсэн ✓":st==="Хойшилсон"?"Хойшилсон гэж тэмдэглэв":"Буцсан — захиалга цуцлагдаж бараа нөөцөд буцлаа");reload(900)}).catch(function(){})})});'
+    + 'document.querySelectorAll(".gyall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг бүгдийг нь хүргэгдсэн гэж тэмдэглэх үү? (мөнгө — «💰 Gyals тооцоо»-оор)"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"gyals",status:"Хүргэсэн",by:"самбар · Gyals дээр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга хүргэгдсэн ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
+    + '(function(){var bx=document.querySelectorAll(".gsx"),inp=document.getElementById("gs-recv"),go=document.getElementById("gs-go");if(!go||!inp)return;'
+    + 'function fm(x){return Math.round(x).toLocaleString("en-US")+"₮"}'
+    + 'function calc(){var due=0,gr=0,c=0;bx.forEach(function(b){if(b.checked){due+=+b.dataset.due;gr+=+b.dataset.gross;c++}});var R=inp.value===""?null:Math.round(+inp.value),f=R===null?null:due-R;'
+    + 'document.getElementById("gs-n").textContent=c;document.getElementById("gs-due").textContent=fm(due);'
+    + 'document.getElementById("gs-fee").textContent=f===null?"—":(f<0?"⚠ ирсэн дүн авах дүнгээс их":fm(f));document.getElementById("gs-per").textContent=f===null||!c||f<0?"—":fm(f/c);'
+    + 'document.getElementById("gs-net").textContent=f===null||f<0?"—":fm(gr-f);go.disabled=!(c&&R!==null&&f>=0);return{due:due,gr:gr,c:c,R:R,f:f}}'
+    + 'bx.forEach(function(b){b.addEventListener("change",calc)});inp.addEventListener("input",calc);calc();'
+    + 'go.addEventListener("click",function(){var s=calc();if(!(s.c&&s.R!==null&&s.f>=0))return;var per=Math.floor(s.f/s.c),rem=s.f-per*s.c;'
+    + 'if(per>15000&&!confirm("Нэг захиалгын хөлс "+fm(per)+" — их байна. Дүнгээ шалгасан уу?"))return;'
+    + 'if(!confirm(s.c+" захиалгыг ТӨЛСӨН болгоно.\\nGyals-аас ирсэн: "+fm(s.R)+"\\nGyals хөлс: "+fm(s.f)+" ("+fm(per)+" / захиалга)\\nЦэвэр орлого: "+fm(s.gr-s.f)+"\\nЗөв үү?"))return;'
+    + 'go.disabled=true;go.textContent="…";var list=[],i=0,ok=0,fail=0,now=new Date().toISOString();bx.forEach(function(b){if(b.checked)list.push(b)});'
+    + 'list.reduce(function(p,b){var fee=per+(i++<rem?1:0);return p.then(function(){return post({action:"order",order_id:b.dataset.id,do:"paid",paid_mnt:+b.dataset.gross,delivery_cost_mnt:fee,paid_at:now,by:"самбар · Gyals тооцоо"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve())'
+    + '.then(function(){say("out-o",ok+" захиалга төлсөн ✓ · Gyals хөлс "+fm(s.f)+" · цэвэр орлого "+fm(s.gr-s.f)+(fail?" · "+fail+" АЛДАА — дахин шалга":""),fail>0);reload(1200)})})})();'
     + 'document.querySelectorAll(".dtoday").forEach(function(b){b.addEventListener("click",function(){post({action:"order",order_id:b.dataset.id,do:"deliver_on",date:b.dataset.d,by:"самбар"},b,"out-o").then(function(){say("out-o","Өнөөдрийн жагсаалтад орлоо");reload(900)}).catch(function(){})})});'
     + '(' + ssStockUI.toString() + ')(post,say,reload,e);'
     + '(' + ssTouchUI.toString() + ')();'
