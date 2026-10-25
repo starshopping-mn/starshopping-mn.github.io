@@ -24,7 +24,7 @@ function renderOrders(DATA, QUERY) {
   const addressed = O.filter((r) => ['order', 'confirmed', 'delivered', 'paid'].indexOf(r.stage) >= 0);
   const leads = O.filter((r) => r.stage === 'lead');
   // 10/25 (эзэн): сонирхлыг багцаар «архивлах» = цуцлалт (түгжсэн бараа нөөцөд буцна), бүртгэл устахгүй → 🗄 Архив хэсэгт, «Сэргээх» боломжтой.
-  const isArch = (r) => r.stage === 'cancelled' && !r.has_address && /цуцлав: архив/.test(String(r.confirm_note || ''));
+  const isArch = (r) => r.stage === 'cancelled' && /цуцлав: архив/.test(String(r.confirm_note || '')); // CG: хаягтай боловч SMS/төлбөрт хариугүй (автомат) мөр мөн энд
   const archived = O.filter(isArch).sort((a, b) => new Date(b.cancelled_at || b.placed_at) - new Date(a.cancelled_at || a.placed_at));
   const others = O.filter((r) => ['cancelled', 'test', 'duplicate'].indexOf(r.stage) >= 0 && !isArch(r));
   // S8 ОРОН НУТАГ: 100% урьдчилж төлнө. Идэвхтэй = хаягтай, ачаагүй. Эдгээр нь дээд талын тусдаа блокт гарна.
@@ -419,13 +419,14 @@ function renderOrders(DATA, QUERY) {
     + '<button class="btn stop" id="lsel-arch" disabled>🗄 Сонгосныг архивлах (<b id="lsel-n">0</b>)</button>'
     + '<span class="sm mut">Архивлавал тэдний түгжсэн бараа нөөцөд буцаж сайт дээр нээгдэнэ. Бүртгэл устахгүй — доорх «Архив»-аас сэргээж болно.</span></div>');
   table(leads.slice().sort((a, b) => (b.call_ready ? 1 : 0) - (a.call_ready ? 1 : 0) || new Date(b.placed_at) - new Date(a.placed_at)), 'lead', 'Хаяггүй сонирхол алга');
-  o('<details data-keep="arch" style="margin-top:14px"><summary style="cursor:pointer;font-size:13.5px;font-weight:600;margin:6px 0 8px">🗄 Архив — залгасан, авахгүй/хариугүй сонирхол (' + archived.length + ')</summary>');
+  o('<details data-keep="arch" style="margin-top:14px"><summary style="cursor:pointer;font-size:13.5px;font-weight:600;margin:6px 0 8px">🗄 Архив — авахгүй/хариугүй сонирхол, SMS-д 12ц хариугүй, орон нутаг 6ц төлбөр ороогүй (' + archived.length + ')</summary>');
   if (!archived.length) o('<p class="sm mut">Архив хоосон.</p>');
   else {
-    o('<div class="tw"><table class="ot"><colgroup><col style="width:14%"><col style="width:18%"><col style="width:22%"><col style="width:22%"><col style="width:24%"></colgroup><thead><tr><th>Архивласан</th><th>Хэн</th><th>Бараа</th><th>Анх орсон · эх үүсвэр</th><th>Үйлдэл</th></tr></thead><tbody>');
+    o('<div class="tw"><table class="ot"><colgroup><col style="width:14%"><col style="width:18%"><col style="width:22%"><col style="width:22%"><col style="width:24%"></colgroup><thead><tr><th>Архивласан · шалтгаан</th><th>Хэн</th><th>Бараа</th><th>Анх орсон · эх үүсвэр</th><th>Үйлдэл</th></tr></thead><tbody>');
     archived.forEach((r) => {
       const done = /сэргээгдсэн →/.test(String(r.confirm_note || ''));
-      o('<tr class="done" data-keep="a-' + esc(r.order_id) + '"><td>' + dt(r.cancelled_at || r.placed_at) + '</td>'
+      const why = (String(r.confirm_note || '').match(/цуцлав: архив:\s*([^(·]+)/) || [])[1] || '';
+      o('<tr class="done" data-keep="a-' + esc(r.order_id) + '"><td>' + dt(r.cancelled_at || r.placed_at) + (why ? '<br><span class="sm mut">' + esc(why.trim()) + '</span>' : '') + (r.has_address ? '<br><span class="pill">хаягтай</span>' : '') + '</td>'
         + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>'
         + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>'
         + '<td>' + dt(r.placed_at) + '<br>' + srcCell(r) + '</td>'
