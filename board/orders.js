@@ -23,7 +23,10 @@ function renderOrders(DATA, QUERY) {
   const DIST = A(Array.isArray(d.districts) ? d.districts : d.districts && (d.districts.districts || d.districts.body) || []); // C1b: district_list() → {districts:[…]}
   const addressed = O.filter((r) => ['order', 'confirmed', 'delivered', 'paid'].indexOf(r.stage) >= 0);
   const leads = O.filter((r) => r.stage === 'lead');
-  const others = O.filter((r) => ['cancelled', 'test', 'duplicate'].indexOf(r.stage) >= 0);
+  // 10/25 (эзэн): сонирхлыг багцаар «архивлах» = цуцлалт (түгжсэн бараа нөөцөд буцна), бүртгэл устахгүй → 🗄 Архив хэсэгт, «Сэргээх» боломжтой.
+  const isArch = (r) => r.stage === 'cancelled' && !r.has_address && /цуцлав: архив/.test(String(r.confirm_note || ''));
+  const archived = O.filter(isArch).sort((a, b) => new Date(b.cancelled_at || b.placed_at) - new Date(a.cancelled_at || a.placed_at));
+  const others = O.filter((r) => ['cancelled', 'test', 'duplicate'].indexOf(r.stage) >= 0 && !isArch(r));
   // S8 ОРОН НУТАГ: 100% урьдчилж төлнө. Идэвхтэй = хаягтай, ачаагүй. Эдгээр нь дээд талын тусдаа блокт гарна.
   const ubDate = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
   const TODAY = ubDate(Date.now()), TOMORROW = ubDate(Date.now() + 864e5);
@@ -165,7 +168,7 @@ function renderOrders(DATA, QUERY) {
       ? esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '')
       : '<span class="pill crit">хаяггүй</span>' + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '');
     const cls = (kind === 'other' ? 'done' : '') + (r.stage === 'lead' && r.call_ready ? ' call' : '');
-    let h = '<tr class="' + cls + '" data-keep="o-' + esc(r.order_id) + '"><td>' + dt(r.placed_at) + '<br><span class="sm mut">' + esc(ago(r.placed_at)) + '</span></td>'
+    let h = '<tr class="' + cls + '" data-keep="o-' + esc(r.order_id) + '"><td>' + (kind === 'lead' ? '<input type="checkbox" class="lsel" data-id="' + esc(r.order_id) + '" data-t="' + esc(r.placed_at || '') + '" aria-label="сонгох" style="width:18px;height:18px;vertical-align:middle;margin:0 4px 4px 0"> ' : '') + dt(r.placed_at) + '<br><span class="sm mut">' + esc(ago(r.placed_at)) + '</span></td>'
       + '<td>' + srcCell(r) + '</td>'
       + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a>' + (kind === 'other' ? '' : '<br><button class="btn tchb" title="Залгасан/ярьсан гэж тэмдэглэх (зөвхөн энэ төхөөрөмжид)">☐ залгасан</button>') + '</td>'
       + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '<br><span class="sm mut">' + mnt(r.amount_mnt) + '</span></td>'
@@ -411,7 +414,26 @@ function renderOrders(DATA, QUERY) {
   o('<h2>Сонирхол — утас/нэр үлдээсэн, хаяггүй <span class="cnt">' + leads.length + '</span></h2>');
   if (CALL.length) o('<div class="callbox"><b>📞 Залгах жагсаалт · ' + CALL.length + ' хүн (WIN эсвэл амьд бараа)</b>Залгаад хаягаа өгвөл «Хаяг оруулах» → захиалга болж баталгаажна. Авахгүй гэвэл «Цуцлах». Мөр бүрийн «📞 Залгах» товч дугаарыг хуулж, залгана. SMS автоматаар явахгүй — эзэн өөрөө залгана.</div>');
   else o('<p class="sm mut">Залгах жагсаалт хоосон: эдгээр бараа WIN болоогүй / бараа ирээгүй. LOSS барааны сонирхогчид юу ч илгээхгүй.</p>');
+  if (leads.length) o('<div class="tchbar" style="flex-wrap:wrap;gap:8px"><label style="display:flex;align-items:center;gap:6px;font-weight:600"><input type="checkbox" id="lsel-all" style="width:18px;height:18px"> бүгдийг сонгох</label>'
+    + '<button class="btn" id="lsel-48" title="48 цагаас өмнө орсон сонирхлыг сонгоно">48 цагаас хуучныг сонгох</button>'
+    + '<button class="btn stop" id="lsel-arch" disabled>🗄 Сонгосныг архивлах (<b id="lsel-n">0</b>)</button>'
+    + '<span class="sm mut">Архивлавал тэдний түгжсэн бараа нөөцөд буцаж сайт дээр нээгдэнэ. Бүртгэл устахгүй — доорх «Архив»-аас сэргээж болно.</span></div>');
   table(leads.slice().sort((a, b) => (b.call_ready ? 1 : 0) - (a.call_ready ? 1 : 0) || new Date(b.placed_at) - new Date(a.placed_at)), 'lead', 'Хаяггүй сонирхол алга');
+  o('<details data-keep="arch" style="margin-top:14px"><summary style="cursor:pointer;font-size:13.5px;font-weight:600;margin:6px 0 8px">🗄 Архив — залгасан, авахгүй/хариугүй сонирхол (' + archived.length + ')</summary>');
+  if (!archived.length) o('<p class="sm mut">Архив хоосон.</p>');
+  else {
+    o('<div class="tw"><table class="ot"><colgroup><col style="width:14%"><col style="width:18%"><col style="width:22%"><col style="width:22%"><col style="width:24%"></colgroup><thead><tr><th>Архивласан</th><th>Хэн</th><th>Бараа</th><th>Анх орсон · эх үүсвэр</th><th>Үйлдэл</th></tr></thead><tbody>');
+    archived.forEach((r) => {
+      const done = /сэргээгдсэн →/.test(String(r.confirm_note || ''));
+      o('<tr class="done" data-keep="a-' + esc(r.order_id) + '"><td>' + dt(r.cancelled_at || r.placed_at) + '</td>'
+        + '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>'
+        + '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>'
+        + '<td>' + dt(r.placed_at) + '<br>' + srcCell(r) + '</td>'
+        + '<td>' + (done ? '<span class="pill ok">сэргээгдсэн</span>' : callBtn(r) + '<button class="btn go orst" data-id="' + esc(r.order_id) + '" title="Сонирхол руу буцаана; размер нөөцөд байвал дахин түгжинэ">↩ Сэргээх</button>') + '</td></tr>');
+    });
+    o('</tbody></table></div>');
+  }
+  o('</details>');
 
   // ── 3 · Цуцлагдсан / тест (нуусан)
   cur = T.other;
@@ -468,6 +490,7 @@ function renderOrders(DATA, QUERY) {
     + 'function cp(t){try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t)}catch(x){}return new Promise(function(res){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy")}catch(x){}a.remove();res()})}'
     + 'document.querySelectorAll(".cb").forEach(function(b){b.addEventListener("click",function(){var t=b.dataset.tel;cp(t).then(function(){say("out-o","Дугаар хуулагдлаа: "+t+" — залгаж байна…")});setTimeout(function(){location.href="tel:"+t.replace(/[^0-9+]/g,"")},150)})});'
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр) — Gyals руу paste хий")})})});'
+    + '(function(){var bs=function(){return [].slice.call(document.querySelectorAll(".lsel"))};var upd=function(){var n=bs().filter(function(x){return x.checked}).length,c=document.getElementById("lsel-n"),b=document.getElementById("lsel-arch");if(c)c.textContent=n;if(b)b.disabled=!n};document.addEventListener("change",function(ev){if(ev.target&&ev.target.classList&&ev.target.classList.contains("lsel"))upd()});var all=document.getElementById("lsel-all");if(all)all.addEventListener("change",function(){bs().forEach(function(x){x.checked=all.checked});upd()});var h48=document.getElementById("lsel-48");if(h48)h48.addEventListener("click",function(){var lim=Date.now()-48*3600e3;bs().forEach(function(x){var t=Date.parse(x.dataset.t||"");x.checked=!isNaN(t)&&t<lim});upd()});var ab=document.getElementById("lsel-arch");if(ab)ab.addEventListener("click",function(){var ids=bs().filter(function(x){return x.checked}).map(function(x){return x.dataset.id});if(!ids.length)return;if(!confirm(ids.length+" сонирхлыг архивлах уу?\\n\\nТэдний түгжсэн бараа нөөцөд буцаж сайт дээр нээгдэнэ. Бүртгэл устахгүй — «Архив»-аас сэргээж болно."))return;ab.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"cancel",note:"архив: сонирхол (залгасан, авахгүй/хариугүй)",by:"самбар · архив"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" сонирхол архивлагдлаа — бараа нөөцөд буцлаа ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})});document.querySelectorAll(".orst").forEach(function(b){b.addEventListener("click",function(){if(!confirm("Энэ хүнийг Сонирхол руу сэргээх үү? Размер нөөцөд байвал дахин түгжинэ."))return;post({action:"order",order_id:b.dataset.id,do:"restore",by:"самбар"},b,"out-o").then(function(j){say("out-o",j&&j.error==="unknown_do"?"Сэргээх SQL хараахан суугаагүй байна (main/sql/2026-10-25-CF файлыг paste хий)":"Сэргээгдлээ — Сонирхол руу буцлаа ✓");reload(900)}).catch(function(){})})})})();'
     + 'document.querySelectorAll(".cpm").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean),k=b.dataset.k;cp(b.dataset.tsv).then(function(){if(!confirm(k+" жагсаалт ("+ids.length+" захиалга) хуулагдлаа — Gyals руу paste хий.\\n\\nЭдгээрийг Gyals-д ӨГСӨН гэж тэмдэглэх үү? Тэмдэглэсэн мөр жагсаалтаас гарч «Gyals дээр» хэсэгт шилжинэ, дахин явахгүй.")){say("out-o","Жагсаалт хуулагдлаа (тэмдэглээгүй)");return}b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"shipped",by:"самбар · түгээлт"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Gyals-д өгсөн гэж тэмдэглэгдлээ ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})})});'
     + 'document.querySelectorAll(".gyr").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st,note;if(st==="Цуцалсан"){note=prompt("Буцсан шалтгаан (сонголттой):","");if(note===null)return}else if(st==="Хүргэсэн"&&!confirm("Хүргэгдэж мөнгө авсан гэж бүртгэх үү?"))return;post({action:"order",order_id:b.dataset.id,do:"gyals",status:st,note:note||undefined,by:"самбар · Gyals дээр"},b,"out-o").then(function(){say("out-o",st==="Хүргэсэн"?"Хүргэгдсэн ✓":st==="Хойшилсон"?"Хойшилсон гэж тэмдэглэв":"Буцсан — захиалга цуцлагдаж бараа нөөцөд буцлаа");reload(900)}).catch(function(){})})});'
     + 'document.querySelectorAll(".gyall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг бүгдийг нь хүргэгдсэн (мөнгө авсан) гэж бүртгэх үү?"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"gyals",status:"Хүргэсэн",by:"самбар · Gyals дээр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга хүргэгдсэн ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
