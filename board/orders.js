@@ -297,19 +297,21 @@ function renderOrders(DATA, QUERY) {
   // M12 (2026-10-22, эзэн): орон нутгийн ТӨЛСӨН захиалга (rShip) мөн түгээлтэд — маргааш Gyals-д өгөх жагсаалт нэг газар. Төлөөгүй орон нутаг орохгүй.
   const dspUb = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')) && !isBO(r));
   const dsp = dspUb.concat(rShip);
-  const dspOk = (r) => !!(r.stock_ready_at || r.stock_ok || (r.is_rural && r.prepaid_at));
+  const dspOk = (r) => !!(r.stock_ready_at || r.stock_ok || (r.prepaid_at));
   // M9 (2026-10-20): Gyals Excel (татах) + Gyals тайлан (оруулах) — өгөгдлийг клиент скрипт рүү дамжуулна
   const gxRow = (r) => ({ id: r.order_id, customer: r.customer || '', phone: r.phone || '', district: String(r.district || '').replace(/^Орон нутаг\s*/, ''), address: r.address || '',
     product: String(r.product || '').split(' · ')[0], variant: r.variant || '', qty: n(r.qty) || 1, amount: Math.round(n(r.amount_mnt)), note: r.confirm_note || '',
-    rural: !!r.is_rural, prepaid: Math.round(n(r.prepaid_mnt)), paid: !!(r.is_rural && r.prepaid_at) });
+    rural: !!r.is_rural, prepaid: Math.round(n(r.prepaid_mnt)), paid: !!(r.prepaid_at) });
   const GX = { groups: {}, codes: {} };
   O.forEach((r) => { if (r.order_id) GX.codes[String(r.order_id).slice(0, 8)] = { id: r.order_id, name: r.customer || '', phone: r.phone || '', stage: r.stage }; });
   // M13 (2026-10-24, эзэн): ТҮГЭЭЛТ = 3 алхам. ① Өдрийн жагсаалт → «Хуулах + Gyals-д өгсөн» (do=shipped) → мөр жагсаалтаас гарна, дахин явахгүй.
   // ② 🚚 Gyals дээр (shipped, төлбөргүй) → «Хүргэгдсэн / Хойшилсон / Буцсан» (do=gyals). ③ Хүргэх өдөр өнгөрсөн, өгсөн гэж тэмдэглээгүй мөрийг
   // өнөөдрийнх рүү чимээгүй чихэхгүй — «Өгсөн үү?» гэж тусад нь асууна (10/23-нд өгсөн 5 захиалга 10/24-ний жагсаалтад дахин орсон алдааны засвар).
-  const onGyals = O.filter((r) => r.shipped_at && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0)
-    .sort((a, b) => new Date(a.shipped_at) - new Date(b.shipped_at));
-  const rowsTsv = (rows) => rows.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), r.is_rural && r.prepaid_at ? '0 (ТӨЛСӨН)' : Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+  // CK (10/26): 10/20–10/21-ний захиалга shipped_at-гүй, шууд «хүргэгдсэн» болсон тул өмнө нь тооцооны самбарт ороогүй (2.07 сая₮ харагдахгүй байв).
+  const gyDay = (r) => (r.shipped_at || r.deliver_on || r.delivered_at || '').slice(0, 10);
+  const onGyals = O.filter((r) => (r.shipped_at || r.stage === 'delivered') && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0)
+    .sort((a, b) => gyDay(a).localeCompare(gyDay(b)));
+  const rowsTsv = (rows) => rows.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), r.prepaid_at ? '0 (ТӨЛСӨН)' : Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
   const attr = (s) => esc(s).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;');
   // 10/24 (эзэн): хуулах текст = Gyals-д шууд paste хийх уншигдахуйц жагсаалт (УБ бэлнээр · УБ төлсөн · орон нутаг төлсөн, дугаарласан, нийт дүнтэй).
   const gyalsText = (k, rows) => {
@@ -340,12 +342,12 @@ function renderOrders(DATA, QUERY) {
   const whoTd = (r) => '<td><b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a></td>';
   const addrTd = (r) => '<td>' + esc(r.district || '') + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '') + '</td>';
   const goodsTd = (r) => '<td>' + esc(String(r.product || '').split(' · ')[0]) + (r.variant ? ' <b>' + esc(r.variant) + '</b>' : '') + (n(r.qty) > 1 ? ' ×' + n(r.qty) : '') + '</td>';
-  const amtTd = (r) => '<td>' + (r.is_rural && r.prepaid_at ? '<span class="pill ok">төлсөн ' + mnt(r.prepaid_mnt) + '</span><br><span class="sm mut">авах дүн 0</span>' : mnt(r.amount_mnt)) + '</td>';
+  const amtTd = (r) => '<td>' + (r.prepaid_at ? '<span class="pill ok">төлсөн ' + mnt(r.prepaid_mnt) + '</span><br><span class="sm mut">авах дүн 0</span>' : mnt(r.amount_mnt)) + '</td>';
   const COLS = '<colgroup><col style="width:16%"><col style="width:30%"><col style="width:24%"><col style="width:12%"><col style="width:18%"></colgroup>';
   const late = [], G = {};
   dsp.forEach((r) => {
     if (r.deliver_on && r.deliver_on < TODAY) { late.push(r); return; }
-    const k = r.deliver_on || (r.is_rural && r.prepaid_at ? TODAY : TOMORROW);
+    const k = r.deliver_on || (r.prepaid_at ? TODAY : TOMORROW);
     (G[k] = G[k] || []).push(r);
   });
   o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт</h2>');
@@ -369,20 +371,20 @@ function renderOrders(DATA, QUERY) {
     GX.groups[k] = ok.map(gxRow);
     const kk = esc(k.slice(5).replace('-', '/'));
     const head = k === TODAY ? '📋 Өнөөдөр Gyals-д өгөх' : k === TOMORROW ? '🕓 Маргааш өгөх — бүрдэж байна' : '📅 Дараа өгөх';
-    o('<h3>' + head + ' · ' + esc(dShort(k)) + ' <span class="cnt">' + ok.length + ' захиалга · авах ' + big(ok.reduce((s, r) => s + (r.is_rural && r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
+    o('<h3>' + head + ' · ' + esc(dShort(k)) + ' <span class="cnt">' + ok.length + ' захиалга · авах ' + big(ok.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
       + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '') + '</h3>');
     if (k === TOMORROW) o('<p class="sm mut">Өнөөдөр орж ирж буй захиалгууд энд нэмэгдсээр байна. Орой хаяггүй хүмүүс рүү залгаж шийдээд маргааш өглөө (10:00-аас өмнө) Gyals-д өгнө.</p>');
     if (ok.length) o('<div style="margin:4px 0 8px"><button class="btn go cpm" data-k="' + kk + '" data-ids="' + esc(ok.map((r) => r.order_id).join(',')) + '" data-tsv="' + attr(gyalsText(k, ok)) + '">📋 ' + kk + ' жагсаалт хуулах + Gyals-д өгсөн гэж тэмдэглэх</button> <button class="btn gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 Excel (Gyals)</button> <button class="btn cp" data-n="' + ok.length + '" data-tsv="' + attr(gyalsText(k, ok)) + '" title="Тэмдэглэхгүй, зөвхөн хуулна">зөвхөн хуулах</button></div>');
     o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
     rows.forEach((r) => {
-      const good = dspOk(r), rp = !!(r.is_rural && r.prepaid_at);
+      const good = dspOk(r), rp = !!(r.prepaid_at);
       o('<tr data-keep="d-' + esc(r.order_id) + '"' + (rp ? ' style="background:rgba(22,101,52,.07)"' : '') + '>' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
         + '<td>' + (rp ? '<span class="pill ok">🚚 орон нутаг · төлсөн ' + day(r.prepaid_at) + '</span>' : (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>'))
         + (r.stage === 'order' && !rp ? '<span class="pill">дуудлагагүй</span>' : '') + '<br><button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="shipped" title="Зөвхөн энэ захиалгыг Gyals-д өгсөн гэж тэмдэглэх">Gyals-д өгсөн</button></td></tr>');
     });
     o('</tbody></table></div>');
   });
-  o('<h3 style="margin-top:18px">🚚 Gyals дээр — хүргэлтэнд яваа <span class="cnt">' + onGyals.length + ' захиалга · авах ' + big(onGyals.reduce((s, r) => s + (r.is_rural && r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
+  o('<h3 style="margin-top:18px">🚚 Gyals дээр — тооцоо хүлээж буй <span class="cnt">' + onGyals.length + ' захиалга · замд ' + onGyals.filter((r) => r.stage !== 'delivered').length + ' · хүргэгдсэн ' + onGyals.filter((r) => r.stage === 'delivered').length + ' · Gyals-аас авах ' + big(onGyals.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
     + (onGyals.filter((r) => r.stage !== 'delivered').length > 1 ? ' <button class="btn go gyall" data-ids="' + esc(onGyals.filter((r) => r.stage !== 'delivered').map((r) => r.order_id).join(',')) + '">✓ Бүгд хүргэгдсэн</button>' : '') + '</h3>');
   if (!onGyals.length) o('<p class="sm mut">Одоогоор Gyals дээр хүргэлт хүлээж буй захиалга алга.</p>');
   else {
@@ -390,7 +392,7 @@ function renderOrders(DATA, QUERY) {
     onGyals.forEach((r) => {
       const id = esc(r.order_id), held = /хойшилсон/i.test(String(r.confirm_note || ''));
       o('<tr data-keep="g-' + id + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
-        + '<td><span class="pill info">өгсөн ' + day(r.shipped_at) + '</span>' + (held ? '<span class="pill warn">хойшилсон</span>' : '') + '<br>'
+        + '<td>' + (r.shipped_at ? '<span class="pill info">өгсөн ' + day(r.shipped_at) + '</span>' : '') + (held ? '<span class="pill warn">хойшилсон</span>' : '') + '<br>'
         + (r.stage === 'delivered'
           ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span><span class="pill warn">мөнгө ирээгүй</span>'
           : '<button class="btn go gyr" data-id="' + id + '" data-st="Хүргэсэн">✓ Хүргэгдсэн</button> <button class="btn gyr" data-id="' + id + '" data-st="Хойшилсон">Хойшилсон</button> <button class="btn stop gyr" data-id="' + id + '" data-st="Цуцалсан">↩ Буцсан</button>') + '</td></tr>');
@@ -398,17 +400,28 @@ function renderOrders(DATA, QUERY) {
     o('</tbody></table></div>');
     // CH (2026-10-25, эзэн): «💰 Gyals тооцоо нийлэх» — Gyals мөнгө шилжүүлэхэд. Авах дүн − ирсэн дүн = Gyals-ын хүргэлтийн хөлс, захиалга бүрт тэнцүү.
     // Захиалга бүр do=paid: paid_mnt = бүтэн үнэ (урьдчилж төлсөн бол тэр дүн), delivery_cost_mnt = хөлсний хувь → орлого цэвэр дүнгээр бүртгэгдэнэ.
-    const gsGross = (r) => Math.round(r.is_rural && r.prepaid_at ? n(r.prepaid_mnt) || n(r.amount_mnt) : n(r.amount_mnt));
-    const gsDue = (r) => (r.is_rural && r.prepaid_at ? 0 : Math.round(n(r.amount_mnt)));
-    const gs = onGyals.slice().sort((a, b) => (a.stage === 'delivered' ? 0 : 1) - (b.stage === 'delivered' ? 0 : 1) || new Date(a.shipped_at) - new Date(b.shipped_at));
+    const gsGross = (r) => Math.round(r.prepaid_at ? n(r.prepaid_mnt) || n(r.amount_mnt) : n(r.amount_mnt));
+    const gsDue = (r) => (r.prepaid_at ? 0 : Math.round(n(r.amount_mnt)));
+    const gs = onGyals.slice().sort((a, b) => (a.stage === 'delivered' ? 0 : 1) - (b.stage === 'delivered' ? 0 : 1) || gyDay(a).localeCompare(gyDay(b)));
+    // CK: Gyals-д өгсөн өдөр бүрээр — хэд өгсөн, хэд нь хүргэгдсэн/замд, Gyals-аас авах дүн, эзний данс руу шууд төлсөн нь тусдаа
+    const GD = {};
+    gs.forEach((r) => { const k = gyDay(r) || '?'; const g = GD[k] = GD[k] || { n: 0, cod: 0, pre: 0, pren: 0, dlv: 0, ongy: 0 };
+      g.n++; if (r.prepaid_at) { g.pre += gsGross(r); g.pren++; } else g.cod += gsDue(r); if (r.stage === 'delivered') g.dlv++; else g.ongy++; });
+    const GT = Object.values(GD).reduce((t, g) => ({ n: t.n + g.n, cod: t.cod + g.cod, pre: t.pre + g.pre, pren: t.pren + g.pren, dlv: t.dlv + g.dlv, ongy: t.ongy + g.ongy }), { n: 0, cod: 0, pre: 0, pren: 0, dlv: 0, ongy: 0 });
+    const codN = GT.n - GT.pren, feeGuess = 6000;
     o('<details class="gsx-box" data-keep="gsettle" style="margin-top:14px;border:1px solid var(--bd,#ddd);border-radius:10px;padding:8px 10px"' + (gs.some((r) => r.stage === 'delivered') ? ' open' : '') + '><summary><b>💰 Gyals тооцоо нийлэх</b> <span class="sm mut">— Gyals мөнгө шилжүүлэхэд энд бүртгэнэ</span></summary>'
       + '<p class="sm mut">Мөнгөнд нь орсон захиалгуудыг чагтлаад (хүргэгдсэн нь анхнаасаа чагттай), данс руу орсон дүнг бичнэ. <b>Авах дүн − ирсэн дүн = Gyals-ын хүргэлтийн хөлс</b>, захиалга бүрт тэнцүү хуваагдана. Дарахад захиалга бүр «төлсөн» болж, Мөнгө хуудсанд орлого хөлс хассан цэвэр дүнгээр орно.</p>'
+      + '<h4 style="margin:8px 0 4px">Gyals-д өгсөн бүх захиалга — тооцоо хүлээж буй</h4>'
+      + '<div class="tw"><table class="ot gsum"><thead><tr><th>Өгсөн өдөр</th><th>Захиалга</th><th>Хүргэгдсэн / замд</th><th>Gyals-аас авах (COD)</th><th>Эзний данс руу төлсөн</th></tr></thead><tbody>'
+      + Object.keys(GD).sort().map((k) => { const g = GD[k]; return '<tr><td>' + esc(k.slice(5).replace('-', '/')) + '</td><td>' + g.n + '</td><td>' + g.dlv + ' / ' + g.ongy + '</td><td><b>' + mnt(g.cod) + '</b></td><td>' + (g.pren ? mnt(g.pre) + ' (' + g.pren + ')' : '—') + '</td></tr>'; }).join('')
+      + '<tr class="tot"><td><b>Нийт</b></td><td><b>' + GT.n + '</b></td><td>' + GT.dlv + ' / ' + GT.ongy + '</td><td><b>' + mnt(GT.cod) + '</b></td><td>' + (GT.pren ? mnt(GT.pre) + ' (' + GT.pren + ')' : '—') + '</td></tr></tbody></table></div>'
+      + '<p class="sm" style="margin:6px 0 10px"><b>Gyals-аас хүлээж буй дүн: ' + mnt(GT.cod) + '</b> (' + codN + ' захиалга) − хүргэлтийн хөлс ~' + mnt(codN * feeGuess) + ' (' + codN + ' × ' + feeGuess.toLocaleString('en-US') + '₮ таамаг) ≈ <b>' + mnt(GT.cod - codN * feeGuess) + '</b>. Бодит хөлсийг Gyals-ын шилжүүлсэн дүнгээс систем өөрөө гаргана. «Эзний данс руу төлсөн» нь орон нутгийн урьдчилгаа — Gyals-аас авахгүй, орлогод аль хэдийн орсон.</p>'
       + '<div class="tw"><table class="ot"><thead><tr><th></th><th>Хэн</th><th>Бараа</th><th>Авах дүн</th><th>Төлөв</th></tr></thead><tbody>');
     gs.forEach((r) => {
       const dl = r.stage === 'delivered';
-      o('<tr><td><input type="checkbox" class="gsx" data-id="' + esc(r.order_id) + '" data-due="' + gsDue(r) + '" data-gross="' + gsGross(r) + '"' + (dl ? ' checked' : '') + '></td>'
+      o('<tr><td><input type="checkbox" class="gsx" data-id="' + esc(r.order_id) + '" data-due="' + gsDue(r) + '" data-gross="' + gsGross(r) + '"' + (dl || (r.prepaid_at) ? ' checked' : '') + '></td>'
         + whoTd(r) + goodsTd(r) + '<td>' + (gsDue(r) ? mnt(gsDue(r)) : '<span class="pill ok">0 · урьдчилж ' + mnt(gsGross(r)) + '</span>') + '</td>'
-        + '<td>' + (dl ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span>' : '<span class="pill info">замд · өгсөн ' + day(r.shipped_at) + '</span>') + '</td></tr>');
+        + '<td>' + (dl ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span>' : '<span class="pill info">замд · өгсөн ' + day(r.shipped_at) + '</span>') + (r.prepaid_at ? '<span class="pill ok">эзэнд төлсөн</span>' : '') + '</td></tr>');
     });
     o('</tbody></table></div>'
       + '<div style="margin-top:6px;line-height:2">Сонгосон <b id="gs-n">0</b> захиалга · авах дүн <b id="gs-due">—</b><br>'
