@@ -20,6 +20,8 @@ function renderBoard(DATA, QUERY) {
   const pages = Array.isArray(d.pages) ? d.pages : [];
   const DR = d.delivery_real || {};
   const toCall = Array.isArray(d.to_call) ? d.to_call : [];
+  const WG = Array.isArray(d.waiting_goods) ? d.waiting_goods : [];   // CJ: PO замд байгаа бараа хүлээж буй захиалга
+  const wgN = WG.reduce((a, x) => a + (Number(x.orders) || 0), 0), wgLate = WG.filter((x) => (Number(x.late_days) || 0) > 0);
   const SEA = d.seasons || {};
   const seaList = Array.isArray(SEA.list) ? SEA.list : [];
   const seaNear = SEA.nearest || null;
@@ -263,13 +265,16 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   const alive = n(PU.msg_in) > 0 || n(PU.orders) > 0;
   P('<span class="chip"><span class="dot' + (alive ? '' : ' off') + '"></span>' + (alive ? 'LIVE' : 'ЧИМЭЭГҮЙ') + '</span>');
   const SCN = d.scan || {};
+  // CJ (10/26): одоо юу зарж байгаа (зар асаалттай бараа) + зах зээлийн судалгаа хэр шинэ вэ — хоёуланг нь үнэнээр
+  const BUD = d.budget && Array.isArray(d.budget.items) ? d.budget.items : [];
+  const sell = BUD.length ? BUD[0] : null;
+  if (sell) P('<span class="chip gold">ЗАРЖ БАЙНА · ' + esc(String(sell.product || '').split(' · ')[0]) + ' <em>' + n(sell.orders_today) + ' захиалга өнөөдөр · ' + (has(sell.rate_per_day) ? n(sell.rate_per_day) + '/өдөр' : '') + '</em></span>');
+  const rq = '/board/?view=research&amp;tab=rank' + (themeQ ? '&amp;theme=' + themeQ : '');
   if (CAT.chosen) {
-    P('<span class="chip gold">КАТЕГОРИ · ' + esc(CAT.name)
-      + (has(CAT.days_left) ? ' <em>' + n(CAT.days_left) + ' хоног</em>' : '') + '</span>');
-  } else if (CAT.mode === 'search') {
-    P('<span class="chip gold">ЗАХ ЗЭЭЛ СУДАЛЖ БАЙНА' + (CAT.top ? ' <em>топ: ' + esc(CAT.top) + '</em>' : '') + '</span>');
+    P('<a class="chip" href="' + rq + '">КАТЕГОРИ · ' + esc(CAT.name) + (has(CAT.days_left) ? ' <em>' + n(CAT.days_left) + ' хоног</em>' : '') + '</a>');
   } else {
-    P('<span class="chip crit">■ КАТЕГОРИ СОНГООГҮЙ</span>');
+    P('<a class="chip' + (SCN.stale ? ' crit' : '') + '" href="' + rq + '" title="' + esc(SCN.verdict || '') + '">СУДАЛГАА' + (CAT.top ? ' · топ ' + esc(CAT.top) : '')
+      + (SCN.stale ? ' <em>скан ' + n(SCN.days_since) + ' хоног хуучирсан</em>' : has(SCN.days_since) ? ' <em>скан ' + n(SCN.days_since) + ' хоногийн өмнө</em>' : '') + '</a>');
   }
   P('<span class="chip">Meta · Supabase · Claude · Telegram</span>');
   P('<a class="rf" href="">Шинэчлэх</a>');
@@ -302,7 +307,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       p = row('Төлөгдсөн (бодит орлого)', mnt(rv.paid) + ' · ' + n(rv.paid_n) + ' захиалга', 'good')
         + row('Хүргэгдсэн, төлөгдөөгүй', mnt(rv.delivered_unpaid))
         + row('Захиалсан, хүргэгдээгүй', mnt(rv.pipeline_gross) + ' · ' + n(rv.pipeline_n))
-        + row('Хүлээгдэх (хувь ' + (n(M.ratio) * 100) + '%)', mnt(rv.pipeline_expected));
+        + row('Хүлээгдэх (Gyals-д өгсөн ' + Math.round(n(has(M.ratio_shipped) ? M.ratio_shipped : M.ratio) * 100) + '% · бусад хаягтай ' + Math.round(n(M.ratio) * 100) + '% хүргэгддэг)', mnt(rv.pipeline_expected))
+        + (n(rv.delivery_cost) ? row('Gyals хүргэлтийн хөлс', '−' + mnt(rv.delivery_cost)) + row('Цэвэр орлого (хөлс хассан)', mnt(rv.net), 'good') : '');
       bp.filter((x) => n(x.paid) > 0 || n(x.pipeline_gross) > 0).forEach((x) =>
         p += row('· ' + (x.name || x.slug), mnt(x.paid) + (n(x.pipeline_gross) ? ' (+' + short(x.pipeline_gross) + ' захиалсан)' : '')));
       p += '<div class="si sn">Үндсэн орлого = мөнгө нь орж ирсэн захиалга. «Захиалсан» нь хүргэлт баталгаажаагүй тул орлогод тооцогдоогүй.</div>';
@@ -362,7 +368,9 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     const over = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= n(c.cap)).map((c) => c.label);
     const warn = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= 0.8 * n(c.cap) && n(c.spent) < n(c.cap)).map((c) => c.label);
     P('<div class="sec"><b>Мөнгөний хөдөлгүүр</b><span class="sd">бэлэн → нөөц сан → чөлөөт → хөрөнгө оруулалт · <a href="/board/?view=money' + (themeQ ? '&amp;theme=' + themeQ : '') + '">Мөнгө хуудас</a></span></div>');
-    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') : 'баланс оруулаагүй', ''],
+    const balAge = EC.snapshot_d ? Math.floor((Date.now() - new Date(String(EC.snapshot_d).slice(0, 10) + 'T00:00:00+08:00').getTime()) / 864e5) : null;
+    const balOld = balAge !== null && balAge > 3 ? ' · ⚠ ' + balAge + ' хоногийн өмнөх — шинэчил' : '';
+    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld : 'баланс оруулаагүй', balOld ? 'warn' : ''],
       ['нөөц сан', has(ER.pct) ? n(ER.pct) + '%' : '—', short(ER.now) + ' / ' + short(ER.target), n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit'],
       ['чөлөөт', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : ''],
       ['сарын тааз', over.length ? 'давсан' : warn.length ? '80%+' : '✓', over.length ? over.join(', ') : warn.length ? warn.join(', ') : 'хязгаарт', over.length ? 'crit' : warn.length ? 'warn' : 'good']];
@@ -370,7 +378,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     EB.forEach((e) => P('<div class="mb mini"><div class="l">' + esc(e[0]) + '</div><div class="kv ' + e[3] + '">' + esc(e[1]) + '</div><div class="ks">' + esc(e[2]) + '</div></div>'));
     cur = B.money;
     P('<div class="krow krow4">');
-    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
+    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
     kpi('Нөөц сан', (has(ER.pct) ? n(ER.pct) + '%' : '—'), short(ER.now) + ' / ' + short(ER.target) + ' · ' + n(ER.months) + ' сарын систем + татан авалт', n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit');
     kpi('Чөлөөт мөнгө', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : '');
     kpi('Сарын тааз', over.length ? '🔴 давсан' : warn.length ? '🟡 80%+' : '✓', over.length ? over.join(', ') + ' давсан' : warn.length ? warn.join(', ') + ' 80%-д хүрсэн' : caps.map((c) => c.label + ' ' + short(c.spent) + (has(c.cap) ? '/' + short(c.cap) : '')).join(' · '), over.length ? 'crit' : warn.length ? 'warn' : 'good');
@@ -401,7 +409,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
 
   cur = B.ops;
   P('<div class="krow krow5">');
-  kpi('Хүргэлт', has(E30.delivered_pct) && !noDeliv ? E30.delivered_pct + '%' : '—', n(E30.delivered) + ' / ' + n(E30.placed) + (n(CF.to_call) ? ' · ' + n(CF.to_call) + ' залгах хүлээж байна' : ''));
+  kpi('Хүргэлт', has(E30.delivered_pct) && !noDeliv ? E30.delivered_pct + '%' : '—', n(E30.delivered) + ' / ' + n(E30.placed) + (n(C.awaiting_confirm) ? ' · ' + n(C.awaiting_confirm) + ' хаягтай баталгаажаагүй' : '') + (wgN ? ' · ' + wgN + ' бараа хүлээж буй' : ''));
   const SRCN = { chat: 'чат', msgr: 'Messenger', fb: 'FB ref-гүй', ig: 'IG ref-гүй', web: 'өөр сайт', direct: 'шууд', '?': 'хуучин' };
   const bySrc = CH.no_creative_by_src && typeof CH.no_creative_by_src === 'object'
     ? Object.keys(CH.no_creative_by_src).map((k) => (SRCN[k] || k) + ' ' + n(CH.no_creative_by_src[k])).join(', ') : '';
@@ -509,9 +517,10 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     ['Шалгах захиалга', n(C.needs_review), 'warn', '/board/?view=orders' + tq0],
     ['Баталгаажуулалт хүлээж буй', n(C.awaiting_confirm), 'warn', '/board/?view=orders&stage=order' + tq0],
     ['Операторын дараалал', n(C.operator_queue), 'crit', '/board/?view=orders' + tq0],
-    ['Нөөц бага', lowStock.length, 'warn', '/board/?view=ops' + tq0]
+    ['Нөөц бага (размер)', lowStock.length, 'warn', '/board/?view=ops' + tq0],
+    ['Бараа хүлээж буй (PO)', wgN, wgLate.length ? 'crit' : 'warn', '/board/?view=ops' + tq0]
   ];
-  P('<div class="krow krow6">');
+  P('<div class="krow krow7">');
   CNT.forEach((c) => P('<a class="k cnt ' + (c[1] > 0 ? c[2] : 'zero') + '" href="' + c[3].replace(/&/g, '&amp;') + '"><div class="kl">' + esc(c[0]) + '</div><div class="kv">' + c[1] + '</div></a>'));
   P('</div>');
 
@@ -866,7 +875,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     NEXT.forEach((t) => {
       const act = t.action && t.action !== 'board' ? t.action : null;
       P('<div class="td"><span class="pri p' + n(t.p) + '"></span><div class="tx">' + esc(t.text) + '</div>');
-      if (act && t.label) P('<a class="go" target="_blank" rel="noopener" href="' + BASE + '/form/' + esc(act) + '">' + esc(t.label) + '</a>');
+      if (t.href && t.label) P('<a class="go" href="' + esc(t.href + (themeQ ? '&theme=' + themeQ : '')) + '">' + esc(t.label) + '</a>');
+      else if (act && t.label) P('<a class="go" target="_blank" rel="noopener" href="' + BASE + '/form/' + esc(act) + '">' + esc(t.label) + '</a>');
       P('</div>');
     });
     P('</div>');
@@ -958,11 +968,12 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   cur = B.crea;
   if (creatives.length) {
     P('<div class="sc"><table><tr>');
-    ['Креатив', 'Бараа', 'Зар', 'Захиалга', 'Хүргэсэн', 'CPA', 'Цэвэр', 'Дүгнэлт'].forEach((h) => P('<th>' + h + '</th>'));
+    ['Креатив', 'Бараа', 'Зар ₮', 'Захиалга', 'Хүргэсэн', 'Захиалгын өртөг', 'Цэвэр (одоо)', 'Хүлээгдэх цэвэр', 'Дүгнэлт'].forEach((h) => P('<th>' + h + '</th>'));
     P('</tr>');
     creatives.forEach((c) => P('<tr><td>' + esc(c.creative_id) + '</td><td>' + esc(c.product || '—') + '</td><td class="nm">' + mnt(c.spend_mnt)
       + '</td><td class="nm">' + n(c.placed) + '</td><td class="nm">' + n(c.delivered) + '</td><td class="nm">' + mnt(c.cpa_mnt)
-      + '</td><td class="nm">' + mnt(c.net_mnt) + '</td><td>' + esc(c.verdict || '') + '</td></tr>'));
+      + '</td><td class="nm">' + (has(c.net_mnt) ? MSG(c.net_mnt) : '—') + '</td><td class="nm">' + (has(c.expected_net_mnt) ? MSG(c.expected_net_mnt) : '—') + '</td><td>' + esc(c.verdict || '') + '</td></tr>'));
+    P('<div class="foot">Зар ₮ = 30 хоногийн зардал. Цэвэр (одоо) = хүргэгдсэн захиалгын ашиг − зар − хүргэлт. Хүлээгдэх цэвэр = нээлттэй захиалгыг бодит хүргэгдэх хувиар тооцсон.</div>');
     P('</table></div>');
   }
   cur = B.prod;
@@ -1001,7 +1012,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     P('<ol class="todo4 nx">');
     NEXT.forEach((t) => {
       const act = t.action && t.action !== 'board' ? t.action : null;
-      P('<li><span class="pri p' + n(t.p) + '"></span><span class="tt4">' + esc(t.text) + '</span>' + (act && t.label ? fl(BASE + '/form/' + esc(act), t.label, true) : '<span></span>') + '</li>');
+      P('<li><span class="pri p' + n(t.p) + '"></span><span class="tt4">' + esc(t.text) + '</span>' + (t.href && t.label ? fl(t.href + (themeQ ? '&theme=' + themeQ : ''), t.label) : act && t.label ? fl(BASE + '/form/' + esc(act), t.label, true) : '<span></span>') + '</li>');
     });
     P('</ol>');
   }
@@ -1037,11 +1048,13 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<section class="pane4" data-pane="ordr"><div class="k4">' + kv4('захиалга 24ц', n(PU.orders)) + kv4('шалгах', n(C.needs_review), n(C.needs_review) ? 'c' : '') + kv4('нийт', n(C.orders)) + kv4('сүүлийн захиалга', ago(PU.last_order) + ' өмнө') + '</div>');
   P('<div class="acts4">' + fl(ordersQ(''), 'Захиалга хуудас') + fl(ordersQ('&tab=dsp'), 'Түгээлт · Gyals') + fl(BASE + '/form/order', 'Гар захиалга', true) + '</div></section>');
   // conf
-  P('<section class="pane4" data-pane="conf"><div class="k4">' + kv4('хүлээгдэж буй', n(C.awaiting_confirm), n(C.awaiting_confirm) ? 'w' : '') + kv4('утсаар залгах', toCall.length, toCall.length ? 'c' : '') + kv4('баталгаажсан %', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—') + kv4('хаяг дутуу', n(CF.to_call)) + '</div>');
+  P('<section class="pane4" data-pane="conf"><div class="k4">' + kv4('хүлээгдэж буй', n(C.awaiting_confirm), n(C.awaiting_confirm) ? 'w' : '') + kv4('утсаар залгах', toCall.length, toCall.length ? 'c' : '') + kv4('баталгаажсан %', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—') + kv4('хаяг дутуу', n(has(CF.leads_noaddr) ? CF.leads_noaddr : CF.to_call)) + '</div>');
+  if (CF.verdict || CF.mode) P('<div class="note4">' + esc(CF.verdict || '') + (CF.mode ? '<br><span class="mut">' + esc(CF.mode) + '</span>' : '') + '</div>');
   if (toCall.length) P('<div class="note4">Залгах: ' + toCall.slice(0, 8).map((x) => esc(x.phone || x.customer || x.order_id || '')).filter(Boolean).join(' · ') + (toCall.length > 8 ? ' …' : '') + '</div>');
   P('<div class="acts4">' + fl(ordersQ('&stage=order'), 'Батлах захиалгууд') + fl(BASE + '/form/confirm', 'Утсаар баталгаажуулах', true) + '</div></section>');
   // delv
   P('<section class="pane4" data-pane="delv"><div class="k4">' + kv4('хүргэсэн 24ц', n(PU.delivered)) + kv4('гацсан 5+ хоног', stalled.length, stalled.length ? 'c' : 'g') + kv4('бодит хүргэлт', has(DR.pct) ? DR.pct + '%' : '—') + kv4('30 хоног', n(E30.delivered) + ' / ' + n(E30.placed)) + '</div>');
+  if (WG.length) P('<div class="note4">Бараа хүлээж буй: ' + WG.map((x) => esc(String(x.product || '').split(' · ')[0]) + ' ' + n(x.orders) + ' захиалга (PO' + esc(x.po_id) + ', ирэх ' + esc(String(x.eta || '').slice(5).replace('-', '/')) + (n(x.late_days) > 0 ? ' · <b>' + n(x.late_days) + ' хоног хоцорсон</b>' : '') + ')').join(' · ') + ' — эдгээр нь «гацсан»-д тоологдохгүй.</div>');
   P('<div class="acts4">' + fl(ordersQ('&tab=dsp'), 'Маргаашийн түгээлт · Excel') + fl(ordersQ('&stage=confirmed'), 'Гацсан хүргэлт') + fl(BASE + '/form/delivery', 'Статус оруулах', true) + '</div></section>');
   // brain
   P('<section class="pane4" data-pane="brain">');
