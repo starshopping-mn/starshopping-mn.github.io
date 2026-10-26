@@ -1,5 +1,54 @@
 /* Starshopping самбар — n8n «Хуудас бүтээх» ба «Судалгааны хуудас» node-оос шилжүүлсэн (2026-09-24).
    Өгөгдөл: /webhook/board-data (түлхүүртэй). Зураг: icons.js, өнгө: board.css. */
+
+/* CL (2026-10-26): Мөнгөний төлөвлөгөө — данс бүрийн үүрэг, дугтуй, 8 долоо хоногийн урсгал, захиалгын цэг.
+   Нүүр (render.js) ба Мөнгө (money.js) хоёулаа үүнийг дууддаг. plan = money_engine().plan (cash_plan). */
+function ssPlanCard(plan, opt) {
+  opt = opt || {};
+  const n = (v) => (v === null || v === undefined || v === '' ? 0 : Number(v));
+  const has = (v) => v !== null && v !== undefined && v !== '';
+  const esc = (x) => String(x === null || x === undefined ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const mnt = (v) => (has(v) ? Math.round(n(v)).toLocaleString('en-US') + '₮' : '—');
+  const big = (v) => { if (!has(v)) return '—'; const x = n(v); return (x < 0 ? '−' : '') + (Math.abs(x) >= 1e6 ? (Math.abs(x) / 1e6).toFixed(2).replace(/\.?0+$/, '') + ' сая' : Math.round(Math.abs(x)).toLocaleString('en-US')); };
+  const d = (x) => String(x || '').slice(5).replace('-', '/');
+  if (!plan || !plan.envelopes) return '<div class="plan"><p class="sm mut">Мөнгөний төлөвлөгөө (SQL CL) хараахан суугаагүй.</p></div>';
+  const T = plan.target || {}, F = plan.forecast || {}, R = plan.reorder || {}, A = plan.accounts || {}, G = plan.gyals || {}, AS = plan.assumptions || {};
+  const E = {}; (plan.envelopes || []).forEach((e) => { E[e.key] = e; });
+  const u = E.usd || {}, fl = E.floor || {}, g = E.goods || {}, pf = E.profit || {};
+  const pct = (a, b) => (n(b) > 0 ? Math.max(0, Math.min(100, Math.round(100 * n(a) / n(b)))) : 0);
+  const tile = (label, role, now, target, gap, action, cls) => '<div class="pt4 ' + (cls || '') + '"><div class="pl">' + esc(label) + '</div><div class="pv">' + big(now) + ' <span class="of">/ ' + big(target) + '</span></div>'
+    + '<div class="bar"><i class="' + (pct(now, target) >= 100 ? '' : pct(now, target) >= 50 ? 'w' : 'c') + '" style="width:' + pct(now, target) + '%"></i></div>'
+    + '<div class="pr">' + esc(role) + '</div>' + (action ? '<div class="pa">' + esc(action) + '</div>' : (n(gap) > 0 ? '<div class="pa">дутуу ' + mnt(gap) + '</div>' : '<div class="pa ok">✓ дүүрсэн</div>')) + '</div>';
+  let h = '<div class="plan">';
+  h += '<div class="pv0"><b>' + esc(plan.verdict || '') + '</b><span class="sm mut"> · ' + esc(T.rule || '') + '</span></div>';
+  h += '<div class="pgrid">'
+    + tile('① Хаан USD · тогтмол зардал', 'хэрэгсэл ' + big(u.subs) + ' + зар ' + big(u.ads) + ' · ' + n(AS.usd_cover_days) + ' хоног', u.now, u.target, u.gap, n(u.gap) > 0 ? '→ ' + u.action : '', n(u.gap) > 0 ? 'crit' : 'good')
+    + tile('② Хаан ₮ · доод хязгаар', n(AS.floor_days) + ' хоногийн систем + зар — хэзээ ч зарцуулахгүй', fl.now, fl.target, fl.gap, '', n(fl.gap) > 0 ? 'crit' : 'good')
+    + tile('③ Бараа · татан авалт', (g.slug || '—') + ' · захиалгын цэг ' + n(R.rop) + 'ш · одоо ' + n(R.position) + 'ш (' + (has(R.cover_days_now) ? n(R.cover_days_now) + ' хоног' : '—') + ')', g.now, g.target, 0, '→ ' + (g.action || ''), n(g.q_afford) >= n(g.q_need) ? 'good' : 'warn')
+    + tile('④ Ашиг / эзний буцаалт', (pf.role || '') + ' · илүүдэл = байгаа − зорилт', n(T.surplus) > 0 ? T.surplus : 0, null, 0, n(T.invest_ok) ? '→ хөрөнгө оруулалт (split дүрмээр)' : 'эргэлт тогтвортой болтол 0', n(T.invest_ok) ? 'good' : '')
+    + '</div>';
+  h += '<div class="ptgt">Эргэлтийн хөрөнгийн зорилт <b>' + mnt(T.total) + '</b> = USD ' + big(T.usd) + ' + доод ' + big(T.floor) + ' + бараа ' + big(T.goods)
+    + ' · одоо байгаа <b>' + mnt(T.have) + '</b> (' + esc(T.have_note || '') + ') · ' + (n(T.surplus) >= 0 ? '<span class="good">илүүдэл ' + mnt(T.surplus) + '</span>' : '<span class="crit">дутуу ' + mnt(-n(T.surplus)) + '</span>')
+    + ' · хуримтлагдсан бодит ашиг ' + (n(T.profit_all) < 0 ? '−' : '') + mnt(Math.abs(n(T.profit_all))) + '. Борлуулалт өсвөл зорилт өөрөө өснө (хурд × ' + n(AS.lead_days) + ' хоног).</div>';
+  if (!opt.compact && Array.isArray(F.weeks) && F.weeks.length) {
+    const slug = g.slug || '';
+    h += '<div class="tw"><table class="ot pfc"><thead><tr><th>7 хоног</th><th>Gyals-аас</th><th>Хэрэгсэл</th><th>Зар</th><th>Бараа</th><th>Үлдэгдэл</th><th>Нөөц ' + esc(slug.split('-')[0]) + '</th></tr></thead><tbody>';
+    F.weeks.forEach((w) => {
+      const low = n(w.balance) < n(F.floor), st = w.stock && has(w.stock[slug]) ? Math.round(n(w.stock[slug])) : null;
+      h += '<tr' + (w.w === F.min_week ? ' class="minw"' : '') + '><td>' + esc(d(w.from)) + '–' + esc(d(w.to)) + '</td><td>+' + big(w.in_gyals) + '</td><td>' + (n(w.out_subs) ? '−' + big(w.out_subs) : '') + '</td><td>−' + big(w.out_ads) + '</td><td>' + (n(w.out_po) ? '−' + big(w.out_po) : '') + (n(w.arrive_po) ? ' <span class="pill ok">+' + n(w.arrive_po) + 'ш ирнэ</span>' : '') + '</td>'
+        + '<td class="' + (low ? 'crit' : '') + '"><b>' + big(w.balance) + '</b></td><td>' + (st === null ? '—' : st <= 0 ? '<span class="pill crit">дууссан</span>' : st + 'ш') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div class="foot">Орлого = Gyals-д өгсөн × ' + Math.round(n(AS.ratio_shipped) * 100) + '% − хөлс ' + n(AS.gyals_fee_mnt).toLocaleString('en-US') + '₮, ' + n(AS.gyals_lag_days) + ' хоногийн хоцролттой. Борлуулалт нөөцөөр хязгаарлагдана — «дууссан» долоо хоног = алдсан орлого'
+      + (F.short_units && Object.keys(F.short_units).length ? ' (' + Object.keys(F.short_units).map((k) => k + ' ' + n(F.short_units[k]) + 'ш').join(', ') + ')' : '') + '. Хамгийн бага үлдэгдэл ' + big(F.min_balance) + ' (доод хязгаар ' + big(F.floor) + '). Долоо хоног бүр Gyals-ын тооцооны дараа дахин бодогдоно.</div>';
+  }
+  h += '</div>';
+  return h;
+}
+window.ssPlanCard = ssPlanCard;
+const SS_PLAN_CSS = '.plan{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:12px 14px;margin:8px 0 12px}.plan .pv0{font-size:14px;margin-bottom:8px}.plan .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}.plan .pt4{background:var(--bg);border:1px solid var(--ln);border-radius:12px;padding:10px 12px}.plan .pt4.crit{border-color:rgba(176,42,42,.5)}.plan .pt4.good{border-color:rgba(46,154,90,.4)}.plan .pl{font-size:12px;font-weight:700}.plan .pv{font-size:20px;letter-spacing:-.02em;margin-top:4px}.plan .pv .of{font-size:12px;color:var(--mut)}.plan .pr{font-size:11.5px;color:var(--mut);margin-top:4px;line-height:1.35}.plan .pa{font-size:12px;font-weight:600;margin-top:6px}.plan .pa.ok{color:var(--good,#2e9a5a)}.plan .bar{height:6px;background:var(--s2);border-radius:99px;overflow:hidden;margin-top:6px}.plan .bar i{display:block;height:100%;background:var(--good,#2e9a5a)}.plan .bar i.w{background:#c27a06}.plan .bar i.c{background:var(--crit,#b02a2a)}.plan .ptgt{font-size:12.5px;margin:10px 0 6px;line-height:1.5}.plan .good{color:var(--good,#2e9a5a);font-weight:600}.plan .crit{color:var(--crit,#b02a2a);font-weight:600}.plan .pfc td,.plan .pfc th{font-size:12px;padding:5px 8px;white-space:nowrap}.plan .pfc tr.minw td{background:rgba(194,122,6,.08)}.plan .pfc td.crit{color:var(--crit,#b02a2a)}.plan .foot{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.45}';
+window.SS_PLAN_CSS = SS_PLAN_CSS;
+
 function renderBoard(DATA, QUERY) {
   const d = DATA || {};
   const E30 = d.economics_30d || {};
@@ -368,9 +417,12 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     const over = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= n(c.cap)).map((c) => c.label);
     const warn = caps.filter((c) => has(c.cap) && n(c.cap) > 0 && n(c.spent) >= 0.8 * n(c.cap) && n(c.spent) < n(c.cap)).map((c) => c.label);
     P('<div class="sec"><b>Мөнгөний хөдөлгүүр</b><span class="sd">бэлэн → нөөц сан → чөлөөт → хөрөнгө оруулалт · <a href="/board/?view=money' + (themeQ ? '&amp;theme=' + themeQ : '') + '">Мөнгө хуудас</a></span></div>');
-    const balAge = EC.snapshot_d ? Math.floor((Date.now() - new Date(String(EC.snapshot_d).slice(0, 10) + 'T00:00:00+08:00').getTime()) / 864e5) : null;
-    const balOld = balAge !== null && balAge > 3 ? ' · ⚠ ' + balAge + ' хоногийн өмнөх — шинэчил' : '';
-    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld : 'баланс оруулаагүй', balOld ? 'warn' : ''],
+    // CL: эх сурвалж банкны SMS бол сүүлийн үлдэгдлийн цаг; snapshot бол түүний огноо
+    const accAt = EC.src === 'bank' && Array.isArray(EC.accounts) ? EC.accounts.map((a) => a.in_cash && a.balance_at ? new Date(a.balance_at).getTime() : 0).reduce((m, x) => Math.max(m, x), 0) : 0;
+    const balAge = accAt ? Math.floor((Date.now() - accAt) / 864e5) : EC.snapshot_d ? Math.floor((Date.now() - new Date(String(EC.snapshot_d).slice(0, 10) + 'T00:00:00+08:00').getTime()) / 864e5) : null;
+    const balOld = balAge !== null && balAge > (accAt ? 1 : 3) ? ' · ⚠ ' + balAge + ' хоногийн өмнөх — ' + (accAt ? 'банкны SMS ирэхгүй байна' : 'шинэчил') : '';
+    const balLbl = accAt ? 'банкны SMS ' + new Date(accAt).toLocaleString('en-GB', { timeZone: 'Asia/Ulaanbaatar', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') : 'баланс оруулаагүй';
+    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', balLbl + balOld, balOld ? 'warn' : ''],
       ['нөөц сан', has(ER.pct) ? n(ER.pct) + '%' : '—', short(ER.now) + ' / ' + short(ER.target), n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit'],
       ['чөлөөт', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : ''],
       ['сарын тааз', over.length ? 'давсан' : warn.length ? '80%+' : '✓', over.length ? over.join(', ') : warn.length ? warn.join(', ') : 'хязгаарт', over.length ? 'crit' : warn.length ? 'warn' : 'good']];
@@ -378,11 +430,14 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     EB.forEach((e) => P('<div class="mb mini"><div class="l">' + esc(e[0]) + '</div><div class="kv ' + e[3] + '">' + esc(e[1]) + '</div><div class="ks">' + esc(e[2]) + '</div></div>'));
     cur = B.money;
     P('<div class="krow krow4">');
-    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
+    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', accAt ? balLbl + balOld : EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
     kpi('Нөөц сан', (has(ER.pct) ? n(ER.pct) + '%' : '—'), short(ER.now) + ' / ' + short(ER.target) + ' · ' + n(ER.months) + ' сарын систем + татан авалт', n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit');
     kpi('Чөлөөт мөнгө', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : '');
     kpi('Сарын тааз', over.length ? '🔴 давсан' : warn.length ? '🟡 80%+' : '✓', over.length ? over.join(', ') + ' давсан' : warn.length ? warn.join(', ') + ' 80%-д хүрсэн' : caps.map((c) => c.label + ' ' + short(c.spent) + (has(c.cap) ? '/' + short(c.cap) : '')).join(' · '), over.length ? 'crit' : warn.length ? 'warn' : 'good');
     P('</div>');
+    // CL (2026-10-26): данс бүрийн үүрэг + 8 долоо хоногийн урсгал — энэ долоо хоногт USD руу хэд, бараанд хэд
+    P('<div class="sec"><b>💼 Мөнгөний төлөвлөгөө</b><span class="sd">данс бүрийн үүрэг · энэ долоо хоногт юу хийх · <a href="/board/?view=money' + (themeQ ? '&amp;theme=' + themeQ : '') + '">8 долоо хоногийн урсгал Мөнгө хуудсанд</a></span></div>');
+    P(ssPlanCard(EN.plan, { compact: true }));
     // M13 (2026-10-21): зорилгын сангууд — явц
     const GV = EN.goals || null;
     if (GV && Array.isArray(GV.goals) && GV.goals.length) {
