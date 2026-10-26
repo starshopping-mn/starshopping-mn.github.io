@@ -63,13 +63,18 @@ function renderMoney(DATA, QUERY) {
   // ── M12 (2026-10-20): МӨНГӨНИЙ ХӨДӨЛГҮҮР — ашиг → нөөц сан → татан авалт → чөлөөт мөнгө → хөрөнгө оруулалт
   const E = d.engine || null;
   if (E) {
+    const bankTs = E.cash && Array.isArray(E.cash.accounts) ? E.cash.accounts.filter((a) => a.in_cash && a.balance_at).map((a) => new Date(a.balance_at).getTime()).reduce((m, x) => (x > m ? x : m), 0) : 0;
+    const bankAt = bankTs ? new Date(bankTs).toLocaleString('en-GB', { timeZone: 'Asia/Ulaanbaatar', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
     const EC = E.cash || {}, EP = E.profit_month || {}, ER = E.reserve || {}, EF = E.free || {}, POL = E.policy || {}, INV = E.invest || {};
     const STN = { ready: '🟢 Хөрөнгө оруулалтад бэлэн', building: '🟡 Нөөц сан бүрдэж байна', locked: '🔴 Нөөц сан дутуу', no_snapshot: 'Баланс оруулаагүй' };
     const pv = (k) => (POL[k] && has(POL[k].value) ? n(POL[k].value) : '');
     const pn = (k) => (POL[k] && POL[k].note ? String(POL[k].note) : '');
+    // CL (2026-10-26): данс бүрийн үүрэг · дугтуй · 8 долоо хоногийн урсгал · захиалгын цэг (cash_plan)
+    o('<h2 style="margin-top:14px">💼 Мөнгөний төлөвлөгөө <span class="cnt">① USD тогтмол зардал → ② ₮ доод хязгаар → ③ бараа → ④ ашиг · долоо хоног бүр Gyals-ын тооцооны дараа</span></h2>');
+    o(typeof ssPlanCard === 'function' ? ssPlanCard(E.plan, {}) : '<p class="sm mut">render.js ачаалагдаагүй.</p>');
     o('<h2 style="margin-top:14px">💰 Мөнгөний хөдөлгүүр <span class="cnt">бэлэн → нөөц сан → татан авалт → чөлөөт → хөрөнгө оруулалт · өдөр бүр 09:30 шалгаж Telegram-д мэдэгдэнэ</span></h2>');
     o('<div class="eng">'
-      + '<div class="t"><b>' + (has(EC.now) ? big(EC.now) : '—') + '</b><span>БЭЛЭН МӨНГӨ ₮' + (EC.src === 'bank' ? ' · дансуудын SMS-ийн үлдэгдэл (банк, карт, бэлэн)' : EC.snapshot_d ? ' · баланс ' + esc(day(EC.snapshot_d)) + ' ' + big(EC.snapshot_mnt) + ' → орсон +' + big(EC.in_paid) + ' (' + n(EC.in_n) + ' зах.) · гарсан −' + big(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : ' · доор балансаа оруул') + '</span></div>'
+      + '<div class="t"><b>' + (has(EC.now) ? big(EC.now) : '—') + '</b><span>БЭЛЭН МӨНГӨ ₮' + (EC.src === 'bank' ? ' · банкны SMS-ийн үлдэгдэл ' + bankAt : EC.snapshot_d ? ' · баланс ' + esc(day(EC.snapshot_d)) + ' ' + big(EC.snapshot_mnt) + ' → орсон +' + big(EC.in_paid) + ' (' + n(EC.in_n) + ' зах.) · гарсан −' + big(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : ' · доор балансаа оруул') + '</span></div>'
       + '<div class="t ' + (n(EP.net_real) < 0 ? 'neg' : n(EP.net_real) > 0 ? 'pos' : '') + '"><b>' + sign(EP.net_real) + '</b><span>ЭНЭ САРЫН АШИГ (бодит) · төлөгдсөн ' + big(EP.paid) + ' · зардал ' + big(EP.costs) + ' · хүлээгдэж буйтай ' + sign(EP.net_expected) + '</span></div>'
       + '<div class="t"><b>' + big(ER.now) + ' <span style="display:inline;font-size:13px;color:var(--mut)">/ ' + big(ER.target) + '</span></b><span>НӨӨЦ САН · ' + n(ER.months) + ' сарын систем (' + big(ER.fixed_monthly) + '/сар) + татан авалтын нөөц ' + big(ER.restock) + (n(ER.upcoming_subs_30d) ? ' · 30 хоногт сунгагдах багц ' + big(ER.upcoming_subs_30d) : '') + '</span><div class="bar"><i class="' + (n(ER.pct) >= 100 ? '' : n(ER.pct) >= 50 ? 'w' : 'c') + '" style="width:' + Math.max(0, Math.min(100, n(ER.pct))) + '%"></i></div></div>'
       + '<div class="t ' + (n(EF.mnt) < 0 ? 'neg' : 'pos') + '"><b>' + (has(EF.mnt) ? sign(EF.mnt) : '—') + '</b><span>ЧӨЛӨӨТ МӨНГӨ = бэлэн − нөөц сан − төлөвлөсөн татан авалт (' + big(EF.planned_restock) + ') · босго ' + big(EF.min) + (n(EF.gap) > 0 ? ' · дутуу ' + big(EF.gap) : '') + '</span><span class="st ' + esc(EF.state || '') + '">' + esc(STN[EF.state] || EF.state || '') + '</span></div>'
