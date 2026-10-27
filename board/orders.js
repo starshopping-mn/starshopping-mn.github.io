@@ -157,6 +157,8 @@ function renderOrders(DATA, QUERY) {
       else st.push('<span class="pill">' + (r.mode === 'live' ? 'нөөцөөс' : 'бараа ирээгүй') + '</span>');
       if (r.gyals_listed_at) st.push('<span class="pill">Gyals ' + day(r.gyals_listed_at) + '</span>');
       if (r.prepaid_at) st.push('<span class="pill ok">урьдчилж төлсөн ' + day(r.prepaid_at) + '</span>');
+      // CP (2026-10-27, эзэн): УБ урьдчилгаа (PickPack г.м.) — мөнгө орохоос өмнө Gyals-д өгөхгүй
+      else if (!r.is_rural && r.pay_requested_at && !r.shipped_at) st.push('<span class="pill warn" title="Урьдчилгааны SMS явсан — мөнгө орохоос өмнө Gyals түгээлтэд орохгүй">💳 урьдчилгаа хүлээж буй · ' + esc(ago(r.pay_requested_at)) + '</span>');
       if (r.deliver_sms_at) st.push('<span class="pill info">💬 SMS ' + dt(r.deliver_sms_at) + '</span>');
     }
     // M6: хүргэх өдөр (хоосон = маргааш). Зөвхөн УБ, хаягтай, ачаагүй.
@@ -187,7 +189,14 @@ function renderOrders(DATA, QUERY) {
       // CH (2026-10-25, эзэн): «төлсөн» = мөнгө данс руу орсон. Энд зөвхөн «Хүргэгдсэн» (do=delivered); мөнгө Түгээлт → «💰 Gyals тооцоо»-оор бүртгэгдэнэ.
       const bPaid = r.shipped_at ? '<button class="btn oa" data-id="' + id + '" data-do="delivered" title="Gyals хүргэсэн — мөнгө хараахан ирээгүй">✓ Хүргэгдсэн</button>' : '';
       const rest = [];
-      if (r.stage === 'order') {
+      // CP: УБ урьдчилгаа — SMS явсан, мөнгө ороогүй бол гол товч «✓ Мөнгө орсон»
+      const ubOpen = live && !r.is_rural && !r.shipped_at;
+      const ubWait = ubOpen && !r.prepaid_at && !!r.pay_requested_at;
+      const bPreSms = '<button class="btn oa" data-id="' + id + '" data-do="prepay_sms" title="PickPack хайрцаг, итгэл муутай г.м. — данс, дүн, гүйлгээний утгатай SMS. Мөнгө орох хүртэл Gyals-д өгөхгүй.">💳 ' + (r.pay_requested_at ? 'Урьдчилгаа SMS дахин' : 'Урьдчилгаа SMS') + '</button>';
+      if (ubWait) {
+        h += '<button class="btn go oa" data-id="' + id + '" data-do="prepaid" title="Мөнгө данс руу орсон">✓ Мөнгө орсон</button>';
+        rest.push(bPreSms, bShip);
+      } else if (r.stage === 'order') {
         h += '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж баталгаажуулсан">Батлах</button>';
         if (!r.shipped_at && !r.is_rural) rest.push(bSms);
         if (!r.shipped_at) rest.push(bShip);
@@ -198,6 +207,8 @@ function renderOrders(DATA, QUERY) {
       } else if (r.stage === 'delivered') {
         h += '<span class="pill info" title="Gyals мөнгө шилжүүлэхэд Түгээлт таб → «💰 Gyals тооцоо нийлэх»">💰 мөнгө Gyals тооцоогоор</span>';
       }
+      if (ubOpen && !ubWait && !r.prepaid_at) rest.push(bPreSms);
+      if (ubOpen && r.prepaid_at) rest.push('<button class="btn oa" data-id="' + id + '" data-do="prepaid_undo" title="Андуурч дарсан бол">↩ мөнгө орсонгүй</button>');
       if (['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0) rest.push('<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button>', skuBtn(r), '<button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>');
       h += menu(rest.filter(Boolean)) + addrForm(r);
     }
@@ -295,7 +306,8 @@ function renderOrders(DATA, QUERY) {
   // M6 · 📦 ТҮГЭЭЛТ: баталгаажсан, УБ, ачаагүй → хүргэх өдрөөр (хоосон/өнгөрсөн = маргааш). Gyals-д хуулах.
   // M7: эзэн баталсан ЭСВЭЛ нөөцтэй (live) бараа хаягтай захиалсан → дуудлагагүйгээр түгээлтэд. deliver_on-г DB тавина (өгсөн өдөр + 1).
   // M12 (2026-10-22, эзэн): орон нутгийн ТӨЛСӨН захиалга (rShip) мөн түгээлтэд — маргааш Gyals-д өгөх жагсаалт нэг газар. Төлөөгүй орон нутаг орохгүй.
-  const dspUb = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')) && !isBO(r));
+  const dspUb = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')) && !isBO(r)
+    && !(r.pay_requested_at && !r.prepaid_at));   // CP: УБ урьдчилгаа ороогүй → түгээлтэд орохгүй
   const dsp = dspUb.concat(rShip);
   const dspOk = (r) => !!(r.stock_ready_at || r.stock_ok || (r.prepaid_at));
   // M9 (2026-10-20): Gyals Excel (татах) + Gyals тайлан (оруулах) — өгөгдлийг клиент скрипт рүү дамжуулна
@@ -379,7 +391,7 @@ function renderOrders(DATA, QUERY) {
     rows.forEach((r) => {
       const good = dspOk(r), rp = !!(r.prepaid_at);
       o('<tr data-keep="d-' + esc(r.order_id) + '"' + (rp ? ' style="background:rgba(22,101,52,.07)"' : '') + '>' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
-        + '<td>' + (rp ? '<span class="pill ok">🚚 орон нутаг · төлсөн ' + day(r.prepaid_at) + '</span>' : (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>'))
+        + '<td>' + (rp ? '<span class="pill ok">' + (r.is_rural ? '🚚 орон нутаг · ' : '💳 урьдчилж ') + 'төлсөн ' + day(r.prepaid_at) + '</span>' : (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>'))
         + (r.stage === 'order' && !rp ? '<span class="pill">дуудлагагүй</span>' : '') + '<br><button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="shipped" title="Зөвхөн энэ захиалгыг Gyals-д өгсөн гэж тэмдэглэх">Gyals-д өгсөн</button></td></tr>');
     });
     o('</tbody></table></div>');
@@ -716,8 +728,8 @@ function ssGyalsUI(post, say, reload, e, GX) {
       }
       var first;
       if (paid.length) {
-        section('1. ТӨЛБӨР ТӨЛСӨН — орон нутаг (мөнгө АВАХГҮЙ, унаанд тавина)', 'FF2E7D32'); first = r + 1;
-        paid.forEach(function (x) { var a = parseAddr(x.address); num++; put([num, x.id.slice(0, 8), k, x.customer || '—', x.phone, a.extra, x.district, a.addr || x.district, ['Урьдчилж төлсөн — мөнгө авахгүй', a.note, ownerNote(x.note)].filter(Boolean).join('; '), x.product, x.variant, x.qty, 0, 'ТӨЛСӨН ' + Number(x.prepaid || x.amount).toLocaleString('en-US') + '₮', 'Орон нутаг', '', ''], 'FFE2EFDA'); });
+        section('1. ТӨЛБӨР ТӨЛСӨН — мөнгө АВАХГҮЙ (орон нутаг → унаанд; УБ → хаягаар/PickPack)', 'FF2E7D32'); first = r + 1;
+        paid.forEach(function (x) { var a = parseAddr(x.address); num++; put([num, x.id.slice(0, 8), k, x.customer || '—', x.phone, a.extra, x.district, a.addr || x.district, ['Урьдчилж төлсөн — мөнгө авахгүй', a.note, ownerNote(x.note)].filter(Boolean).join('; '), x.product, x.variant, x.qty, 0, 'ТӨЛСӨН ' + Number(x.prepaid || x.amount).toLocaleString('en-US') + '₮', x.rural ? 'Орон нутаг' : ('УБ · ' + (a.kind || 'Энгийн')), '', ''], 'FFE2EFDA'); });
         total(first, 'Төлсөн — дүн');
       }
       if (ub.length) {
