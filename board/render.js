@@ -770,7 +770,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   ];
 
   cur = B.map;   // CY (2026-10-28, эзэн баталсан v2): Higgsfield дүрслэл (өдөр/шөнө) + амьд SVG давхарга + хоёр талд карт. Логик 1000×480.
-  const SH = 594, IMH = 558;           // зураг 16:9 → 1000×558; доор нь үйл явдлын тууз 36; картууд sbox-ийн доор (масштаблагдахгүй)
+  const SH = 558, IMH = 558;           // зураг 16:9 → 1000×558 (scene = зөвхөн зураг + амьд давхарга); тууз, картууд sbox-ийн доор (масштаблагдахгүй)
   const TX = 0, TK = 1;
   const LIVE = { prod: [380, 200], delv: [245, 345], conf: [430, 470], crea: [705, 205], chat: [830, 335], ordr: [690, 465] };
   const RINGP = [[300,255],[420,232],[600,222],[690,228],[770,290],[822,348],[780,412],[700,482],[560,497],[430,492],[320,422],[272,350]];
@@ -851,8 +851,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   if (has(DR.pct)) TKS.push(['', 'бодит хүргэлт ' + DR.pct + '% · нийт ' + n(DR.delivered)]);
   if (EN && EN.plan && EN.plan.verdict) TKS.push(['', String(EN.plan.verdict).replace(/^[^\wА-Яа-яӨөҮү]+/, '').slice(0, 90)]);
   const tkHtml = TKS.map((t) => '<span>' + (t[0] ? '<i>' + esc(t[0]) + '</i>' : '') + esc(t[1]) + '</span>').join('');
-  P('<div class="ticker"><b>СҮҮЛИЙН ҮЙЛ ЯВДАЛ</b><div class="tkw"><div class="tk">' + tkHtml + tkHtml + '</div></div></div>');
   P('</div></div>');
+  P('<div class="ticker"><b>СҮҮЛИЙН ҮЙЛ ЯВДАЛ</b><div class="tkw"><div class="tk">' + tkHtml + tkHtml + '</div></div></div>');
   P('<div class="pcards">' + ['prod', 'crea', 'chat', 'ordr', 'conf', 'delv'].map(cardOf).join('') + '</div>');
 
   P('<div class="legend">');
@@ -1119,7 +1119,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<script>(function(){'
     + 'var st=document.getElementById("st4"),drw=document.getElementById("drw");if(!st||!drw)return;var K="ss_home_pane",PT={};try{PT=JSON.parse(document.getElementById("paneTitles").textContent)}catch(e){}'
     + 'var box=st.querySelector(".sbox"),sc=st.querySelector(".scene");'
-    + 'function fit(){if(!box||!sc)return;var pcs=st.querySelector(".pcards"),lg=st.querySelector(".map4 .legend"),w=box.clientWidth;if(pcs)pcs.classList.toggle("six",w>=940);var ch=(pcs?pcs.offsetHeight+10:0)+(lg?lg.offsetHeight+14:0),h=(box.parentElement.clientHeight||594)-ch-8,k=Math.min(1.2,Math.max(.45,Math.min(w/1000,h/594)));sc.style.transform="scale("+k+")";box.style.height=Math.round(594*k)+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px"}'
+    + 'function fit(){if(!box||!sc)return;var pcs=st.querySelector(".pcards"),lg=st.querySelector(".map4 .legend"),tk=st.querySelector(".map4 .ticker"),w=box.clientWidth;if(pcs)pcs.classList.toggle("six",w>=790);var ch=(pcs?pcs.offsetHeight+10:0)+(lg?lg.offsetHeight+14:0)+(tk?tk.offsetHeight:0),h=Math.max(200,(box.parentElement.clientHeight||558)-ch-8),k=Math.min(1.3,Math.max(.45,Math.min(w/1000,h/558*1.12))),bh=Math.min(Math.round(558*k),h);sc.style.transform="scale("+k+")";box.style.height=bh+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px";sc.style.top=Math.min(0,Math.round((bh-558*k)/2))+"px"}'
     + 'function open(id,save){st.classList.remove("closed");st.querySelectorAll(".pc").forEach(function(c){c.classList.toggle("sel",c.dataset.id===id)});'
     + 'drw.querySelectorAll(".pane4").forEach(function(p){p.classList.toggle("on",p.dataset.pane===id)});var t=PT[id]||["",""];document.getElementById("dtitle").textContent=t[0];document.getElementById("dsub").textContent=t[1];'
     + 'if(save){try{localStorage.setItem(K,id)}catch(e){}}drw.scrollTop=0;fit()}'
