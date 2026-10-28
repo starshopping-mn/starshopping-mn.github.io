@@ -375,6 +375,21 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       tools.forEach((t) => p += '<div class="si">· ' + esc(t.vendor) + ' ' + mnt(t.mnt) + '</div>');
       p += row('Нийт зардал', mnt(cs.total), 'warn')
         + '<div class="si sn">Бараа = дэвтэрт төлсөн мөнгө; дэвтэрт байхгүй PO-г ¥-ээс тооцсон. Систем = дэвтэрт бичсэн хэрэгслийн төлбөр (n8n, SendPulse, Anthropic г.м.).</div>';
+    } else if (M.operating && M.econ) {
+      // CX (2026-10-28): бодит үр дүн = борлуулсан барааны өртгөөр (хараахан ирээгүй PO, зарагдаагүй бараа зардал биш); мөнгөний урсгал доор нь
+      const OP = M.operating, ET = M.econ.total || {}, res = n(OP.result);
+      s = '<div class="kv" style="color:' + (res > 0 ? 'var(--good)' : res < 0 ? 'var(--crit)' : 'inherit') + '">' + MSG(res) + '</div><div class="ks">бодит (борлуулсан барааны өртгөөр)'
+        + (has(OP.expected) ? ' · хүлээгдэж буйтай ' + MSG(OP.expected) : '') + ' · мөнгөний урсгал ' + MSG(OP.cash_real) + '</div>';
+      p = row('Орлого · ' + n(ET.sold_n) + ' зарагдсан', mnt(ET.revenue))
+        + row('− борлуулсан барааны өртөг', '−' + mnt(ET.cogs)) + row('− хүргэлтийн хөлс, буцаалт', '−' + mnt(ET.fees)) + row('− зар', '−' + mnt(ET.ads))
+        + row('Барааны хувь нэмэр', MSG(ET.contrib), n(ET.contrib) >= 0 ? 'good' : 'crit')
+        + row('− систем / хэрэгсэл / бусад', '−' + mnt(OP.fixed))
+        + row('Үйл ажиллагааны үр дүн', MSG(res), res >= 0 ? 'good' : 'crit')
+        + row('+ хүргэгдсэн, мөнгө ирээгүй', MSG(ET.delivered_unpaid_contrib)) + row('+ замд × ' + Math.round(n(M.econ.ratio_shipped) * 100) + '%', MSG(ET.on_road_contrib))
+        + row('Хүлээгдэж буйтай', MSG(OP.expected), n(OP.expected) >= 0 ? 'good' : 'crit')
+        + row('Хүргэлтийн компанид бараа (өртгөөр)', mnt(ET.stock_mnt) + ' · ' + n(ET.stock_units) + ' ш')
+        + row('Мөнгөний урсгал (төлөгдсөн − данснаас гарсан бүх мөнгө)', MSG(OP.cash_real))
+        + '<div class="si sn">Мөнгөний урсгал сөрөг байж болно: Хятадаас ирж буй бараа, зарагдаагүй нөөцийн мөнгө данснаас гарсан ч алдагдал биш. Бодит үр дүн = зарагдсан барааны л өртөг.</div>';
     } else {
       const real = n(nt.real);
       s = '<div class="kv" style="color:' + (real > 0 ? 'var(--good)' : real < 0 ? 'var(--crit)' : 'inherit') + '">' + MSG(real) + '</div><div class="ks">бодит (төлөгдсөн − зардал)'
