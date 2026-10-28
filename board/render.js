@@ -71,6 +71,9 @@ function renderBoard(DATA, QUERY) {
   const events = Array.isArray(d.events) ? d.events : [];
   const pages = Array.isArray(d.pages) ? d.pages : [];
   const DR = d.delivery_real || {};
+  // CX3 (2026-10-28, эзэн): Хүргэлт картанд хуримтлагдсан тоо — нийт хүргэгдсэн (delivery_real) + одоо замд (money_a.econ, SQL нэмэлтгүй)
+  const roadN = (() => { const E = d.money_a && d.money_a.econ; if (!E || !Array.isArray(E.by_product)) return null;
+    return E.by_product.reduce((a, b) => a + (b.on_road && b.on_road.n ? Number(b.on_road.n) : 0), 0); })();
   const toCall = Array.isArray(d.to_call) ? d.to_call : [];
   const WG = Array.isArray(d.waiting_goods) ? d.waiting_goods : [];   // CJ: PO замд байгаа бараа хүлээж буй захиалга
   const wgN = WG.reduce((a, x) => a + (Number(x.orders) || 0), 0), wgLate = WG.filter((x) => (Number(x.late_days) || 0) > 0);
@@ -286,7 +289,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       rows: [['утсаар залгах', toCall.length], ['баталгаажсан', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—']] },
     { id: 'delv', t: 'ХҮРГЭЛТ', v: n(PU.delivered), u: 'хүргэсэн 24ц', st: stDeliver, vol: n(fDeliv.n),
       href: '/form/delivery', act: 'Статус оруулах',
-      rows: [['гацсан', stalled.length], ['бодит хүргэлт', has(DR.pct) ? DR.pct + '%' : '—']] }
+      rows: [['нийт хүргэгдсэн', (has(DR.delivered) ? n(DR.delivered) : '—') + (roadN !== null ? ' · замд ' + roadN : '')], ['гацсан', stalled.length], ['бодит хүргэлт', has(DR.pct) ? DR.pct + '%' : '—']] }
   ];
 
   // n8n serves webhook pages under a CSP sandbox without allow-same-origin, so
@@ -766,101 +769,60 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     { l: 2,  t: 40, w: 20, ax: 220, ay: 292 }
   ];
 
-  cur = B.map;   // 3D зураглал — эзний шаардлага: хэвээр үлдэнэ
-  P('<div class="stage"><div class="sbox"><div class="scene">');
-  P('<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Системийн зураглал">');
-  // Shared shading resources. Colour-free on purpose: they multiply whatever token
-  // sits underneath, so the same defs serve both themes and every object.
-  P('<defs>'
-    + '<filter id="blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4"/></filter>'
-    + '<filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.5"/></filter>'
-    + '<linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".34"/>'
-    + '<stop offset=".55" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".07"/></linearGradient>'
-    + '<linearGradient id="ao" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/>'
-    + '<stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient>'
-    + '<linearGradient id="cyl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".3"/>'
-    + '<stop offset=".3" stop-color="#fff" stop-opacity=".16"/><stop offset=".55" stop-color="#000" stop-opacity="0"/>'
-    + '<stop offset="1" stop-color="#000" stop-opacity=".38"/></linearGradient>'
-    + '</defs>');
+  cur = B.map;   // CY (2026-10-28, эзэн баталсан v2): Higgsfield дүрслэл (өдөр/шөнө) + амьд SVG давхарга + хоёр талд карт. Логик 1000×480.
+  const SH = 594, IMH = 558;           // зураг 16:9 → 1000×558; доор нь үйл явдлын тууз 36; картууд sbox-ийн доор (масштаблагдахгүй)
+  const TX = 0, TK = 1;
+  const LIVE = { prod: [380, 200], delv: [245, 345], conf: [430, 470], crea: [705, 205], chat: [830, 335], ordr: [690, 465] };
+  const RINGP = [[300,255],[420,232],[600,222],[690,228],[770,290],[822,348],[780,412],[700,482],[560,497],[430,492],[320,422],[272,350]];
+  const BRAIN = { base: [545, 300], dish: [545, 195] };
+  const ROAD = 'M215,335 C180,330 160,300 158,268 C156,236 135,210 125,178';
+  const STC = { idle: 'var(--st-idle-4)', flow: 'var(--st-flow-1)', wait: 'var(--st-wait-1)', block: 'var(--st-block-1)' };
+  const stOf = (id) => { const o = pos.find((q) => q.p.id === id); return o ? o.p.st : 'idle'; };
+  const cubeS = (sz) => '<polygon points="0,' + (-sz) + ' ' + f1(sz * .866) + ',' + (-sz * .5) + ' 0,0 ' + f1(-sz * .866) + ',' + (-sz * .5) + '" fill="var(--parcel)"/><polygon points="' + f1(-sz * .866) + ',' + (-sz * .5) + ' 0,0 0,' + sz + ' ' + f1(-sz * .866) + ',' + (sz * .5) + '" fill="var(--parcel2)"/><polygon points="0,0 ' + f1(sz * .866) + ',' + (-sz * .5) + ' ' + f1(sz * .866) + ',' + (sz * .5) + ' 0,' + sz + '" fill="var(--gold)"/>';
+  const flowsN = Math.min(n(PU.orders), 10), delivN = Math.min(n(PU.delivered), 4);
+  const planOn = EN && EN.plan && has(EN.plan.ads_on) ? !!EN.plan.ads_on : null;
+  const brainL1 = 'ТАРХИ · ' + (testAction || 'ТЕСТ АЛГА');
+  const brainL2 = planOn === null ? '' : (planOn ? 'зар асаалттай' : 'зар унтарсан') + (has(DR.pct) ? ' · хүргэлт ' + DR.pct + '%' : '');
 
-  P('<g stroke="var(--iso-grid)" stroke-width="1">');
-  for (let i = -8; i <= 8; i++) {
-    const a1 = ip(i, -8), b1 = ip(i, 8);
-    P('<line x1="' + f1(a1[0]) + '" y1="' + f1(a1[1]) + '" x2="' + f1(b1[0]) + '" y2="' + f1(b1[1]) + '"/>');
-    const a2 = ip(-8, i), b2 = ip(8, i);
-    P('<line x1="' + f1(a2[0]) + '" y1="' + f1(a2[1]) + '" x2="' + f1(b2[0]) + '" y2="' + f1(b2[1]) + '"/>');
-  }
-  P('</g>');
-
-  const rt = (base, st) => (n(base.n) >= 10 && has(st.rate) ? n(st.rate) : null);
-  const RATES = [null, null, null, rt(fConv, fPlaced), rt(fPlaced, fConf), rt(fConf, fDeliv)];
-  const badges = [];
-  P('<g fill="none" stroke-linecap="round">');
-  for (let i = 0; i < 5; i++) {
-    const a = pos[i], b = pos[i + 1], r = RATES[i + 1];
-    const wdt = r === null ? 1.5 : Math.max(1.8, 1.8 + (r / 100) * 6);
-    const col = r === null ? 'var(--rate-none)' : (r >= 50 ? 'var(--rate-hi)' : (r >= 20 ? 'var(--rate-mid)' : 'var(--rate-lo)'));
-    const dash = r === null ? ' stroke-dasharray="4 5"' : '';
-    P('<line x1="' + f1(a.x) + '" y1="' + f1(a.y - a.h - 2) + '" x2="' + f1(b.x) + '" y2="' + f1(b.y - b.h - 2)
-      + '" stroke="' + col + '" stroke-width="' + f1(wdt) + '"' + dash + '/>');
-    if (r !== null) badges.push([a.x + (b.x - a.x) * 0.42, (a.y - a.h - 2) + ((b.y - b.h - 2) - (a.y - a.h - 2)) * 0.42, col, Math.round(r)]);
-  }
-  P('<line x1="' + f1(pos[5].x) + '" y1="' + f1(pos[5].y - pos[5].h - 2) + '" x2="' + OX + '" y2="' + (OY - 26)
-    + '" stroke="var(--hub)" stroke-width="1.3" stroke-dasharray="3 5"/>');
-  P('<line x1="' + f1(pos[0].x) + '" y1="' + f1(pos[0].y - pos[0].h - 2) + '" x2="' + OX + '" y2="' + (OY - 26)
-    + '" stroke="var(--hub)" stroke-width="1.3" stroke-dasharray="3 5"/>');
-  P('</g>');
-
-  P('<g fill="none" stroke-linecap="round">');
-  pos.forEach((o, i) => {
-    const cd = CARD[i], cols = ST[o.p.st];
-    P('<line class="lnk' + (o.p.st === 'idle' ? '' : ' fast') + '" x1="' + f1(o.x) + '" y1="' + f1(o.y - o.h - 6)
-      + '" x2="' + cd.ax + '" y2="' + cd.ay + '" stroke="' + cols[0] + '" stroke-width="1.3" stroke-dasharray="5 6" opacity=".62"/>');
-    P('<circle cx="' + cd.ax + '" cy="' + cd.ay + '" r="2.6" fill="' + cols[0] + '"/>');
-  });
-  P('</g>');
-
-  const brainCols = ['var(--brain1)', 'var(--brain2)', 'var(--brain3)'];
-  const decCol = testAction === 'ЗОГСОО' ? 'var(--dec-stop)' : testAction === 'ӨРГӨТГӨ' ? 'var(--dec-go)'
-    : testAction ? 'var(--dec-fix)' : 'var(--dec-none)';
-  const solids = pos.map((o) => ({ dep: o.dep, kind: 'pod', o: o }));
-  solids.push({ dep: 0, kind: 'brain' });
-  solids.sort((a, b) => a.dep - b.dep);
-  solids.forEach((s) => {
-    if (s.kind === 'brain') {
-      // the hub: a taller plinth with a second, smaller tier and the decision ring glowing on top
-      P(slab(0, 0, BR, 16, brainCols, false));
-      P(slab(0, 0, BR * 0.72, 24, brainCols, false));
-      const ring = face(0, 0, BR * 0.72, 24.6);
-      if (testAction) P('<polygon points="' + ring + '" fill="none" stroke="' + decCol + '" stroke-width="5" opacity=".55" filter="url(#glow)"/>');
-      P('<polygon points="' + ring + '" fill="none" stroke="' + decCol + '" stroke-width="1.8" opacity="' + (testAction ? '.95' : '.55') + '"/>');
-      return;
-    }
-    const o = s.o, p = o.p, cols = ST[p.st];
-    if (p.st !== 'idle') {
-      // an active platform sits in a pool of its own colour
-      P('<ellipse cx="' + f1(o.x) + '" cy="' + f1(o.y) + '" rx="' + f1(PR * 1.5 * 2 * 0.866 * S)
-        + '" ry="' + f1(PR * 1.5 * 2 * 0.5 * S) + '" fill="' + cols[0] + '" style="opacity:var(--glow-o)" filter="url(#blur)"/>');
-      P('<ellipse cx="' + f1(o.x) + '" cy="' + f1(o.y) + '" rx="' + f1(PR * 1.32 * 2 * 0.866 * S)
-        + '" ry="' + f1(PR * 1.32 * 2 * 0.5 * S) + '" fill="none" stroke="' + cols[0] + '" stroke-width="1" opacity=".3"/>');
-    }
-    P(slab(o.gx, o.gy, PR, o.h, cols, p.st === 'idle'));
-    P('<g class="ico ' + (p.st === 'idle' ? 'dim' : 'fast') + '" transform="translate(' + f1(o.x) + ','
-      + f1(o.y - o.h) + ') scale(1.15)">' + (ICO[p.id] || '') + '</g>');
-  });
-
-  badges.forEach((bd) => {
-    P('<circle cx="' + f1(bd[0]) + '" cy="' + f1(bd[1]) + '" r="11.5" fill="var(--badge-bg)" stroke="' + bd[2] + '" stroke-width="1"/>');
-    P('<text x="' + f1(bd[0]) + '" y="' + f1(bd[1] + 3.4) + '" text-anchor="middle" fill="var(--badge-ink)" font-size="9" font-weight="700">' + bd[3] + '%</text>');
-  });
-
-  P('<g text-anchor="middle">');
-  P('<text x="' + OX + '" y="' + (OY - 68) + '" fill="var(--ink2)" font-size="9" letter-spacing="2.6" font-weight="700">ТАРХИ</text>');
-  P('<text x="' + OX + '" y="' + (OY - 20) + '" fill="' + decCol + '" font-size="'
-    + (testAction ? 16 : 13) + '" font-weight="' + (testAction ? 800 : 600) + '" letter-spacing="'
-    + (testAction ? '.5' : '0') + '">' + esc(testAction || 'тест алга') + '</text>');
+  P('<div class="stage"><div class="sbox"><div class="scene scn">');
+  P('<img class="scn-day" alt="" src="/board/img/scene-day.jpg" width="1000" height="' + IMH + '"><img class="scn-night" alt="" src="/board/img/scene-night.jpg" width="1000" height="' + IMH + '">');
+  P('<svg class="live" viewBox="0 0 1000 ' + IMH + '" width="1000" height="' + IMH + '" aria-hidden="true">');
+  P('<defs><filter id="soft" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>'
+    + '<filter id="g2" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2"/></filter>'
+    + '<linearGradient id="sw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--beam)" stop-opacity="0"/><stop offset="1" stop-color="var(--beam)" stop-opacity=".55"/></linearGradient></defs>');
+  P('<g transform="translate(' + TX + ',0) scale(' + TK + ')">');
+  // тавцангийн төлөвийн гэрэл
+  Object.keys(LIVE).forEach((id) => { const st = stOf(id), a = LIVE[id];
+    P('<ellipse class="glow ' + st + '" cx="' + a[0] + '" cy="' + a[1] + '" rx="62" ry="26" fill="' + STC[st] + '" filter="url(#soft)"/>'); });
+  // конвейер + илгээмж (24ц захиалга = хайрцаг)
+  let rd = 'M' + RINGP[0].join(',');
+  for (let i = 1; i <= RINGP.length; i++) { const p0 = RINGP[(i - 1) % RINGP.length], p1 = RINGP[i % RINGP.length], p2 = RINGP[(i + 1) % RINGP.length], pm = RINGP[(i - 2 + RINGP.length) % RINGP.length];
+    rd += ' C' + f1(p0[0] + (p1[0] - pm[0]) / 6) + ',' + f1(p0[1] + (p1[1] - pm[1]) / 6) + ' ' + f1(p1[0] - (p2[0] - p0[0]) / 6) + ',' + f1(p1[1] - (p2[1] - p0[1]) / 6) + ' ' + p1[0] + ',' + p1[1]; }
+  P('<path id="ringp" d="' + rd + '" fill="none" stroke="var(--beam)" stroke-width="2" stroke-opacity="' + (flowsN ? '.35' : '.12') + '" stroke-dasharray="4 10">' + (flowsN ? '<animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.6s" repeatCount="indefinite"/>' : '') + '</path>');
+  for (let i = 0; i < flowsN; i++) P('<g class="anim"><animateMotion dur="18s" begin="' + f1(-(i * 18 / flowsN)) + 's" repeatCount="indefinite"><mpath href="#ringp"/></animateMotion><g transform="translate(0,-6)">' + cubeS(5.5) + '<ellipse cy="7" rx="5" ry="2" fill="#000" opacity=".25"/></g></g>');
+  // тархи: долгион + радар + тавцан руу дохио
+  P('<g transform="translate(' + BRAIN.base[0] + ',' + BRAIN.base[1] + ')"><ellipse class="ring" rx="70" ry="30" fill="none" stroke="var(--beam)" stroke-width="1.4"/><ellipse class="ring b" rx="70" ry="30" fill="none" stroke="var(--beam)" stroke-width="1.4"/></g>');
+  P('<g transform="translate(' + BRAIN.dish[0] + ',' + BRAIN.dish[1] + ') scale(1,.5)"><path class="sweep" d="M0,0 L0,-120 A120,120 0 0,1 85,-85 Z" fill="url(#sw)"/><circle r="120" fill="none" stroke="var(--beam)" stroke-opacity=".22"/><circle r="75" fill="none" stroke="var(--beam)" stroke-opacity=".18"/></g>');
+  Object.keys(LIVE).forEach((id, i) => { const a = LIVE[id];
+    P('<path id="sig' + i + '" d="M' + BRAIN.base[0] + ',' + (BRAIN.base[1] - 40) + ' L' + a[0] + ',' + a[1] + '" fill="none" stroke="none"/>'
+      + '<circle class="anim" r="2.6" fill="var(--beam)" filter="url(#g2)"><animateMotion dur="5s" begin="' + f1(i * .83) + 's" repeatCount="indefinite"><mpath href="#sig' + i + '"/></animateMotion><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.04;.22;.3" dur="5s" begin="' + f1(i * .83) + 's" repeatCount="indefinite"/></circle>'); });
+  // хүргэлт: фургон → байшин (24ц хүргэлт бүр нэг аялал), очиход цонх асна
+  P('<path id="roadp" d="' + ROAD + '" fill="none" stroke="none"/>');
+  for (let i = 0; i < delivN; i++) { const b0 = f1(i * 8 / delivN);
+    P('<g class="anim"><animateMotion dur="8s" begin="' + b0 + 's" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;.5;1" calcMode="linear"><mpath href="#roadp"/></animateMotion><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.05;.45;.5;1" dur="8s" begin="' + b0 + 's" repeatCount="indefinite"/><g transform="translate(0,-5)">' + cubeS(5) + '</g></g>'); }
+  if (delivN) P('<g class="win"><rect x="140" y="105" width="7" height="6" fill="#ffd27a" filter="url(#g2)"/><rect x="60" y="130" width="7" height="6" fill="#ffd27a" filter="url(#g2)"/><rect x="164" y="88" width="7" height="6" fill="#ffd27a" filter="url(#g2)"/></g>');
+  if (stalled.length) P('<g transform="translate(300,275)"><circle r="9" fill="var(--st-block-1)"><animate attributeName="r" values="9;11;9" dur="1.1s" repeatCount="indefinite"/></circle><text y="3.5" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">' + stalled.length + '</text></g>');
+  // тархины шийдвэр
+  P('<rect x="' + (BRAIN.base[0] - 80) + '" y="' + (BRAIN.base[1] + 38) + '" width="160" height="' + (brainL2 ? 30 : 20) + '" rx="8" fill="var(--pc-bg)" stroke="var(--ln2)"/>'
+    + '<text x="' + BRAIN.base[0] + '" y="' + (BRAIN.base[1] + 51) + '" text-anchor="middle" font-size="9.5" letter-spacing="2.2" font-weight="800" fill="var(--ink2)">' + esc(brainL1) + '</text>'
+    + (brainL2 ? '<text x="' + BRAIN.base[0] + '" y="' + (BRAIN.base[1] + 62) + '" text-anchor="middle" font-size="7.2" fill="var(--mut)">' + esc(brainL2) + '</text>' : ''));
+  // тавцан дээр дарах талбар + сонгосон цагираг
+  Object.keys(LIVE).forEach((id) => { const a = LIVE[id];
+    P('<ellipse class="hit" data-id="' + id + '" cx="' + a[0] + '" cy="' + (a[1] - 30) + '" rx="75" ry="60" fill="transparent"/>'
+      + '<ellipse class="selr" data-id="' + id + '" cx="' + a[0] + '" cy="' + a[1] + '" rx="70" ry="28" fill="none" stroke="' + STC[stOf(id)] + '" stroke-width="2" opacity="0" stroke-dasharray="6 5"/>'); });
   P('</g></svg>');
 
+  // картууд — зургийг халхлахгүй хоёр талд (зүүн: бараа · хүргэлт · баталгаа; баруун: креатив · чат · захиалга)
   const chip = (t, c) => '<span class="' + (c || '') + '">' + esc(t) + '</span>';
   const acOn = AC ? AC.ads.filter((a) => a.effective_status === 'ACTIVE').length : null;
   const acWait = AC ? AC.ads.filter((a) => a.pending).length : 0;
@@ -873,25 +835,31 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     conf: (n(C.awaiting_confirm) ? chip(n(C.awaiting_confirm) + ' хүлээж', 'w') : '') + (toCall.length ? chip(toCall.length + ' залгах', 'c') : ''),
     delv: (stalled.length ? chip(stalled.length + ' гацсан', 'c') : '') + chip(has(DR.pct) ? 'бодит ' + DR.pct + '%' : 'хүргэсэн ' + n(PU.delivered))
   };
-  pos.forEach((o, i) => {
-    const p = o.p, cd = CARD[i], cols = ST[p.st];
-    const stl = 'left:' + cd.l + '%;' + (cd.b === undefined ? 'top:' + cd.t : 'bottom:' + cd.b)
-      + '%;width:' + cd.w + '%;--st:' + cols[3];
-    // v4: карт = станц. Дарвал баруун талын дэлгэрэнгүй цонх нээгдэнэ (маягтын холбоос цонхонд).
-    P('<button type="button" class="pc" data-id="' + p.id + '" style="' + stl + '">');
-    P('<div class="pct"><span class="pcd"></span>' + esc(p.t) + '</div>');
-    P('<div class="pcv">' + esc(short(p.v)) + '<em>' + esc(p.u) + '</em></div>');
-    p.rows.forEach((r) => P('<div class="pcr"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'));
-    if (CHIPS[p.id]) P('<div class="pcb">' + CHIPS[p.id] + '</div>');
-    P('</button>');
-  });
+  const cardOf = (id) => { const o = pos.find((q) => q.p.id === id); if (!o) return ''; const p = o.p, cols = ST[p.st];
+    let h = '<button type="button" class="pc" data-id="' + p.id + '" style="--st:' + cols[3] + '">'
+      + '<div class="pct"><span class="pcd"></span>' + esc(p.t) + '</div><div class="pcv">' + esc(short(p.v)) + '<em>' + esc(p.u) + '</em></div>';
+    p.rows.forEach((r) => { h += '<div class="pcr"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'; });
+    if (CHIPS[p.id]) h += '<div class="pcb">' + CHIPS[p.id] + '</div>';
+    return h + '</button>'; };
+  // үйл явдлын тууз — байгаа цагийн тэмдгүүдээс (SQL нэмэлтгүй)
+  const tkAt = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Ulaanbaatar', hour: '2-digit', minute: '2-digit' }) : '');
+  const TKS = [];
+  if (PU.last_order) TKS.push([tkAt(PU.last_order), 'сүүлийн захиалга · ' + n(PU.orders) + ' өнөөдөр']);
+  if (PU.last_inbound) TKS.push([tkAt(PU.last_inbound), 'чат мессеж · ' + n(PU.msg_in) + ' (24ц)']);
+  if (PU.last_spend) TKS.push([tkAt(PU.last_spend), 'зар ' + mnt(PU.spend_mnt) + ' (24ц)']);
+  if (EN && EN.bank && EN.bank.last_sms_at) TKS.push([tkAt(EN.bank.last_sms_at), 'банкны SMS · бэлэн ' + (EN.cash && has(EN.cash.now) ? mnt(EN.cash.now) : '—')]);
+  if (has(DR.pct)) TKS.push(['', 'бодит хүргэлт ' + DR.pct + '% · нийт ' + n(DR.delivered)]);
+  if (EN && EN.plan && EN.plan.verdict) TKS.push(['', String(EN.plan.verdict).replace(/^[^\wА-Яа-яӨөҮү]+/, '').slice(0, 90)]);
+  const tkHtml = TKS.map((t) => '<span>' + (t[0] ? '<i>' + esc(t[0]) + '</i>' : '') + esc(t[1]) + '</span>').join('');
+  P('<div class="ticker"><b>СҮҮЛИЙН ҮЙЛ ЯВДАЛ</b><div class="tkw"><div class="tk">' + tkHtml + tkHtml + '</div></div></div>');
   P('</div></div>');
+  P('<div class="pcards">' + ['prod', 'crea', 'chat', 'ordr', 'conf', 'delv'].map(cardOf).join('') + '</div>');
 
   P('<div class="legend">');
   [['idle', STN.idle], ['flow', STN.flow], ['wait', STN.wait], ['block', STN.block]].forEach((L2) => {
     P('<span class="lg"><span class="sw" style="background:' + ST[L2[0]][0] + '"></span>' + esc(L2[1]) + '</span>');
   });
-  P('<span class="lg">Өндөр = эзлэхүүн · шугамын зузаан = хөрвөлт · хөдөлгөөний хурд = идэвх</span>');
+  P('<span class="lg"><span class="sw" style="background:var(--parcel)"></span>илгээмж = 1 захиалга (24ц) · радар = тархи · байрны гэрэл = хүргэгдлээ</span>');
   P('</div></div>');
 
   P('<div class="stack">');
@@ -1151,14 +1119,14 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<script>(function(){'
     + 'var st=document.getElementById("st4"),drw=document.getElementById("drw");if(!st||!drw)return;var K="ss_home_pane",PT={};try{PT=JSON.parse(document.getElementById("paneTitles").textContent)}catch(e){}'
     + 'var box=st.querySelector(".sbox"),sc=st.querySelector(".scene");'
-    + 'function fit(){if(!box||!sc)return;var w=box.clientWidth,h=(box.parentElement.clientHeight||600)-16,k=Math.min(1.12,Math.max(.58,Math.min(w/1000,h/600)));sc.style.transform="scale("+k+")";box.style.height=Math.round(600*k)+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px"}'
+    + 'function fit(){if(!box||!sc)return;var pcs=st.querySelector(".pcards"),lg=st.querySelector(".map4 .legend"),w=box.clientWidth;if(pcs)pcs.classList.toggle("six",w>=940);var ch=(pcs?pcs.offsetHeight+10:0)+(lg?lg.offsetHeight+14:0),h=(box.parentElement.clientHeight||594)-ch-8,k=Math.min(1.2,Math.max(.45,Math.min(w/1000,h/594)));sc.style.transform="scale("+k+")";box.style.height=Math.round(594*k)+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px"}'
     + 'function open(id,save){st.classList.remove("closed");st.querySelectorAll(".pc").forEach(function(c){c.classList.toggle("sel",c.dataset.id===id)});'
     + 'drw.querySelectorAll(".pane4").forEach(function(p){p.classList.toggle("on",p.dataset.pane===id)});var t=PT[id]||["",""];document.getElementById("dtitle").textContent=t[0];document.getElementById("dsub").textContent=t[1];'
     + 'if(save){try{localStorage.setItem(K,id)}catch(e){}}drw.scrollTop=0;fit()}'
     + 'var cur="crea";try{cur=localStorage.getItem(K)||"crea"}catch(e){}if(cur==="closed"){st.classList.add("closed");drw.querySelectorAll(".pane4").forEach(function(p){p.classList.remove("on")})}else open(cur,false);'
     + 'st.addEventListener("click",function(e){var c=e.target.closest(".pc");if(c){open(c.dataset.id,true);return}var b=e.target.closest("[data-open]");if(b){open(b.dataset.open,true);return}'
     + 'if(e.target.closest(".drw4 .x")){st.classList.add("closed");try{localStorage.setItem(K,"closed")}catch(x){}fit();return}if(e.target.closest("#reopen")){open("crea",true)}});'
-    + 'var svg=st.querySelector(".scene svg");if(svg)svg.addEventListener("click",function(e){var r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;if(Math.abs(x-.5)<.08&&Math.abs(y-.5)<.14)open("brain",true)});'
+    + 'var svg=st.querySelector(".scene svg");if(svg){svg.addEventListener("click",function(e){var h=e.target.closest(".hit");if(h){open(h.dataset.id,true);return}var r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;if(Math.abs(x-.5)<.08&&Math.abs(y-.5)<.2)open("brain",true)});var fo=function(id){st.querySelectorAll(".pc").forEach(function(c){c.classList.toggle("hov",c.dataset.id===id)});svg.querySelectorAll(".selr").forEach(function(e){e.setAttribute("opacity",e.dataset.id===id?"1":"0")})};svg.querySelectorAll(".hit").forEach(function(h){h.addEventListener("mouseenter",function(){fo(h.dataset.id)});h.addEventListener("mouseleave",function(){fo(null)})});st.querySelectorAll(".pc").forEach(function(c){c.addEventListener("mouseenter",function(){fo(c.dataset.id)});c.addEventListener("mouseleave",function(){fo(null)})});document.addEventListener("visibilitychange",function(){st.classList.toggle("paused",document.hidden)})}'
     + 'window.addEventListener("resize",fit);fit();setTimeout(fit,80);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit)})();</script>');
 
   P('<footer>');
