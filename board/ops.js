@@ -36,6 +36,7 @@ function renderOps(DATA, QUERY) {
     + '.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}.act{white-space:normal}@media(max-width:820px){table.ot{table-layout:auto;min-width:860px}}.frm{display:none;margin-top:6px;padding:8px;background:var(--s2);border-radius:8px}.frm.on{display:block}.frm input,.frm select,.frm textarea{box-sizing:border-box;padding:6px 8px;border:1px solid var(--ln2);border-radius:6px;background:var(--bg);color:var(--ink);font:13px system-ui,sans-serif;margin:2px 4px 2px 0;max-width:100%}'
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px}h3{font-size:13.5px;margin:14px 0 6px}'
+    + 'table.ot tr.tot td{font-weight:700;background:var(--s2)}'
     + '.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:820px){.grid2{grid-template-columns:1fr}table.ot{font-size:12px}.kp b{font-size:18px}}'
     + '.po{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;margin:8px 0}.po .hdp{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}.po .hdp b{font-size:13.5px}.po table{width:100%;font-size:12.5px;border-collapse:collapse;margin-top:6px}.po td,.po th{padding:4px 6px;border-top:1px solid var(--ln3);text-align:left}.po input.q{width:64px}'
     + '.cash{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.cash div{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:10px 12px}.cash b{display:block;font-size:18px}.cash span{font-size:11.5px;color:var(--mut)}'
@@ -70,13 +71,21 @@ function renderOps(DATA, QUERY) {
         + '<div><b>' + n(p.reorder_point) + '</b><span>дахин захиалах цэг (ш)</span></div>'
         + (n(p.committed_incomplete) ? '<div class="warn"><b>' + n(p.committed_incomplete) + '</b><span>хаяггүй захиалга (тооцоонд ороогүй)</span></div>' : '')
         + '</div>');
-      o('<div class="tw"><table class="ot"><colgroup><col style="width:34%"><col><col><col><col><col></colgroup><thead><tr><th>Хувилбар</th><th>Агуулах</th><th>Замд</th><th>Амлагдсан</th><th>Чөлөөтэй</th><th>Хурд/хоног</th></tr></thead><tbody>');
+      // CX (2026-10-28, эзэн): «манай нөөц = Gyals дээрх бараа» — агуулах + амлагдсан + хүргэлтэнд = Gyals-д байх ёстой тоо (custody)
+      const CU = (d.custody && A(d.custody.products).find((x) => x.product_id === p.product_id)) || null;
+      const cuSku = (id) => (CU ? A(CU.skus).find((x) => x.sku_id === id) : null) || {};
+      const carrierName = (d.custody && d.custody.carrier === 'nexpress') ? 'Nexpress' : 'Gyals';
+      o('<div class="tw"><table class="ot"><colgroup><col style="width:28%"><col><col><col><col><col><col><col></colgroup><thead><tr><th>Хувилбар</th><th>Агуулах</th><th>Хятадаас</th><th>Амлагдсан</th><th>Чөлөөтэй</th><th>Хүргэлтэнд</th><th>' + carrierName + '-д нийт</th><th>Хурд/хоног</th></tr></thead><tbody>');
+      let cuTot = 0, roadTot = 0;
       A(p.skus).forEach((s) => {
-        const av = n(s.available);
+        const av = n(s.available), c = cuSku(s.sku_id); cuTot += n(c.at_courier); roadTot += n(c.on_road);
         o('<tr><td><b>' + esc([s.color, s.size].filter(Boolean).join(' ')) + '</b> <span class="sm mut">' + esc(s.sku_id) + '</span></td><td>' + n(s.on_hand) + '</td><td>' + n(s.in_transit) + '</td><td>' + n(s.committed) + (n(s.incomplete) ? ' <span class="sm mut">(+' + n(s.incomplete) + ' хаяггүй)</span>' : '') + '</td>'
-          + '<td>' + (av < 0 ? '<span class="pill crit">' + (-av) + ' хүлээлтэд</span>' : av === 0 ? '<span class="pill warn">0</span>' : av) + '</td><td>' + (has(s.rate7) ? n(s.rate7).toFixed(1) : '—') + '</td></tr>');
+          + '<td>' + (av < 0 ? '<span class="pill crit">' + (-av) + ' хүлээлтэд</span>' : av === 0 ? '<span class="pill warn">0</span>' : av) + '</td>'
+          + '<td>' + (CU ? n(c.on_road) : '—') + '</td><td><b>' + (CU ? n(c.at_courier) : '—') + '</b></td><td>' + (has(s.rate7) ? n(s.rate7).toFixed(1) : '—') + '</td></tr>');
       });
+      if (CU) o('<tr class="tot"><td>' + carrierName + '-д байх ёстой нийт</td><td>' + n(CU.on_hand) + '</td><td></td><td>' + n(CU.committed) + '</td><td></td><td>' + roadTot + '</td><td><b>' + cuTot + '</b></td><td></td></tr>');
       o('</tbody></table></div>');
+      if (CU) o('<p class="sm mut" style="margin:4px 0 10px">' + carrierName + '-аас агуулахын тоогоо авч энэ баганатай тулга: агуулах ' + n(CU.on_hand) + ' + амлагдсан ' + n(CU.committed) + ' + хүргэлтэнд ' + n(CU.on_road) + ' = <b>' + n(CU.at_courier) + 'ш</b> (өртгөөр ' + mnt(CU.value_mnt) + '). Зөрвөл бараа алга болсон эсвэл бүртгэл дутуу.</p>');
     });
     // S3 (2026-10-05): дараагийн ачааны жагсаалт — өнөөдрийн ачаанд багтаагүй, хаягтай захиалгууд (FIFO). Залгах жагсаалт.
     const WL = d.waitlist;
