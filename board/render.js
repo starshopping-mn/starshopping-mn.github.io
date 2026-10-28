@@ -24,7 +24,9 @@ function ssPlanCard(plan, opt) {
   h += '<div class="pgrid">'
     + tile('① Хаан USD · тогтмол зардал', 'хэрэгсэл ' + big(u.subs) + ' + зар ' + big(u.ads) + ' · ' + n(AS.usd_cover_days) + ' хоног', u.now, u.target, u.gap, n(u.gap) > 0 ? '→ ' + u.action : '', n(u.gap) > 0 ? 'crit' : 'good')
     + tile('② Хаан ₮ · доод хязгаар', n(AS.floor_days) + ' хоногийн систем + зар — хэзээ ч зарцуулахгүй', fl.now, fl.target, fl.gap, '', n(fl.gap) > 0 ? 'crit' : 'good')
-    + tile('③ Бараа · татан авалт', (g.slug || '—') + ' · захиалгын цэг ' + n(R.rop) + 'ш · одоо ' + n(R.position) + 'ш (' + (has(R.cover_days_now) ? n(R.cover_days_now) + ' хоног' : '—') + ')', g.now, g.target, 0, '→ ' + (g.action || ''), n(g.q_afford) >= n(g.q_need) ? 'good' : 'warn')
+    + (R.mode === 'ads_off'
+        ? tile('③ Бараа · татан авалт', (g.slug || '—') + ' · зар унтарсан · одоо ' + n(R.position) + 'ш · зар асаавал өдөрт ' + n(R.v_on) + ' (сүүлийн ' + n(R.on_days) + ' зартай өдөр) → ' + (has(R.cover_days_on) ? n(R.cover_days_on) + ' хоног' : '—') + ', захиалгын цэг ' + n(R.rop_on) + 'ш', g.now, g.target, 0, '→ ' + (g.action || ''), '')
+        : tile('③ Бараа · татан авалт', (g.slug || '—') + (has(R.v_on) ? ' · зартай өдрийн хурд ' + n(R.v_on) + '/өдөр' : '') + ' · захиалгын цэг ' + n(R.rop) + 'ш · одоо ' + n(R.position) + 'ш (' + (has(R.cover_days_now) ? n(R.cover_days_now) + ' хоног' : '—') + ')', g.now, g.target, 0, '→ ' + (g.action || ''), n(g.q_afford) >= n(g.q_need) ? 'good' : 'warn'))
     + tile('④ Ашиг / эзний буцаалт', (pf.role || '') + ' · илүүдэл = байгаа − зорилт', n(T.surplus) > 0 ? T.surplus : 0, null, 0, n(T.invest_ok) ? '→ хөрөнгө оруулалт (split дүрмээр)' : 'эргэлт тогтвортой болтол 0', n(T.invest_ok) ? 'good' : '')
     + '</div>';
   h += '<div class="ptgt">Эргэлтийн хөрөнгийн зорилт <b>' + mnt(T.total) + '</b> = USD ' + big(T.usd) + ' + доод ' + big(T.floor) + ' + бараа ' + big(T.goods)
