@@ -53,7 +53,13 @@ function renderOps(DATA, QUERY) {
 
   {
     SP.forEach((p) => {
-      o('<h2>' + esc(p.name) + ' <span class="pill ' + (p.mode === 'live' ? 'ok' : p.mode === 'preorder' ? 'info' : '') + '">' + esc(p.mode) + '</span></h2>');
+      const CDp = p.cost_detail || null;
+      o('<h2>' + esc(p.name) + ' <span class="pill ' + (p.mode === 'live' ? 'ok' : p.mode === 'preorder' ? 'info' : '') + '">' + esc(p.mode) + '</span>'
+        + (has(p.cost_mnt) ? ' <span class="sm mut" style="font-weight:500">өртөг <b>' + mnt(p.cost_mnt) + '</b>/ш'
+          + (CDp && CDp.src === 'auto' ? ' <span class="pill ok" title="PO + карго → жигнэсэн дундаж, автомат">авто</span>' : CDp && CDp.src === 'manual' ? ' <span class="pill warn" title="эзэн гараар тогтоосон — PO-оос бодохгүй">🔒 гараар</span>' : '')
+          + (CDp && has(CDp.goods_per_unit) ? ' = бараа ' + mnt(CDp.goods_per_unit) + ' + карго ' + mnt(CDp.cargo_per_unit) + (n(CDp.cargo_est_mnt) ? ' (замд байгаад карго таамаг)' : '') + ' · ' + n(CDp.units) + 'ш дундаж' : '')
+          + '</span>' : '') + '</h2>');
+      if (CDp && A(CDp.warn).length) o('<p class="sm" style="color:#c27a06;margin:-4px 0 6px">⚠️ ' + A(CDp.warn).map(esc).join(' · ') + '</p>');
       o('<div class="kp">'
         + '<div><b>' + n(p.on_hand) + '</b><span>агуулахад</span></div>'
         + '<div><b>' + n(p.in_transit) + '</b><span>замд' + (p.next_eta ? ' · ~' + day(p.next_eta) : '') + '</span></div>'
@@ -93,7 +99,12 @@ function renderOps(DATA, QUERY) {
       RS.products.forEach((p) => {
         const L = p.lamps || {};
         const early = !(L.calls_ok && L.deliveries_ok);
-        o('<h3>' + esc(p.name || p.slug) + ' <span class="sm mut">ашиг ' + mnt(p.contribution_mnt) + '/ш · өртөг ' + mnt(p.cost_mnt) + '</span></h3>');
+        const CD = p.cost_detail || null;
+        o('<h3>' + esc(p.name || p.slug) + ' <span class="sm mut">ашиг ' + mnt(p.contribution_mnt) + '/ш · өртөг ' + mnt(p.cost_mnt)
+          + (CD && CD.src === 'auto' ? ' <span class="pill ok" title="PO + карго → жигнэсэн дундаж">авто</span>' : CD && CD.src === 'manual' ? ' <span class="pill warn" title="эзэн гараар тогтоосон — PO-оос бодохгүй">🔒 гараар</span>' : '')
+          + (CD && has(CD.goods_per_unit) ? ' · бараа ' + mnt(CD.goods_per_unit) + ' + карго ' + mnt(CD.cargo_per_unit) + ' · ' + n(CD.units) + 'ш дундаж' : '')
+          + '</span></h3>');
+        if (CD && A(CD.warn).length) o('<p class="sm" style="color:#c27a06;margin:-4px 0 6px">⚠️ ' + A(CD.warn).map(esc).join(' · ') + '</p>');
         o('<div class="sm" style="margin:4px 0 8px">'
           + '<span class="pill ' + (L.calls_ok ? 'ok' : 'warn') + '">дуудлага ' + (has(L.calls_pct) ? n(L.calls_pct) + '%' : '—') + ' (босго ' + n(RS.min_calls_pct) + '%)</span> '
           + '<span class="pill ' + (L.deliveries_ok ? 'ok' : 'warn') + '">хүргэгдсэн ' + n(L.delivered) + '/' + n(RS.min_delivered) + '</span> '
@@ -122,6 +133,16 @@ function renderOps(DATA, QUERY) {
       o('<div class="po" data-keep="po-' + n(po.po_id) + '"><div class="hdp"><b>#' + n(po.po_id) + ' · ' + esc(po.product || '') + '</b><span class="pill ' + (po.status === 'received' ? 'ok' : po.status === 'shipped' || po.status === 'ereen' ? 'info' : '') + '">' + esc(po.status) + '</span>'
         + '<span class="sm mut">' + esc(po.supplier || '') + ' · ' + esc(po.ext_order_no || '') + ' · захиалсан ' + day(po.placed_on) + (po.eta ? ' · УБ-д ~' + day(po.eta) : '') + (po.tracking ? ' · ' + esc(po.tracking) : '') + (has(po.paid_usd) ? ' · $' + n(po.paid_usd) : '') + '</span></div>'
         + (po.note ? '<div class="sm mut">' + esc(po.note) + '</div>' : ''));
+      const PC = po.cost || null;
+      if (PC) {
+        const per = n(PC.sku_units) > 0 ? Math.round((n(PC.goods_mnt) + n(PC.cargo_mnt)) / n(PC.sku_units)) : null;
+        o('<div class="sm" style="margin:4px 0 6px;display:flex;flex-wrap:wrap;gap:6px 14px">'
+          + '<span>💳 бараа <b>' + mnt(PC.goods_mnt) + '</b> <span class="mut">(' + esc(PC.goods_src || '') + ')</span>' + (PC.goods_estimated ? ' <span class="pill warn">таамаг</span>' : '') + '</span>'
+          + '<span>🏦 ' + esc(PC.pay_state || '—') + '</span>'
+          + '<span>🚛 карго ' + (PC.cargo_known ? '<b>' + mnt(PC.cargo_mnt) + '</b>' : '<span class="pill warn">ороогүй</span>') + '</span>'
+          + (per !== null ? '<span>= <b>' + mnt(per) + '/ш</b>' + (n(PC.acc_units) ? ' <span class="mut">(+' + n(PC.acc_units) + ' дагалдах эд)</span>' : '') + (PC.cargo_known ? '' : ' <span class="mut">карго ороогүй</span>') + '</span>' : '')
+          + '</div>');
+      }
       o('<div class="tw"><table><tr><th>Зүйл</th><th>Захиалсан</th><th>Ирсэн</th>' + (open ? '<th>Одоо ирсэн тоо</th>' : '') + '</tr>');
       A(po.items).forEach((it) => o('<tr><td>' + esc(it.label || it.sku_id) + (it.sku_id ? '' : ' <span class="sm mut">дагалдах</span>') + '</td><td>' + n(it.qty) + '</td><td>' + n(it.received_qty) + '</td>'
         + (open ? '<td><input class="q" type="number" min="0" max="' + n(it.qty) + '" data-po="' + n(po.po_id) + '" data-item="' + n(it.id) + '" placeholder="' + (n(it.qty) - n(it.received_qty)) + '"></td>' : '') + '</tr>'));
