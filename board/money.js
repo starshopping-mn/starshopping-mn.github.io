@@ -200,7 +200,23 @@ function renderMoney(DATA, QUERY) {
   o('<span class="mut">·</span> <input type="date" name="from" value="' + esc(d.from || '') + '"> – <input type="date" name="to" value="' + esc(d.to || '') + '"> <button class="btn">Харах</button>'
     + '<span class="sm mut" style="margin-left:auto">' + esc(day(d.from)) + ' – ' + esc(day(d.to)) + ' · ханш $' + n(FX.usd).toLocaleString('en-US') + ' · ¥' + n(FX.cny) + '</span></form>');
 
+  // ── CX (2026-10-28): БОДИТ ҮР ДҮН — борлуулсан барааны өртгөөр. «Бид ашигтай юу?» гэдэгт энэ хариулна; доорх hero = мөнгөний урсгал.
+  const EQ = d.econ || null, OP = d.operating || null;
+  if (EQ && OP) {
+    const ET = EQ.total || {}, FO = A(EQ.focus).slice(0, 3);
+    const cls = (v) => (n(v) < 0 ? 'neg' : n(v) > 0 ? 'pos' : '');
+    o('<h2 style="margin-top:6px">📊 Бодит үр дүн <span class="cnt">орлого − борлуулсан барааны өртөг − хүргэлтийн хөлс − зар − систем · ' + esc(day(EQ.from)) + ' – ' + esc(day(EQ.to)) + '</span></h2>');
+    o('<div class="hero">'
+      + '<div class="' + cls(OP.result) + '"><b>' + sign(OP.result) + '</b><span>ҮЙЛ АЖИЛЛАГААНЫ ҮР ДҮН · барааны хувь нэмэр ' + sign(ET.contrib) + ' − систем/бусад ' + big(OP.fixed) + '</span></div>'
+      + '<div class="' + cls(ET.contrib) + '"><b>' + sign(ET.contrib) + '</b><span>БАРААНЫ ХУВЬ НЭМЭР · ' + n(ET.sold_n) + ' зарагдсан ' + big(ET.revenue) + ' − өртөг ' + big(ET.cogs) + ' − хөлс ' + big(ET.fees) + ' − зар ' + big(ET.ads) + '</span></div>'
+      + '<div class="' + cls(OP.expected) + '"><b>' + sign(OP.expected) + '</b><span>ХҮЛЭЭГДЭЖ БУЙТАЙ · + хүргэгдсэн, мөнгө ирээгүй ' + sign(ET.delivered_unpaid_contrib) + ' · + замд × ' + Math.round(n(EQ.ratio_shipped) * 100) + '% ' + sign(ET.on_road_contrib) + '</span></div>'
+      + '<div><b>' + big(ET.stock_mnt) + '</b><span>ХҮРГЭЛТИЙН КОМПАНИД БАЙГАА БАРАА (өртгөөр) · ' + n(ET.stock_units) + ' ш' + (n(ET.incoming_units) ? ' · Хятадаас ирж буй ' + n(ET.incoming_units) + ' ш ' + big(ET.incoming_mnt) : '') + '</span></div>'
+      + (has(ET.recovery_pct) ? '<div><b>' + n(ET.recovery_pct) + '%</b><span>ЗАРЦУУЛСАН МӨНГӨ НӨХӨГДСӨН · эхнээс бараа+карго+зар ' + big(ET.spent_all) + ' → орлого ' + big(ET.got_all) + '</span></div>' : '')
+      + '</div>');
+    if (FO.length) o('<div class="edu" style="margin:-6px 0 14px">' + FO.map((f) => '<div><b>' + esc(f.product || '') + ' · ' + big(f.mnt) + '₮</b>' + esc(f.text) + '</div>').join('') + '</div>');
+  }
   // ── цонх: зардал vs орлого → цэвэр
+  if (EQ) o('<h2>💵 Мөнгөний урсгал <span class="cnt">данснаас гарсан, орсон мөнгө — хараахан ирээгүй PO, зарагдаагүй бараа энд зардал болж харагдана</span></h2>');
   // CH (2026-10-25, эзэн): НИЙТ ОРЛОГО = данс руу бодит орсон мөнгө − Gyals-ын хүргэлтийн хөлс; НИЙТ ЗАРЛАГА = бусад бүх зардал; НИЙТ АШИГ = орлого − зарлага.
   const gyFee = n(C.delivery), revNet = has(R.net) ? n(R.net) : revReal - gyFee, costEx = costTotal - gyFee;
   o('<div class="hero">'
@@ -238,7 +254,27 @@ function renderMoney(DATA, QUERY) {
   o('</div>');
 
   // ── бараа бүрээр
-  o('<h2>Бараа бүрээр <span class="cnt">зардал · орлого · цэвэр</span></h2>');
+  if (EQ) {
+    const EB = A(EQ.by_product);
+    o('<h2>Бараа бүрээр <span class="cnt">борлуулсан барааны өртгөөр · хувь нэмэр = орлого − өртөг − хөлс − зар</span></h2>');
+    o('<div class="tw"><table class="ot"><thead><tr><th>Бараа</th><th class="r">Зарагдсан</th><th class="r">Орлого</th><th class="r">Өртөг</th><th class="r">Хөлс</th><th class="r">Зар</th><th class="r">Хувь нэмэр</th><th class="r">/ захиалга</th><th class="r">Буцалт</th><th class="r">Хүлээгдэж буй</th><th class="r">Компанид · ирж буй</th></tr></thead><tbody>');
+    EB.forEach((b) => { const OR = b.on_road || {}, DU = b.delivered_unpaid || {}, CN = b.cancel || {}, SK = b.stock || {}, IC = b.incoming || {};
+      o('<tr><td><a href="/board/?view=orders&amp;slug=' + esc(b.slug) + tq + '">' + esc(String(b.name || b.slug).split(' · ')[0]) + '</a> <span class="pill ' + (b.mode === 'live' ? 'ok' : '') + '">' + esc(b.mode || '') + '</span><div class="sm mut">өртөг ' + mnt(b.cost_unit) + ' · үнэ ' + mnt(b.price_mnt) + '</div></td>'
+        + '<td class="r">' + n(b.sold_n) + '</td><td class="r">' + mnt(b.revenue) + '</td><td class="r">' + mnt(b.cogs) + '</td><td class="r">' + mnt(b.fees) + '</td><td class="r">' + mnt(b.ads) + '</td>'
+        + '<td class="r ' + (n(b.contrib) < 0 ? 'neg' : n(b.contrib) > 0 ? 'pos' : '') + '"><b>' + sign(b.contrib) + '</b></td>'
+        + '<td class="r">' + (has(b.contrib_per_sold) ? sign(b.contrib_per_sold) + '<div class="sm mut">зар ' + mnt(b.ad_per_sold) + '</div>' : '—') + '</td>'
+        + '<td class="r">' + (has(CN.pct) ? '<span class="pill ' + (n(CN.pct) >= 25 ? 'warn' : '') + '">' + n(CN.pct) + '%</span><div class="sm mut">' + n(CN.cancelled) + '/' + n(CN.shipped) + '</div>' : '—') + '</td>'
+        + '<td class="r ' + (n(b.expected_total) < 0 ? 'neg' : 'pos') + '"><b>' + sign(b.expected_total) + '</b><div class="sm mut">' + (n(DU.n) ? 'хүргэгдсэн ' + n(DU.n) + ' · ' : '') + (n(OR.n) ? 'замд ' + n(OR.n) + ' × ' + Math.round(n(OR.ratio) * 100) + '%' : '') + '</div></td>'
+        + '<td class="r">' + n(SK.units) + ' ш <span class="sm mut">' + big(SK.mnt) + '</span>' + (n(IC.units) ? '<div class="sm mut">+ ' + n(IC.units) + ' ш ирж буй · ' + big(IC.mnt) + '</div>' : '') + '</td></tr>'); });
+    if (!EB.length) o('<tr><td colspan="11" class="mut">Энэ хугацаанд борлуулалт, зар алга</td></tr>');
+    const ET2 = EQ.total || {};
+    o('<tr class="tot"><td>Нийт</td><td class="r">' + n(ET2.sold_n) + '</td><td class="r">' + mnt(ET2.revenue) + '</td><td class="r">' + mnt(ET2.cogs) + '</td><td class="r">' + mnt(ET2.fees) + '</td><td class="r">' + mnt(ET2.ads) + '</td><td class="r ' + (n(ET2.contrib) < 0 ? 'neg' : 'pos') + '">' + sign(ET2.contrib) + '</td><td></td><td></td><td class="r">' + sign(ET2.expected_total) + '</td><td class="r">' + n(ET2.stock_units) + ' ш ' + big(ET2.stock_mnt) + '</td></tr>');
+    o('</tbody></table></div>');
+    o('<p class="sm mut">Буцалт = хүргэлтэнд гаргаснаас буцсан хувь. Хүлээгдэж буй = хувь нэмэр + хүргэгдсэн ч мөнгө ирээгүй + замд байгаа × хүргэгдэх хувь (бүгд өртөг, хөлс хассан). Цуцлалт гарвал тухайн үед нь хасагдана.</p>');
+    o('<details class="cd" data-keep="c-cash" style="margin:8px 0 14px"><summary><span>Мөнгөний урсгалаар (PO-д төлсөн бүх мөнгө зардалд)</span><b class="sm mut">хуучин харагдац</b></summary><div class="in">');
+  } else {
+    o('<h2>Бараа бүрээр <span class="cnt">зардал · орлого · цэвэр</span></h2>');
+  }
   o('<div class="tw"><table class="ot"><thead><tr><th>Бараа</th><th class="r">Зар</th><th class="r">Бараа/карго</th><th class="r">Хүргэлт</th><th class="r">Төлсөн</th><th class="r">Хүлээгдэж буй ×' + ratioPct + '%</th><th class="r">Сонирхол</th><th class="r">Цэвэр бодит</th><th class="r">Цэвэр хүлээгдэж буй</th></tr></thead><tbody>');
   BP.forEach((b) => o('<tr><td><a href="/board/?view=orders&amp;slug=' + esc(b.slug) + tq + '">' + esc(String(b.name || b.slug).split(' · ')[0]) + '</a> <span class="pill ' + (b.mode === 'live' ? 'ok' : '') + '">' + esc(b.mode || '') + '</span></td>'
     + '<td class="r">' + mnt(b.ads) + '</td><td class="r">' + mnt(b.goods) + '</td><td class="r">' + mnt(b.delivery) + '</td>'
@@ -250,6 +286,7 @@ function renderMoney(DATA, QUERY) {
   if (!BP.length) o('<tr><td colspan="9" class="mut">Энэ хугацаанд бараатай холбоотой зардал/орлого алга</td></tr>');
   o('<tr class="tot"><td>Нийт' + (n(T.total) || n(C.other) ? ' <span class="sm mut">(+ хэрэгсэл ' + big(T.total) + ' · бусад ' + big(C.other) + ' — бараанд хуваарилаагүй)</span>' : '') + '</td><td class="r">' + mnt(AD.total) + '</td><td class="r">' + mnt(G.total) + '</td><td class="r">' + mnt(C.delivery) + '</td><td class="r">' + mnt(R.paid) + '</td><td class="r">' + mnt(R.pipeline_expected) + '</td><td class="r">' + n(R.leads_n) + '</td><td class="r ' + (n(N.real) < 0 ? 'neg' : 'pos') + '"><b>' + sign(N.real) + '</b></td><td class="r ' + (n(N.expected) < 0 ? 'neg' : 'pos') + '"><b>' + sign(N.expected) + '</b></td></tr>');
   o('</tbody></table></div>');
+  if (EQ) o('</div></details>');
 
   // ── зардал бүртгэх маягт
   o('<h2>Зардал бүртгэх <span class="cnt">хэрэгсэл, төхөөрөмж, бусад — зар автомат, PO-г Нөөц хуудаснаас</span></h2>');
