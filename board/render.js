@@ -29,17 +29,18 @@ function ssPlanCard(plan, opt) {
     + '</div>';
   h += '<div class="ptgt">Эргэлтийн хөрөнгийн зорилт <b>' + mnt(T.total) + '</b> = USD ' + big(T.usd) + ' + доод ' + big(T.floor) + ' + бараа ' + big(T.goods)
     + ' · одоо байгаа <b>' + mnt(T.have) + '</b> (' + esc(T.have_note || '') + ') · ' + (n(T.surplus) >= 0 ? '<span class="good">илүүдэл ' + mnt(T.surplus) + '</span>' : '<span class="crit">дутуу ' + mnt(-n(T.surplus)) + '</span>')
-    + ' · хуримтлагдсан бодит ашиг ' + (n(T.profit_all) < 0 ? '−' : '') + mnt(Math.abs(n(T.profit_all))) + '. Борлуулалт өсвөл зорилт өөрөө өснө (хурд × ' + n(AS.lead_days) + ' хоног).</div>';
+    + (has(T.receivable) ? ' · хүргэлтээс ирэх: хүргэгдсэн ' + big(T.receivable) + ' + замд ≈' + big(T.receivable_road) + ' (ормогц бэлэнд орно)' : '')
+    + ' · хуримтлагдсан бодит ашиг' + (has(T.profit_cash_all) ? ' (нөөц+замын бараатай)' : '') + ' ' + (n(T.profit_all) < 0 ? '−' : '') + mnt(Math.abs(n(T.profit_all))) + '. Борлуулалт өсвөл зорилт өөрөө өснө (хурд × ' + n(AS.lead_days) + ' хоног).</div>';
   if (!opt.compact && Array.isArray(F.weeks) && F.weeks.length) {
     const slug = g.slug || '';
-    h += '<div class="tw"><table class="ot pfc"><thead><tr><th>7 хоног</th><th>Gyals-аас</th><th>Хэрэгсэл</th><th>Зар</th><th>Бараа</th><th>Үлдэгдэл</th><th>Нөөц ' + esc(slug.split('-')[0]) + '</th></tr></thead><tbody>';
+    h += '<div class="tw"><table class="ot pfc"><thead><tr><th>7 хоног</th><th>Хүргэлтээс</th><th>Хэрэгсэл</th><th>Зар</th><th>Бараа</th>' + (F.weeks.some((w) => n(w.out_debt) > 0) ? '<th>Өр</th>' : '') + '<th>Үлдэгдэл</th><th>Нөөц ' + esc(slug.split('-')[0]) + '</th></tr></thead><tbody>';
     F.weeks.forEach((w) => {
       const low = n(w.balance) < n(F.floor), st = w.stock && has(w.stock[slug]) ? Math.round(n(w.stock[slug])) : null;
-      h += '<tr' + (w.w === F.min_week ? ' class="minw"' : '') + '><td>' + esc(d(w.from)) + '–' + esc(d(w.to)) + '</td><td>+' + big(w.in_gyals) + '</td><td>' + (n(w.out_subs) ? '−' + big(w.out_subs) : '') + '</td><td>−' + big(w.out_ads) + '</td><td>' + (n(w.out_po) ? '−' + big(w.out_po) : '') + (n(w.arrive_po) ? ' <span class="pill ok">+' + n(w.arrive_po) + 'ш ирнэ</span>' : '') + '</td>'
+      h += '<tr' + (w.w === F.min_week ? ' class="minw"' : '') + '><td>' + esc(d(w.from)) + '–' + esc(d(w.to)) + '</td><td>+' + big(w.in_gyals) + '</td><td>' + (n(w.out_subs) ? '−' + big(w.out_subs) : '') + '</td><td>−' + big(w.out_ads) + '</td><td>' + (n(w.out_po) ? '−' + big(w.out_po) : '') + (n(w.arrive_po) ? ' <span class="pill ok">+' + n(w.arrive_po) + 'ш ирнэ</span>' : '') + '</td>' + (F.weeks.some((x) => n(x.out_debt) > 0) ? '<td>' + (n(w.out_debt) ? '−' + big(w.out_debt) : '') + '</td>' : '')
         + '<td class="' + (low ? 'crit' : '') + '"><b>' + big(w.balance) + '</b></td><td>' + (st === null ? '—' : st <= 0 ? '<span class="pill crit">дууссан</span>' : st + 'ш') + '</td></tr>';
     });
     h += '</tbody></table></div>';
-    h += '<div class="foot">Орлого = Gyals-д өгсөн × ' + Math.round(n(AS.ratio_shipped) * 100) + '% − хөлс ' + n(AS.gyals_fee_mnt).toLocaleString('en-US') + '₮, ' + n(AS.gyals_lag_days) + ' хоногийн хоцролттой. Борлуулалт нөөцөөр хязгаарлагдана — «дууссан» долоо хоног = алдсан орлого'
+    h += '<div class="foot">' + (plan.ads_on === false ? '<b>⚠️ Зар унтарсан — шинэ борлуулалт тооцоогүй;</b> зөвхөн хүргэлтэнд байгаа захиалгын мөнгө. Зар асаахад өөрөө дахин бодогдоно. ' : '') + 'Орлого = хүргэлтэд өгсөн × ' + Math.round(n(AS.ratio_shipped) * 100) + '% − хөлс ' + n(AS.gyals_fee_mnt).toLocaleString('en-US') + '₮, ' + n(AS.gyals_lag_days) + ' хоногийн хоцролттой. Борлуулалт нөөцөөр хязгаарлагдана — «дууссан» долоо хоног = алдсан орлого'
       + (F.short_units && Object.keys(F.short_units).length ? ' (' + Object.keys(F.short_units).map((k) => k + ' ' + n(F.short_units[k]) + 'ш').join(', ') + ')' : '') + '. Хамгийн бага үлдэгдэл ' + big(F.min_balance) + ' (доод хязгаар ' + big(F.floor) + '). Долоо хоног бүр Gyals-ын тооцооны дараа дахин бодогдоно.</div>';
   }
   h += '</div>';
