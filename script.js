@@ -2358,6 +2358,11 @@ async function renderOrder() {
                        <option value="">Аймаг, хот</option>
                        ${A.mn.map((x) => `<option value="${esc(x.full)}">${esc(x.khoroo)}</option>`).join("")}
                      </select></div>
+                   <!-- CZ (2026-10-29): the courier (Nexpress) files a countryside parcel by
+                        aimag AND soum, so the soum is picked from its list too. The aimag
+                        centre comes first; the saved value is the courier's full string. -->
+                   <div class="field"><label class="sr-only" for="aSoum">Сум</label>
+                     <select class="input" id="aSoum" disabled><option value="">Сум</option></select></div>
                  </div>
                  <!-- Three written lines, the way a courier reads a city address:
                       the building or street, then the way in — entrance,
@@ -2541,6 +2546,7 @@ async function renderOrder() {
     const aDist = $("aDist");
     const aKhoroo = $("aKhoroo");
     const aAimag = $("aAimag");
+    const aSoum = $("aSoum");
     const aLine1 = $("aLine1");
     const aLine2 = $("aLine2");
     const aNote = $("aNote");
@@ -2554,6 +2560,16 @@ async function renderOrder() {
         list.map((k) => `<option value="${esc(k.full)}">${esc(k.khoroo)}</option>`).join("");
       aKhoroo.disabled = !list.length;
       if (keep && list.some((k) => k.full === keep)) aKhoroo.value = keep;
+    };
+    /* soums of the chosen aimag (CZ); an aimag the list holds no soums for keeps the aimag string */
+    const fillSoum = (keep) => {
+      const g = A.mn.find((x) => x.full === aAimag.value);
+      const list = (g && Array.isArray(g.soums) ? g.soums : []).filter((k) => k && k.full && k.soum);
+      aSoum.innerHTML =
+        '<option value="">Сум</option>' +
+        list.map((k) => `<option value="${esc(k.full)}">${esc(k.soum)}</option>`).join("");
+      aSoum.disabled = !list.length;
+      if (keep && list.some((k) => k.full === keep)) aSoum.value = keep;
     };
     /* An address remembered from before the courier changed names the district
        our old way ("Хан-Уул", khoroo "4"). Read it across where it plainly
@@ -2577,7 +2593,7 @@ async function renderOrder() {
         aLine1.placeholder = "Жишээ: 3-р хороолол, 45 байр · эсвэл Дэнжийн 1000, 12-р гудамж";
         aLine2.placeholder = "Жишээ: 2 орц, 5 давхар, 501 тоот · хашаа бол 12-34";
       } else {
-        aLine1.placeholder = "Жишээ: Баянхонгор сум, 7-р баг, Нарны гудамж";
+        aLine1.placeholder = "Жишээ: 7-р баг, Нарны гудамж";
         aLine2.placeholder = "Жишээ: хашааны дугаар 12-34 · эсвэл 2 орц, 15 тоот";
       }
       syncShip(addrKind);
@@ -2585,7 +2601,7 @@ async function renderOrder() {
     /* kept on the device: survives a refresh now and is waiting next time */
     const saveAddr = () => {
       const addr = {
-        kind: addrKind, dist: aDist.value, full: aKhoroo.value, mnFull: aAimag.value,
+        kind: addrKind, dist: aDist.value, full: aKhoroo.value, mnFull: aAimag.value, mnSoum: aSoum.value,
         line1: aLine1.value.slice(0, 120), line2: aLine2.value.slice(0, 120), note: aNote.value.slice(0, 200),
       };
       try { localStorage.setItem("ss_addr", JSON.stringify(addr)); } catch (e) { /* storage refused — nothing lost but convenience */ }
@@ -2593,7 +2609,8 @@ async function renderOrder() {
 
     kindBtns.forEach((b) => b.addEventListener("click", () => { setKind(b.dataset.kind); saveAddr(); }));
     aDist.addEventListener("change", () => { fillKhoroo(); saveAddr(); });
-    [aAimag, aKhoroo, aLine1, aLine2, aNote].forEach((el) => el.addEventListener("change", saveAddr));
+    aAimag.addEventListener("change", () => { fillSoum(); saveAddr(); });
+    [aSoum, aKhoroo, aLine1, aLine2, aNote].forEach((el) => el.addEventListener("change", saveAddr));
 
     if (savedAddr.dist) {
       const dist = oldDistrict(savedAddr.dist);
@@ -2603,7 +2620,7 @@ async function renderOrder() {
         fillKhoroo(savedAddr.full || (savedAddr.khoroo ? `${dist} ${savedAddr.khoroo}-р хороо` : ""));
       }
     }
-    if (savedAddr.mnFull && A.mn.some((x) => x.full === savedAddr.mnFull)) aAimag.value = savedAddr.mnFull;
+    if (savedAddr.mnFull && A.mn.some((x) => x.full === savedAddr.mnFull)) { aAimag.value = savedAddr.mnFull; fillSoum(savedAddr.mnSoum); }
     if (savedAddr.line1) aLine1.value = savedAddr.line1;
     else if (savedAddr.line) aLine1.value = savedAddr.line; // the one-line format this replaced
     if (savedAddr.line2) aLine2.value = savedAddr.line2;
@@ -2984,6 +3001,12 @@ async function renderOrder() {
       } else {
         districtFull = val("aAimag");
         if (!districtFull) return fail("aAimag", "Аймаг, хотоо сонгоно уу.");
+        /* CZ: where the courier lists soums, the soum is required and is what travels */
+        const ai = A.mn.find((x) => x.full === districtFull);
+        if (ai && Array.isArray(ai.soums) && ai.soums.length) {
+          districtFull = val("aSoum");
+          if (!districtFull) return fail("aSoum", "Сумаа сонгоно уу.");
+        }
       }
       if (!line1) return fail("aLine1", "Хороолол, байр эсвэл гудамжаа бичнэ үү.");
       if (!line2) return fail("aLine2", "Орц, давхар, тоот эсвэл хашааны дугаараа бичнэ үү.");
