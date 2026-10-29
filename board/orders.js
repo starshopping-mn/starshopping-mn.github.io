@@ -320,6 +320,14 @@ function renderOrders(DATA, QUERY) {
   // ② 🚚 Gyals дээр (shipped, төлбөргүй) → «Хүргэгдсэн / Хойшилсон / Буцсан» (do=gyals). ③ Хүргэх өдөр өнгөрсөн, өгсөн гэж тэмдэглээгүй мөрийг
   // өнөөдрийнх рүү чимээгүй чихэхгүй — «Өгсөн үү?» гэж тусад нь асууна (10/23-нд өгсөн 5 захиалга 10/24-ний жагсаалтад дахин орсон алдааны засвар).
   // CK (10/26): 10/20–10/21-ний захиалга shipped_at-гүй, шууд «хүргэгдсэн» болсон тул өмнө нь тооцооны самбарт ороогүй (2.07 сая₮ харагдахгүй байв).
+  // CZ (2026-10-29, эзэн): Gyals-д цаашид өгөхгүй → «Nexpress-д бүртгэх» = дараалалд (do=nexpress); хуваарьт Claude (Haiku, Mac+Chrome) 11:30-д
+  // Nexpress вэбэд бүртгээд courier_queue_done → shipped (carrier nexpress, tracking = Nexpress дугаар). d.queue = courier_queue_view().
+  const NXQ = {}; ((d.queue && d.queue.rows) || []).forEach((q) => { NXQ[q.order_id] = q; });
+  const qPill = (r) => { const q = NXQ[r.order_id]; if (!q) return ''; if (q.registered_at) return '<span class="pill ok" title="Nexpress-д бүртгэгдсэн ' + esc(day(q.registered_at)) + '">Nexpress ' + esc(q.external_id || '✓') + '</span>';
+    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:30-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
+      + ' <button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="nexpress_undo" title="Дарааллаас хасах">болих</button>'; };
+  const nxBtn = (r) => NXQ[r.order_id] && !NXQ[r.order_id].registered_at ? qPill(r)
+    : '<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="nexpress" title="Nexpress бүртгэлийн дараалалд — 11:30-д автоматаар бүртгэнэ">📦 Nexpress-д бүртгэх</button>';
   const gyDay = (r) => (r.shipped_at || r.deliver_on || r.delivered_at || '').slice(0, 10);
   const onGyals = O.filter((r) => (r.shipped_at || r.stage === 'delivered') && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0)
     .sort((a, b) => gyDay(a).localeCompare(gyDay(b)));
@@ -364,6 +372,7 @@ function renderOrders(DATA, QUERY) {
   });
   o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт</h2>');
   o('<div class="callbox" style="margin-bottom:10px"><b>Урсгал — 3 алхам</b>'
+    + '<b>Nexpress (CZ):</b> «📦 Nexpress-д бүртгэх» → дараалалд; хуваарьт Claude өдөр бүр 11:30-д (Mac + Chrome асаалттай) Nexpress вэбэд бүртгээд энд «Nexpress #…» болгоно. 12:00-оос хойш бүртгэгдсэн нь маргаашийн хүргэлт. Алдаатай мөр ⚠ улаанаар — шалтгааныг нь хулганаар харна.<br>'
     + '① <b>Өдрийн жагсаалт</b>: өнөөдрийн хаягтай захиалга маргаашийн жагсаалтад автоматаар орно. Gyals-д өгөхдөө «📋 … хуулах + Gyals-д өгсөн» дар → тэр мөрүүд жагсаалтаас гарна, <b>дахин явахгүй</b>.<br>'
     + '② <b>🚚 Gyals дээр</b>: өгсөн захиалга хүргэгдтэл энд байна. Дүн ирэхээр «✓ Хүргэгдсэн» (мөнгө авсан) / «Хойшилсон» / «↩ Буцсан» дар, эсвэл доорх «📤 Gyals тайлан оруулах».<br>'
     + '③ Хүргэх өдөр нь өнгөрсөн ч «өгсөн» гэж тэмдэглээгүй мөр байвал дээр нь «⚠ Gyals-д өгсөн үү?» гэж асууна. Gyals өглөө <b>10:00</b>-д захиалга авч дуусгадаг.</div>');
@@ -382,21 +391,23 @@ function renderOrders(DATA, QUERY) {
     const ok = rows.filter(dspOk);
     GX.groups[k] = ok.map(gxRow);
     const kk = esc(k.slice(5).replace('-', '/'));
-    const head = k === TODAY ? '📋 Өнөөдөр Gyals-д өгөх' : k === TOMORROW ? '🕓 Маргааш өгөх — бүрдэж байна' : '📅 Дараа өгөх';
+    const head = k === TODAY ? '📋 Өнөөдөр хүргэлтэд өгөх' : k === TOMORROW ? '🕓 Маргааш өгөх — бүрдэж байна' : '📅 Дараа өгөх';
     o('<h3>' + head + ' · ' + esc(dShort(k)) + ' <span class="cnt">' + ok.length + ' захиалга · авах ' + big(ok.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
       + (rows.length > ok.length ? ' <span class="pill crit">⚠ ' + (rows.length - ok.length) + ' бараа оноогдоогүй</span>' : '') + '</h3>');
     if (k === TOMORROW) o('<p class="sm mut">Өнөөдөр орж ирж буй захиалгууд энд нэмэгдсээр байна. Орой хаяггүй хүмүүс рүү залгаж шийдээд маргааш өглөө (10:00-аас өмнө) Gyals-д өгнө.</p>');
-    if (ok.length) o('<div style="margin:4px 0 8px"><button class="btn go cpm" data-k="' + kk + '" data-ids="' + esc(ok.map((r) => r.order_id).join(',')) + '" data-tsv="' + attr(gyalsText(k, ok)) + '">📋 ' + kk + ' жагсаалт хуулах + Gyals-д өгсөн гэж тэмдэглэх</button> <button class="btn gx-dl" data-k="' + esc(k) + '" title="Gyals-д илгээх Excel (төлөвийн баганатай)">📥 Excel (Gyals)</button> <button class="btn cp" data-n="' + ok.length + '" data-tsv="' + attr(gyalsText(k, ok)) + '" title="Тэмдэглэхгүй, зөвхөн хуулна">зөвхөн хуулах</button></div>');
+    const nq = ok.filter((r) => !NXQ[r.order_id]);
+    if (ok.length) o('<div style="margin:4px 0 8px">' + (nq.length > 1 ? '<button class="btn go nxall" data-ids="' + esc(nq.map((r) => r.order_id).join(',')) + '">📦 ' + nq.length + ' захиалгыг Nexpress дараалалд</button> ' : '')
+      + '<button class="btn cp" data-n="' + ok.length + '" data-tsv="' + attr(gyalsText(k, ok)) + '" title="Тэмдэглэхгүй, зөвхөн хуулна">📋 зөвхөн хуулах</button></div>');
     o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Төлөв</th></tr></thead><tbody>');
     rows.forEach((r) => {
       const good = dspOk(r), rp = !!(r.prepaid_at);
       o('<tr data-keep="d-' + esc(r.order_id) + '"' + (rp ? ' style="background:rgba(22,101,52,.07)"' : '') + '>' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
         + '<td>' + (rp ? '<span class="pill ok">' + (r.is_rural ? '🚚 орон нутаг · ' : '💳 урьдчилж ') + 'төлсөн ' + day(r.prepaid_at) + '</span>' : (good ? '<span class="pill ok">бэлэн</span>' : '<span class="pill crit">⚠ бараа оноогдоогүй</span>'))
-        + (r.stage === 'order' && !rp ? '<span class="pill">дуудлагагүй</span>' : '') + '<br><button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="shipped" title="Зөвхөн энэ захиалгыг Gyals-д өгсөн гэж тэмдэглэх">Gyals-д өгсөн</button></td></tr>');
+        + (r.stage === 'order' && !rp ? '<span class="pill">дуудлагагүй</span>' : '') + '<br>' + (good ? nxBtn(r) : '<span class="sm mut">бараа оноогдоогүй — дараалалд орохгүй</span>') + '</td></tr>');
     });
     o('</tbody></table></div>');
   });
-  o('<h3 style="margin-top:18px">🚚 Gyals дээр — тооцоо хүлээж буй <span class="cnt">' + onGyals.length + ' захиалга · замд ' + onGyals.filter((r) => r.stage !== 'delivered').length + ' · хүргэгдсэн ' + onGyals.filter((r) => r.stage === 'delivered').length + ' · Gyals-аас авах ' + big(onGyals.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
+  o('<h3 style="margin-top:18px">🚚 Хүргэлтэд (Gyals / Nexpress) — тооцоо хүлээж буй <span class="cnt">' + onGyals.length + ' захиалга · замд ' + onGyals.filter((r) => r.stage !== 'delivered').length + ' · хүргэгдсэн ' + onGyals.filter((r) => r.stage === 'delivered').length + ' · Gyals-аас авах ' + big(onGyals.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
     + (onGyals.filter((r) => r.stage !== 'delivered').length > 1 ? ' <button class="btn go gyall" data-ids="' + esc(onGyals.filter((r) => r.stage !== 'delivered').map((r) => r.order_id).join(',')) + '">✓ Бүгд хүргэгдсэн</button>' : '') + '</h3>');
   if (!onGyals.length) o('<p class="sm mut">Одоогоор Gyals дээр хүргэлт хүлээж буй захиалга алга.</p>');
   else {
@@ -404,7 +415,7 @@ function renderOrders(DATA, QUERY) {
     onGyals.forEach((r) => {
       const id = esc(r.order_id), held = /хойшилсон/i.test(String(r.confirm_note || ''));
       o('<tr data-keep="g-' + id + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
-        + '<td>' + (r.shipped_at ? '<span class="pill info">өгсөн ' + day(r.shipped_at) + '</span>' : '') + (held ? '<span class="pill warn">хойшилсон</span>' : '') + '<br>'
+        + '<td>' + (r.shipped_at ? '<span class="pill info">өгсөн ' + day(r.shipped_at) + '</span>' : '') + (NXQ[r.order_id] && NXQ[r.order_id].registered_at ? qPill(r) : '') + (held ? '<span class="pill warn">хойшилсон</span>' : '') + '<br>'
         + (r.stage === 'delivered'
           ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span><span class="pill warn">мөнгө ирээгүй</span>'
           : '<button class="btn go gyr" data-id="' + id + '" data-st="Хүргэсэн">✓ Хүргэгдсэн</button> <button class="btn gyr" data-id="' + id + '" data-st="Хойшилсон">Хойшилсон</button> <button class="btn stop gyr" data-id="' + id + '" data-st="Цуцалсан">↩ Буцсан</button>') + '</td></tr>');
@@ -538,7 +549,7 @@ function renderOrders(DATA, QUERY) {
     + 'if(d==="delivered"&&!confirm("Хүргэгдсэн гэж тэмдэглэх үү? Мөнгө Gyals-аас ирэхэд Түгээлт → «💰 Gyals тооцоо нийлэх»-ээр бүртгэнэ."))return;'
     + 'if(d==="prepaid"&&!confirm("Мөнгө данс руу орсныг шалгасан уу?"))return;'
     + 'if(d==="deliver_sms"&&!confirm("Энэ хүнд хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS явуулах уу?"))return;'
-    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",delivered:"Хүргэгдсэн ✓ — мөнгө Gyals тооцоогоор",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
+    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",nexpress:"Nexpress дараалалд орлоо — 11:30-д автоматаар бүртгэнэ",nexpress_undo:"Дарааллаас хасав",delivered:"Хүргэгдсэн ✓ — мөнгө Gyals тооцоогоор",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
     + 'document.querySelectorAll(".osave").forEach(function(b){b.addEventListener("click",function(){var id=b.dataset.id,dv=(document.getElementById("d-"+id).value||"").trim(),av=(document.getElementById("a-"+id).value||"").trim(),nv=(document.getElementById("n-"+id).value||"").trim();'
     + 'if(!dv||!av){say("out-o","Дүүрэг/хороо ба байр-тоот хоёулаа хэрэгтэй",true);return}'
     + 'post({action:"order",order_id:id,do:"address",district_full:dv,address_detail:av,note:nv||undefined,by:"самбар"},b,"out-o").then(function(){say("out-o","Хаяг хадгалагдлаа — захиалга баталгаажлаа ✓");reload()})'
@@ -550,6 +561,7 @@ function renderOrders(DATA, QUERY) {
     + 'document.querySelectorAll(".cpm").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean),k=b.dataset.k;cp(b.dataset.tsv).then(function(){if(!confirm(k+" жагсаалт ("+ids.length+" захиалга) хуулагдлаа — Gyals руу paste хий.\\n\\nЭдгээрийг Gyals-д ӨГСӨН гэж тэмдэглэх үү? Тэмдэглэсэн мөр жагсаалтаас гарч «Gyals дээр» хэсэгт шилжинэ, дахин явахгүй.")){say("out-o","Жагсаалт хуулагдлаа (тэмдэглээгүй)");return}b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"shipped",by:"самбар · түгээлт"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Gyals-д өгсөн гэж тэмдэглэгдлээ ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})})});'
     + 'document.querySelectorAll(".gyr").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st,note;if(st==="Цуцалсан"){note=prompt("Буцсан шалтгаан (сонголттой):","");if(note===null)return}else if(st==="Хүргэсэн"&&!confirm("Хүргэгдсэн гэж тэмдэглэх үү? Мөнгө Gyals-аас ирэхэд «💰 Gyals тооцоо нийлэх»-ээр бүртгэнэ."))return;post({action:"order",order_id:b.dataset.id,do:"gyals",status:st,note:note||undefined,by:"самбар · Gyals дээр"},b,"out-o").then(function(){say("out-o",st==="Хүргэсэн"?"Хүргэгдсэн ✓":st==="Хойшилсон"?"Хойшилсон гэж тэмдэглэв":"Буцсан — захиалга цуцлагдаж бараа нөөцөд буцлаа");reload(900)}).catch(function(){})})});'
     + 'document.querySelectorAll(".gyall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг бүгдийг нь хүргэгдсэн гэж тэмдэглэх үү? (мөнгө — «💰 Gyals тооцоо»-оор)"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"gyals",status:"Хүргэсэн",by:"самбар · Gyals дээр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга хүргэгдсэн ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
+    + 'document.querySelectorAll(".nxall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг Nexpress дараалалд оруулах уу? (11:30-д автоматаар бүртгэнэ)"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"nexpress",by:"самбар · бөөнөөр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Nexpress дараалалд ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
     + '(function(){var bx=document.querySelectorAll(".gsx"),inp=document.getElementById("gs-recv"),go=document.getElementById("gs-go");if(!go||!inp)return;'
     + 'function fm(x){return Math.round(x).toLocaleString("en-US")+"₮"}'
     + 'function calc(){var due=0,gr=0,c=0;bx.forEach(function(b){if(b.checked){due+=+b.dataset.due;gr+=+b.dataset.gross;c++}});var R=inp.value===""?null:Math.round(+inp.value),f=R===null?null:due-R;'
