@@ -31,7 +31,7 @@ function renderOrders(DATA, QUERY) {
   const ubDate = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
   const TODAY = ubDate(Date.now()), TOMORROW = ubDate(Date.now() + 864e5);
   const WD = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
-  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TODAY ? ' · ӨНӨӨДӨР (10:00-аас өмнө)' : iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
+  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TODAY ? ' · ӨНӨӨДӨР (Nexpress 12:00-оос өмнө)' : iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
   const isAct = (r) => r.is_rural && ['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at;
   const ruralAct = O.filter(isAct);
   const rWait = ruralAct.filter((r) => !r.prepaid_at && !r.stock_ok);
@@ -177,7 +177,7 @@ function renderOrders(DATA, QUERY) {
     }
     // M6: хүргэх өдөр (хоосон = маргааш). Зөвхөн УБ, хаягтай, ачаагүй.
     if (['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && !r.is_rural) {
-      st.push('<label class="dlv' + (r.deliver_on ? ' set' : '') + '">📅 хүргэх: <input type="date" class="dlvi" data-id="' + esc(r.order_id) + '" value="' + esc(r.deliver_on || '') + '" min="' + TODAY + '" title="Хоосон = маргааш. Өөр өдөр авна гэвэл сонго."></label>' + (r.deliver_on ? '' : '<span class="sm mut">хоосон = маргааш</span>'));
+      st.push('<label class="dlv' + (r.deliver_on ? ' set' : '') + '">📅 хүргэх: <input type="date" class="dlvi" data-id="' + esc(r.order_id) + '" value="' + esc(r.deliver_on || '') + '" min="' + TODAY + '" title="Хоосон = өнөөдөр. Өөр өдөр авна гэвэл сонго."></label>' + (r.deliver_on ? '' : '<span class="sm mut">хоосон = өнөөдөр</span>'));
     }
     if (r.needs_review && r.review_reason) st.push('<span class="pill warn" title="' + esc(r.review_reason) + '">⚑ ' + esc(String(r.review_reason).slice(0, 26)) + '</span>');
     const addr = r.has_address
@@ -383,7 +383,7 @@ function renderOrders(DATA, QUERY) {
   const late = [], G = {};
   dsp.forEach((r) => {
     if (r.deliver_on && r.deliver_on < TODAY) { late.push(r); return; }
-    const k = r.deliver_on || (r.prepaid_at ? TODAY : TOMORROW);
+    const k = r.deliver_on || TODAY;   // CZ8 (2026-10-30, эзэн): Nexpress — хоосон = өнөөдрийн хүргэлт
     (G[k] = G[k] || []).push(r);
   });
   o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт</h2>');
@@ -723,7 +723,7 @@ function ssDeliverUI(post, say, reload) {
       if (v === inp.dataset.last) return; // давхар change (гараар бичихэд) — нэг л удаа хадгална
       inp.dataset.last = v;
       post({ action: 'order', order_id: inp.dataset.id, do: 'deliver_on', date: v, by: 'самбар' }, null, 'out-o').then(function () {
-        say('out-o', v ? 'Хүргэх өдөр: ' + v.slice(5).replace('-', '/') + ' — тэр өдрийн түгээлтэд орлоо' : 'Хүргэх өдөр арилгав — маргаашийн түгээлтэд');
+        say('out-o', v ? 'Хүргэх өдөр: ' + v.slice(5).replace('-', '/') + ' — тэр өдрийн түгээлтэд орлоо' : 'Хүргэх өдөр арилгав — өнөөдрийн түгээлтэд');
         reload(700);
       }).catch(function () {});
     });
