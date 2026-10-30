@@ -311,7 +311,12 @@ function renderOrders(DATA, QUERY) {
   // ── 1 · Хаягтай захиалга
   // M5b (2026-10-19): «Хүргэлтийн SMS» явуулсан, батлаагүй → «Хүлээлэг» хэсэгт. «Батлах» дарвал эндээс гарна.
   const isWait = (r) => !!r.deliver_sms_at && r.stage === 'order' && !r.shipped_at;
-  const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r));
+  // DA (2026-10-30, эзэн): «Хаягтай» = зөвхөн үйлдэл хүлээж буй (ачаагүй). Ачсан (Gyals/Nexpress) → «🚚 Замд», хүргэгдсэн/төлсөн → «✅ Дууссан» (хаалттай).
+  const isGo = (r) => !!r.shipped_at && ['order', 'confirmed'].indexOf(r.stage) >= 0;
+  const isDone = (r) => ['delivered', 'paid'].indexOf(r.stage) >= 0;
+  const addrMain = addressed.filter((r) => !isAct(r) && !isWait(r) && !isGo(r) && !isDone(r));
+  const addrGo = addressed.filter(isGo).sort((a, b) => new Date(b.shipped_at) - new Date(a.shipped_at));
+  const addrDone = addressed.filter(isDone).sort((a, b) => new Date(b.paid_at || b.delivered_at || b.shipped_at || b.placed_at) - new Date(a.paid_at || a.delivered_at || a.shipped_at || a.placed_at));
   const addrWait = addressed.filter((r) => !isAct(r) && isWait(r)).sort((a, b) => new Date(a.deliver_sms_at) - new Date(b.deliver_sms_at));
   // M11 (2026-10-20): 📦 НӨӨЦ ЗАХИАЛГА — чатаар дууссан хувилбарыг ~10–14 хоногт захиалсан. Хувилбараар бүлэглэнэ (1688-д захиалах тоо).
   // Бараа ирж хүлээн авмагц stock_reallocate оноож (stock_ok) — тэгэхэд л түгээлтэд орно.
@@ -486,7 +491,18 @@ function renderOrders(DATA, QUERY) {
   cur = T.main;
   o('<h2>Хаягтай захиалга' + (ruralAct.length ? ' <span class="sm mut">(орон нутгийнхаас бусад)</span>' : '') + ' <span class="cnt">' + addrMain.length + ' · ' + big(addrMain.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
   o('<div class="tchbar"><span>🟩 ногоон = залгасан/товч дарсан · <b>СҮҮЛД</b> = хамгийн сүүлд ажилласан мөр</span><button class="btn" id="tch-go">↓ Сүүлд залгасан руу очих</button><button class="btn" id="tch-clr" title="Өнөөдрийн тэмдэглэгээг арилгах">Тэмдэглэгээ арилгах</button></div>');
-  table(addrMain, 'addressed', 'Шүүлтэд таарах хаягтай захиалга алга');
+  table(addrMain, 'addressed', anyFilter ? 'Шүүлтэд таарах, ачаагүй захиалга алга' : 'Үйлдэл хүлээж буй хаягтай захиалга алга ✓');
+  const nxN = addrGo.filter((r) => NXQ[r.order_id] && NXQ[r.order_id].registered_at).length;
+  if (addrGo.length) {
+    o('<details class="gsx-box" data-keep="addr-go" style="margin-top:14px;border:1px solid var(--bd,#ddd);border-radius:10px;padding:8px 10px"' + (anyFilter ? ' open' : '') + '><summary><b>🚚 Замд — ачсан, хүргэгдээгүй</b> <span class="cnt">' + addrGo.length + ' · ' + big(addrGo.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span> <span class="sm mut">' + (nxN ? 'Nexpress ' + nxN + ' · ' : '') + 'Gyals ' + (addrGo.length - nxN) + ' — «Хүргэгдсэн»-ийг эндээс эсвэл Түгээлт табаас</span></summary>');
+    table(addrGo, 'addressed', '');
+    o('</details>');
+  }
+  if (addrDone.length) {
+    o('<details class="gsx-box" data-keep="addr-done" style="margin-top:10px;border:1px solid var(--bd,#ddd);border-radius:10px;padding:8px 10px"' + (anyFilter ? ' open' : '') + '><summary><b>✅ Дууссан — хүргэгдсэн / төлсөн</b> <span class="cnt">' + addrDone.length + ' · ' + big(addrDone.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></summary>');
+    table(addrDone, 'addressed', '');
+    o('</details>');
+  }
   cur = T.wait;
   if (addrWait.length) {
     o('<h2>⏳ Хүлээлэг — SMS явуулсан, хариу хүлээж буй <span class="cnt">' + addrWait.length + ' · ' + big(addrWait.reduce((s, r) => s + n(r.amount_mnt), 0)) + '₮</span></h2>');
@@ -560,7 +576,7 @@ function renderOrders(DATA, QUERY) {
   cur = out;
   const nUrg = rCall.filter((r) => r.placed_mode === 'live').length;
   const TABS = [
-    ['main', 'Хаягтай', addrMain.length, '', true],
+    ['main', 'Хаягтай', addrMain.length, addrGo.length ? addrGo.length + ' замд' : '', true],
     ['dsp', 'Түгээлт', dsp.length, [onGyals.length ? onGyals.length + ' Gyals дээр' : '', rShip.length ? rShip.length + ' орон нутаг' : '', bo.length ? bo.length + ' нөөц' : ''].filter(Boolean).join(' · '), true],
     ['nx', 'Nexpress', nxReg.length, (nxOpenQ.length + nxAutoN) ? (nxOpenQ.length + nxAutoN) + ' дараагийн бүртгэлд' : '', true],
     ['rural', 'Орон нутаг', ruralAct.length, nUrg ? nUrg + ' яаралтай' : '', ruralAct.length > 0],
