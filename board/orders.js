@@ -30,8 +30,16 @@ function renderOrders(DATA, QUERY) {
   // S8 ОРОН НУТАГ: 100% урьдчилж төлнө. Идэвхтэй = хаягтай, ачаагүй. Эдгээр нь дээд талын тусдаа блокт гарна.
   const ubDate = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ulaanbaatar' });
   const TODAY = ubDate(Date.now()), TOMORROW = ubDate(Date.now() + 864e5);
+  // DA2 (2026-10-30, эзэн): Nexpress-ийн өдрийн хаалт. DB nx_cutoff_min()-тэй ИЖИЛ байх ёстой (716 = 11:56 → 11:55:59 хүртэл баталсан = өнөөдөр).
+  const NX_CUT = 716, NX_CUT_TXT = '11:55';
+  const ubMin = (() => { const p = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Ulaanbaatar', hour12: false }).split(':'); return (+p[0]) * 60 + (+p[1]); })();
+  const NXDAY = ubMin < NX_CUT ? TODAY : TOMORROW;
+  const cutBanner = () => { const left = NX_CUT - ubMin; const hm = String(Math.floor(ubMin / 60)).padStart(2, '0') + ':' + String(ubMin % 60).padStart(2, '0');
+    return '<div class="sm" style="margin:6px 0 10px;padding:8px 10px;border-radius:10px;background:' + (left > 0 && left <= 30 ? 'rgba(234,88,12,.12)' : left > 0 ? 'rgba(22,101,52,.08)' : 'rgba(100,116,139,.10)') + '">⏰ <b>Nexpress-ийн өдрийн хаалт ' + NX_CUT_TXT + '</b> · одоо ' + hm + ' (УБ) → '
+      + (left > 0 ? 'одоо баталсан захиалга <b>ӨНӨӨДӨР</b> явна' + (left <= 30 ? ' · <b>' + left + ' минут үлдлээ</b>' : '') + '. Хуваарьт Claude 11:40-өөс 11:57 хүртэл минут тутам шинэ баталгааг шалгаж бүртгэнэ.'
+        : 'хаалт өнгөрсөн — одоо баталсан захиалга <b>МАРГААШ (' + TOMORROW.slice(5).replace('-', '/') + ')</b> автоматаар явна.') + ' <span class="mut">(хуудсыг дахин ачаалж цагийг шинэчилнэ)</span></div>'; };
   const WD = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
-  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TODAY ? ' · ӨНӨӨДӨР (Nexpress 12:00-оос өмнө)' : iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
+  const dLabel = (iso) => { const t = new Date(iso + 'T12:00:00+08:00'); return iso.slice(5).replace('-', '/') + ' ' + WD[t.getUTCDay()] + (iso === TODAY ? ' · ӨНӨӨДӨР (' + NX_CUT_TXT + ' хүртэл баталсан)' : iso === TOMORROW ? ' · маргааш' : iso === ubDate(Date.now() + 2 * 864e5) ? ' · нөгөөдөр' : ''); };
   const isAct = (r) => r.is_rural && ['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at;
   const ruralAct = O.filter(isAct);
   const rWait = ruralAct.filter((r) => !r.prepaid_at && !r.stock_ok);
@@ -48,14 +56,14 @@ function renderOrders(DATA, QUERY) {
   // Nexpress вэбэд бүртгээд courier_queue_done → shipped (carrier nexpress, tracking = Nexpress дугаар). d.queue = courier_queue_view().
   const NXQ = {}; ((d.queue && d.queue.rows) || []).forEach((q) => { NXQ[q.order_id] = q; });
   const qPill = (r) => { const q = NXQ[r.order_id]; if (!q) return ''; if (q.registered_at) return '<span class="pill ok" title="Nexpress-д бүртгэгдсэн ' + esc(day(q.registered_at)) + '">Nexpress ' + esc(q.external_id || '✓') + '</span>';
-    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:40-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
+    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:40–11:57-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
       + ' <button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="nexpress_undo" title="Дарааллаас хасах">болих</button>'; };
   const nxBtn = (r) => NXQ[r.order_id] && !NXQ[r.order_id].registered_at ? qPill(r)
     : autoPill(r) + '<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="nexpress" title="Nexpress бүртгэлийн дараалалд — 11:40-д автоматаар бүртгэнэ">📦 Nexpress-д бүртгэх</button>';
   // CZ9 (2026-10-30, эзэн): автомат дараалал — pg_cron 11:35/11:39-д courier_queue_autofill() ижил дүрмээр нэмнэ; энд зөвхөн урьдчилан харуулна
   const nxAuto = (r) => ['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && r.has_address && !!(r.stock_ready_at || r.stock_ok)
     && (r.is_rural ? (r.stage === 'confirmed' || !!r.prepaid_at) : ((r.stage === 'confirmed' || r.placed_mode === 'live') && !(r.pay_requested_at && !r.prepaid_at)));
-  const autoPill = (r) => (nxAuto(r) && !NXQ[r.order_id] ? '<span class="pill info" title="Товч дарахгүй ч 11:35-д дараалалд орж 11:40-д Nexpress-д бүртгэгдэнэ. Өөр өдөр явуулах бол 📅 сонго, явуулахгүй бол Цуцлах.">⏱ 11:40-д автоматаар</span> ' : '');
+  const autoPill = (r) => (nxAuto(r) && !NXQ[r.order_id] ? '<span class="pill info" title="Товч дарахгүй ч 11:35–11:55-д дараалалд орж Nexpress-д бүртгэгдэнэ (' + NX_CUT_TXT + ' хүртэл баталсан = өнөөдөр). Өөр өдөр явуулах бол 📅 сонго, явуулахгүй бол Цуцлах.">⏱ автоматаар · ' + ((r.deliver_on || NXDAY) > TODAY ? (r.deliver_on || NXDAY).slice(5).replace('-', '/') : 'өнөөдөр') + '</span> ' : '');
   const callBtn = (r) => (has(r.phone) ? '<button class="btn go cb" data-tel="' + esc(r.phone) + '" title="Дугаарыг хуулаад залгана">📞 Залгах</button> ' : '');
   const SRC = { ad: 'зар', web: 'вэб', chat: 'чат', ig: 'IG чат', comment: 'сэтгэгдэл', fb: 'FB', bio: 'bio холбоос', organic: 'органик' };
   const STG = { lead: 'сонирхол', order: 'хаягтай', confirmed: 'баталгаажсан', delivered: 'хүргэгдсэн', paid: 'төлсөн', cancelled: 'цуцлагдсан', test: 'тест', duplicate: 'давхардал' };
@@ -323,6 +331,7 @@ function renderOrders(DATA, QUERY) {
   const isBO = (r) => /нөөц захиалга/i.test(String(r.review_reason || '')) && ['lead', 'order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && !(r.stock_ready_at || r.stock_ok);
   const bo = O.filter(isBO);
   cur = T.dsp;
+  o(cutBanner());
   if (bo.length) {
     const BG = {};
     bo.forEach((r) => { const k = String(r.product || '').split(' · ')[0] + (r.variant ? ' · ' + r.variant : ''); (BG[k] = BG[k] || []).push(r); });
@@ -392,7 +401,7 @@ function renderOrders(DATA, QUERY) {
   const late = [], G = {};
   dsp.forEach((r) => {
     if (r.deliver_on && r.deliver_on < TODAY) { late.push(r); return; }
-    const k = r.deliver_on || TODAY;   // CZ8 (2026-10-30, эзэн): Nexpress — хоосон = өнөөдрийн хүргэлт
+    const k = r.deliver_on || NXDAY;   // DA2: хоосон = хаалтаас өмнө өнөөдөр, хойно маргааш (DB-д ихэвчлэн аль хэдийн тавигдсан)
     (G[k] = G[k] || []).push(r);
   });
   o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт</h2>');
@@ -512,6 +521,7 @@ function renderOrders(DATA, QUERY) {
 
   // ── 2 · Сонирхол (хаяггүй). WIN/амьд бараа руу залгах жагсаалт дээр нь
   cur = T.lead;
+  o(cutBanner());
   o('<h2>Сонирхол — утас/нэр үлдээсэн, хаяггүй <span class="cnt">' + leads.length + '</span></h2>');
   if (CALL.length) o('<div class="callbox"><b>📞 Залгах жагсаалт · ' + CALL.length + ' хүн (WIN эсвэл амьд бараа)</b>Залгаад хаягаа өгвөл «Хаяг оруулах» → захиалга болж баталгаажна. Авахгүй гэвэл «Цуцлах». Мөр бүрийн «📞 Залгах» товч дугаарыг хуулж, залгана. SMS автоматаар явахгүй — эзэн өөрөө залгана.</div>');
   else o('<p class="sm mut">Залгах жагсаалт хоосон: эдгээр бараа WIN болоогүй / бараа ирээгүй. LOSS барааны сонирхогчид юу ч илгээхгүй.</p>');
