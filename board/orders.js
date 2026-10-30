@@ -542,6 +542,7 @@ function renderOrders(DATA, QUERY) {
         o('<tr data-keep="n-' + esc(r.order_id) + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
           + '<td><span class="pill ok" title="Бүртгэсэн ' + esc(dt(q.registered_at)) + '">' + esc(q.external_id || '✓') + '</span><br>'
           + (r.stage === 'paid' ? '<span class="pill ok">төлсөн ' + day(r.paid_at) + '</span>' : r.stage === 'delivered' ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span><span class="pill warn">тооцоо хүлээж буй</span>' : '<span class="pill info">замд · ' + esc(dt(q.registered_at)) + '</span>')
+          + (q.carrier_status && r.stage !== 'paid' ? '<br><span class="pill' + (q.carrier_status === 'Хүргэгдсэн' ? ' ok' : q.carrier_status === 'Цуцлагдсан' ? ' crit' : q.carrier_status === 'Хойшилсон' ? ' warn' : '') + '" title="Nexpress төлөв · ' + esc(dt(q.carrier_status_at)) + '">Nexpress: ' + esc(q.carrier_status) + '</span>' : '')   // CZ10: 21:05-ийн синк
           + (r.is_rural ? '<span class="pill">орон нутаг</span>' : '') + '</td></tr>');
       });
       o('</tbody></table></div>');
