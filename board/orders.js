@@ -37,6 +37,9 @@ function renderOrders(DATA, QUERY) {
   const rWait = ruralAct.filter((r) => !r.prepaid_at && !r.stock_ok);
   const rPay = ruralAct.filter((r) => !r.prepaid_at && r.stock_ok)
     .sort((a, b) => (b.placed_mode === 'live' ? 1 : 0) - (a.placed_mode === 'live' ? 1 : 0) || new Date(a.placed_at) - new Date(b.placed_at));
+  // CZ5 (2026-10-30, эзэн): батлаагүй орон нутаг Nexpress/түгээлтэд ОРОХГҮЙ — залгаж «✓ Баталсан» дарсны дараа л
+  const rCall = rPay.filter((r) => r.stage !== 'confirmed');
+  const rOk = rPay.filter((r) => r.stage === 'confirmed');
   const rShip = ruralAct.filter((r) => r.prepaid_at).sort((a, b) => new Date(a.prepaid_at) - new Date(b.prepaid_at));
   // CZ (2026-10-29, эзэн): Gyals-д цаашид өгөхгүй → «Nexpress-д бүртгэх» = дараалалд (do=nexpress); хуваарьт Claude (Haiku, Mac+Chrome) 11:30-д
   // Nexpress вэбэд бүртгээд courier_queue_done → shipped (carrier nexpress, tracking = Nexpress дугаар). d.queue = courier_queue_view().
@@ -243,9 +246,15 @@ function renderOrders(DATA, QUERY) {
     const where = '<b>' + esc(String(r.district || '').replace(/^Орон нутаг\s*/, '')) + '</b>' + (r.address ? '<br><span class="sm mut">' + esc(r.address) + '</span>' : '<br><span class="pill crit">хаяг дутуу</span>');
     const who = '<b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a><br><button class="btn tchb" title="Залгасан/ярьсан гэж тэмдэглэх">☐ залгасан</button>';
     let st = '', acts = '';
-    if (mode === 'pay') {
-      // CZ2 (2026-10-30, эзэн): орон нутагт Nexpress өөрөө залгаж тооцоо авна → урьдчилгаа шаардахгүй, авах дүн = үнэ (COD)
+    if (mode === 'pay' && r.stage !== 'confirmed') {
+      // CZ5: батлаагүй — Nexpress товч байхгүй; залгаад тохирвол «✓ Баталсан»
       st = (urgent ? '<span class="pill crit">🔴 яаралтай залга</span>' : '<span class="pill info">📞 залгаж батлах</span>')
+        + '<span class="pill">Nexpress авахдаа ' + mnt(r.amount_mnt) + '</span>';
+      acts = callBtn(r) + '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж тохирсон — Nexpress-д бүртгэх жагсаалт руу (мэдэгдэл явахгүй)">✓ Баталсан</button> '
+        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> <button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>' + addrForm(r);
+    } else if (mode === 'pay') {
+      // CZ2 (2026-10-30, эзэн): орон нутагт Nexpress өөрөө залгаж тооцоо авна → урьдчилгаа шаардахгүй, авах дүн = үнэ (COD)
+      st = '<span class="pill ok">✓ баталсан' + (r.confirmed_at ? ' ' + dt(r.confirmed_at) : '') + '</span>'
         + '<span class="pill">Nexpress авахдаа ' + mnt(r.amount_mnt) + '</span>' + (r.pay_requested_at ? '<span class="pill ok">урьдчилгааны SMS явсан ' + dt(r.pay_requested_at) + '</span>' : '');
       acts = callBtn(r) + nxBtn(r) + ' '
         + '<button class="btn oa" data-id="' + id + '" data-do="prepaid" title="Хэрэв урьдчилж шилжүүлсэн бол — Nexpress авах дүн 0 болно">✓ урьдчилж төлсөн</button> '
@@ -271,10 +280,14 @@ function renderOrders(DATA, QUERY) {
   if (ruralAct.length) {
     o('<div class="rural"><h2 style="margin-top:10px">🚚 Орон нутаг — Nexpress хүргэнэ, авахдаа төлнө <span class="cnt">' + ruralAct.length + '</span></h2>');
     o('<p class="sm mut">10/30-аас (эзэн): Nexpress орон нутгийн хэрэглэгч рүү өөрөө залгаж тооцоогоо авдаг. Залгаж батлаад <b>📦 Nexpress-д бүртгэх</b> — авах дүн = барааны үнэ. Урьдчилж шилжүүлсэн хүн байвал <b>✓ урьдчилж төлсөн</b> (авах дүн 0).</p>');
-    if (rPay.length) {
-      const nu = rPay.filter((r) => r.placed_mode === 'live').length;
-      o('<h3>📞 Залгаж батлаад Nexpress-д бүртгэх <span class="cnt">' + rPay.length + '</span>' + (nu ? ' <span class="pill crit">🔴 ' + nu + ' яаралтай — бэлэн бараатай захиалсан</span>' : '') + '</h3>');
-      rTable(rPay, 'pay');
+    if (rCall.length) {
+      const nu = rCall.filter((r) => r.placed_mode === 'live').length;
+      o('<h3>📞 Залгаж батлах <span class="sm mut">(батлаагүй бол Nexpress-д бүртгэгдэхгүй, түгээлтэд орохгүй)</span> <span class="cnt">' + rCall.length + '</span>' + (nu ? ' <span class="pill crit">🔴 ' + nu + ' яаралтай — бэлэн бараатай захиалсан</span>' : '') + '</h3>');
+      rTable(rCall, 'pay');
+    }
+    if (rOk.length) {
+      o('<h3>✅ Баталсан — Nexpress-д бүртгэх <span class="sm mut">(Түгээлт табд ч харагдана)</span> <span class="cnt">' + rOk.length + '</span></h3>');
+      rTable(rOk, 'pay');
     }
     if (rShip.length) {
       const tsv = rShip.map((r) => [r.phone, r.customer, String(r.district || '').replace(/^Орон нутаг\s*/, ''), r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : '')].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
@@ -316,7 +329,7 @@ function renderOrders(DATA, QUERY) {
   // M12 (2026-10-22, эзэн): орон нутгийн ТӨЛСӨН захиалга (rShip) мөн түгээлтэд — маргааш Gyals-д өгөх жагсаалт нэг газар. Төлөөгүй орон нутаг орохгүй.
   const dspUb = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')) && !isBO(r)
     && !(r.pay_requested_at && !r.prepaid_at));   // CP: УБ урьдчилгаа ороогүй → түгээлтэд орохгүй
-  const dsp = dspUb.concat(rShip).concat(rPay);   // CZ2: орон нутгийн төлөөгүй (Nexpress COD) ч түгээлтэд
+  const dsp = dspUb.concat(rShip).concat(rOk);   // CZ5: орон нутгаас зөвхөн БАТАЛСАН (эсвэл төлсөн) түгээлтэд
   const dspOk = (r) => !!(r.stock_ready_at || r.stock_ok || (r.prepaid_at));
   // M9 (2026-10-20): Gyals Excel (татах) + Gyals тайлан (оруулах) — өгөгдлийг клиент скрипт рүү дамжуулна
   const gxRow = (r) => ({ id: r.order_id, customer: r.customer || '', phone: r.phone || '', district: String(r.district || '').replace(/^Орон нутаг\s*/, ''), address: r.address || '',
@@ -510,7 +523,7 @@ function renderOrders(DATA, QUERY) {
   }
   // ── Табууд: Хаягтай · Түгээлт · Орон нутаг · Хүлээлэг · Сонирхол · Бусад. Яаралтай орон нутаг байвал тэр нь эхэнд нээгдэнэ.
   cur = out;
-  const nUrg = rPay.filter((r) => r.placed_mode === 'live').length;
+  const nUrg = rCall.filter((r) => r.placed_mode === 'live').length;
   const TABS = [
     ['main', 'Хаягтай', addrMain.length, '', true],
     ['dsp', 'Түгээлт', dsp.length, [onGyals.length ? onGyals.length + ' Gyals дээр' : '', rShip.length ? rShip.length + ' орон нутаг' : '', bo.length ? bo.length + ' нөөц' : ''].filter(Boolean).join(' · '), true],
