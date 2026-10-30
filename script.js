@@ -219,8 +219,9 @@ const ckLeave = () => { if (ckSeen.has("open") && !ckDone && !ckSeen.has("leave"
 window.addEventListener("pagehide", ckLeave);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") ckLeave(); });
 
-/* Who to ring about what. The courier changed in September 2026: deliveries are
-   carried by Гялс хүргэлт, and "where is my parcel" is theirs to answer. What
+/* Who to ring about what. The courier changed again on 2026-10-30: deliveries are
+   carried by Nexpress (delivery.nexpress.mn), and "where is my parcel" is theirs to answer
+   — or the customer reads it on /track/ (order_track RPC). What
    was ordered, changing or cancelling it, is the shop's own order line. The
    header pop-up in index.html names the same two numbers — change both. */
 /* Урьдчилгаа хүлээн авах данс (эзэн 2026-10-22-нд ХХБ-наас Хаан банк руу шилжүүлсэн). IBAN-ы шалгах
@@ -233,7 +234,7 @@ const PREPAY_BANK = {
   holder: "Аюурзана Ариунболд",
 };
 
-const COURIER = { name: "Гялс хүргэлт", tel: "94944855", text: "9494-4855" };
+const COURIER = { name: "Nexpress хүргэлт", tel: "72001991", text: "7200-1991" };   // CZ (2026-10-30): Гялс → Nexpress; явцыг /track/ хуудаснаас
 const ORDER_LINE = { tel: "95505717", text: "9550-5717" };
 /* Numbers whose orders are the owner testing the shop, never a customer. */
 const OWNER_TEST_PHONES = ["95505717"];
@@ -3250,7 +3251,7 @@ function renderDone() {
         <span class="helpline__v">
           <a href="tel:${COURIER.tel}">${COURIER.text}</a>
         </span>
-        <span class="helpline__note">Хүргэлтийн явц, хугацааг эндээс лавлана.</span>
+        <span class="helpline__note">Хүргэлтийн явц, хугацааг эндээс лавлана · <a href="/track/">Захиалгаа хянах →</a></span>
         <span class="helpline__k" style="margin-top:.7rem">Захиалгын талаар</span>
         <span class="helpline__v">
           <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a>
@@ -3343,7 +3344,7 @@ const POLICIES = {
       <p>Хаяг буруу, эсвэл заасан хугацаанд утсаа авахгүй тохиолдолд хүргэлт хойшлох
       боломжтой. Ийм тохиолдолд дахин хүргэлтэд 7,000₮ нэмэгдэж болно.</p>
       <h2>Лавлах</h2>
-      <p>Хүргэлтийн явц, хугацаа — ${COURIER.name}: <a href="tel:${COURIER.tel}">${COURIER.text}</a><br>
+      <p>Хүргэлтийн явц — <a href="/track/">starshopping.mn/track</a> (утасны дугаараар) эсвэл ${COURIER.name}: <a href="tel:${COURIER.tel}">${COURIER.text}</a><br>
       Захиалгын талаар — <a href="tel:${ORDER_LINE.tel}">${ORDER_LINE.text}</a></p>`,
   },
   refund: {
