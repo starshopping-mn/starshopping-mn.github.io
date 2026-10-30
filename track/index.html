@@ -36,7 +36,7 @@
   ol.steps li.bad::before{background:var(--bad); border-color:var(--bad)}
   ol.steps li .t{display:block; color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums}
   ol.steps li.todo{color:var(--muted)}
-  .pill{display:inline-block; font-size:12.5px; font-weight:650; padding:2px 9px; border-radius:999px; background:rgba(184,135,60,.14); color:var(--accent); margin-left:6px; vertical-align:middle}
+  .pill{display:inline-block;text-decoration:none; font-size:12.5px; font-weight:650; padding:2px 9px; border-radius:999px; background:rgba(184,135,60,.14); color:var(--accent); margin-left:6px; vertical-align:middle}
   .pill.ok{background:rgba(31,122,62,.14); color:var(--ok)} .pill.warn{background:rgba(180,83,9,.14); color:var(--warn)} .pill.bad{background:rgba(180,35,24,.14); color:var(--bad)}
   .help{margin-top:30px; padding-top:18px; border-top:1px solid var(--line); font-size:14px; color:var(--muted)}
   .help a{color:var(--accent)}
@@ -79,7 +79,7 @@
     } else {
       s.push(step(o.confirmed_at ? "done" : (o.registered_at ? "done" : "now"), "Баталгаажсан", o.confirmed_at, o.confirmed_at ? "" : '<span class="pill">бид тантай холбогдоно</span>'));
       s.push(step(o.registered_at ? "done" : (o.confirmed_at ? "now" : "todo"), "Хүргэлтэд бүртгэгдсэн", o.registered_at,
-        o.tracking ? '<span class="pill">Nexpress ' + esc(o.tracking) + "</span>" : (o.confirmed_at ? '<span class="pill">12:00-оос өмнө бүртгэгдвэл тэр өдөртөө</span>' : "")));
+        o.tracking ? '<a class="pill" href="https://delivery.nexpress.mn/track/' + encodeURIComponent(o.tracking) + '" target="_blank" rel="noopener" title="Nexpress дээр жолооч, явцыг харах">Nexpress ' + esc(o.tracking) + " ↗</a>" : (o.confirmed_at ? '<span class="pill">12:00-оос өмнө бүртгэгдвэл тэр өдөртөө</span>' : "")));
       if (o.rural) s.push(step(done ? "done" : (o.registered_at ? "now" : "todo"), "Орон нутаг руу унаанд тавина", null, '<span class="pill">унаанд тавихад SMS ирнэ — төлбөрөө шилжүүлнэ</span>'));
       else s.push(step(done ? "done" : ((outForDelivery || postponed) ? "now" : "todo"), "Хүргэлтэнд гарсан", (outForDelivery || postponed) ? o.carrier_status_at : null, postponed ? '<span class="pill warn">хойшилсон — танд дахин залгана</span>' : ""));
       s.push(step(done ? "done" : "todo", "Хүргэгдсэн", o.delivered_at || (cs === "Хүргэгдсэн" ? o.carrier_status_at : null), done && !o.prepaid && !o.rural ? '<span class="pill ok">авахдаа төлнө</span>' : ""));
