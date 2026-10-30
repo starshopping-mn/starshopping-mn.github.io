@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Захиалгаа хянах · Starshopping</title>
+<meta name="description" content="Утасны дугаараараа захиалгынхаа явцыг харна: баталгаажсан, хүргэлтэд бүртгэгдсэн, замд, хүргэгдсэн.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.png">
+<style>
+  :root{ --bg:#ffffff; --fg:#1a1d26; --muted:#5b6172; --line:#e4e6ec; --accent:#b8873c; --card:#f7f7f9; --ok:#1f7a3e; --warn:#b45309; --bad:#b42318; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#12161f; --fg:#eceef3; --muted:#9aa1b4; --line:#262c3a; --accent:#d6b26a; --card:#1a1f2b; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; } }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; padding:40px 20px 64px; }
+  .wrap{max-width:560px; margin:0 auto}
+  .brand{font-size:13px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:600; text-decoration:none}
+  h1{font-size:26px; line-height:1.25; margin:10px 0 6px; font-weight:650}
+  .meta{color:var(--muted); font-size:14px; margin:0 0 22px}
+  form{display:flex; gap:8px}
+  input{flex:1; font:inherit; font-size:18px; letter-spacing:.06em; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--fg); min-width:0}
+  button{font:inherit; font-weight:650; padding:12px 18px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer}
+  button[disabled]{opacity:.6; cursor:default}
+  .msg{margin:14px 0; color:var(--muted); font-size:14.5px}
+  .msg.bad{color:var(--bad)}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:16px 0}
+  .card h2{font-size:17px; margin:0 0 2px; font-weight:650}
+  .sub{color:var(--muted); font-size:13.5px; margin:0 0 14px}
+  .ref{font-variant-numeric:tabular-nums; color:var(--muted)}
+  ol.steps{list-style:none; margin:0; padding:0; position:relative}
+  ol.steps::before{content:""; position:absolute; left:11px; top:6px; bottom:6px; width:2px; background:var(--line)}
+  ol.steps li{position:relative; padding:0 0 16px 36px; font-size:15px}
+  ol.steps li:last-child{padding-bottom:0}
+  ol.steps li::before{content:""; position:absolute; left:4px; top:5px; width:16px; height:16px; border-radius:50%; background:var(--bg); border:2px solid var(--line)}
+  ol.steps li.done::before{background:var(--ok); border-color:var(--ok)}
+  ol.steps li.now::before{background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 4px rgba(184,135,60,.18)}
+  ol.steps li.bad::before{background:var(--bad); border-color:var(--bad)}
+  ol.steps li .t{display:block; color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums}
+  ol.steps li.todo{color:var(--muted)}
+  .pill{display:inline-block; font-size:12.5px; font-weight:650; padding:2px 9px; border-radius:999px; background:rgba(184,135,60,.14); color:var(--accent); margin-left:6px; vertical-align:middle}
+  .pill.ok{background:rgba(31,122,62,.14); color:var(--ok)} .pill.warn{background:rgba(180,83,9,.14); color:var(--warn)} .pill.bad{background:rgba(180,35,24,.14); color:var(--bad)}
+  .help{margin-top:30px; padding-top:18px; border-top:1px solid var(--line); font-size:14px; color:var(--muted)}
+  .help a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="/">Starshopping</a>
+  <h1>Захиалгаа хянах</h1>
+  <p class="meta">Захиалга өгсөн утасны дугаараа оруулна уу. Сүүлийн 60 хоногийн захиалгууд харагдана.</p>
+  <form id="f" autocomplete="off">
+    <input id="ph" type="tel" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" placeholder="9900 0000" aria-label="Утасны дугаар" required>
+    <button id="go" type="submit">Хайх</button>
+  </form>
+  <div id="msg" class="msg" hidden></div>
+  <div id="out"></div>
+  <div class="help">
+    Хүргэлтийн явц, хугацаа — Nexpress хүргэлт: <a href="tel:72001991">7200-1991</a><br>
+    Захиалгын талаар — <a href="tel:95505717">9550-5717</a>
+  </div>
+</div>
+<script>
+(function () {
+  var SUPABASE_URL = "https://tdnjnqftxschbliumwwm.supabase.co";
+  var SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkbmpucWZ0eHNjaGJsaXVtd3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNzExNTgsImV4cCI6MjEwNDk0NzE1OH0.lND_YBbjyCNT-yIa27OZ3V-1_fn76i9JUYrOfrXbC1w";
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var fmt = function (iso) { if (!iso) return ""; var d = new Date(iso); if (isNaN(d)) return ""; return d.toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).replace(",", ""); };
+  var step = function (cls, title, when, note) { return '<li class="' + cls + '">' + esc(title) + (note || "") + (when ? '<span class="t">' + esc(fmt(when)) + "</span>" : "") + "</li>"; };
+  function render(o) {
+    var cs = o.carrier_status || "";
+    var outForDelivery = /гарсан|очсон/.test(cs);
+    var postponed = /Хойшилсон/.test(cs);
+    var done = !!o.delivered_at || o.stage === "delivered" || o.stage === "paid" || cs === "Хүргэгдсэн";
+    var bad = !!o.cancelled || cs === "Цуцлагдсан";
+    var s = [];
+    s.push(step("done", "Захиалга хүлээн авсан", o.placed_at));
+    if (bad) {
+      s.push(step("bad", "Цуцлагдсан", o.carrier_status_at || null, cs === "Цуцлагдсан" ? '<span class="pill bad">Nexpress: буцаасан</span>' : ""));
+    } else {
+      s.push(step(o.confirmed_at ? "done" : (o.registered_at ? "done" : "now"), "Баталгаажсан", o.confirmed_at, o.confirmed_at ? "" : '<span class="pill">бид тантай холбогдоно</span>'));
+      s.push(step(o.registered_at ? "done" : (o.confirmed_at ? "now" : "todo"), "Хүргэлтэд бүртгэгдсэн", o.registered_at,
+        o.tracking ? '<span class="pill">Nexpress ' + esc(o.tracking) + "</span>" : (o.confirmed_at ? '<span class="pill">12:00-оос өмнө бүртгэгдвэл тэр өдөртөө</span>' : "")));
+      if (o.rural) s.push(step(done ? "done" : (o.registered_at ? "now" : "todo"), "Орон нутаг руу унаанд тавина", null, '<span class="pill">унаанд тавихад SMS ирнэ — төлбөрөө шилжүүлнэ</span>'));
+      else s.push(step(done ? "done" : ((outForDelivery || postponed) ? "now" : "todo"), "Хүргэлтэнд гарсан", (outForDelivery || postponed) ? o.carrier_status_at : null, postponed ? '<span class="pill warn">хойшилсон — танд дахин залгана</span>' : ""));
+      s.push(step(done ? "done" : "todo", "Хүргэгдсэн", o.delivered_at || (cs === "Хүргэгдсэн" ? o.carrier_status_at : null), done && !o.prepaid && !o.rural ? '<span class="pill ok">авахдаа төлнө</span>' : ""));
+    }
+    return '<div class="card"><h2>' + esc(o.product) + (o.variant ? " · " + esc(o.variant) : "") + (o.qty > 1 ? " ×" + o.qty : "") + "</h2>"
+      + '<p class="sub">' + esc(o.area || "") + ' · <span class="ref">' + esc(o.ref) + "</span></p>"
+      + '<ol class="steps">' + s.join("") + "</ol></div>";
+  }
+  $("f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var ph = ($("ph").value || "").replace(/\D/g, "");
+    if (ph.length !== 8) { $("msg").hidden = false; $("msg").className = "msg bad"; $("msg").textContent = "8 оронтой дугаар оруулна уу."; return; }
+    $("go").disabled = true; $("msg").hidden = false; $("msg").className = "msg"; $("msg").textContent = "Хайж байна…"; $("out").innerHTML = "";
+    fetch(SUPABASE_URL + "/rest/v1/rpc/order_track", {
+      method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON, Authorization: "Bearer " + SUPABASE_ANON },
+      body: JSON.stringify({ p: { phone: ph } })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      $("go").disabled = false;
+      var os = (j && j.orders) || [];
+      if (!os.length) { $("msg").className = "msg"; $("msg").textContent = "Энэ дугаараар сүүлийн 60 хоногт захиалга олдсонгүй. Захиалгын талаар 9550-5717."; return; }
+      $("msg").hidden = true; $("out").innerHTML = os.map(render).join("");
+      try { history.replaceState(null, "", "#" + ph); } catch (_) {}
+    }).catch(function () { $("go").disabled = false; $("msg").className = "msg bad"; $("msg").textContent = "Холболтын алдаа — дахин оролдоно уу."; });
+  });
+  var h = (location.hash || "").replace(/\D/g, ""); if (h.length === 8) { $("ph").value = h; $("f").requestSubmit ? $("f").requestSubmit() : $("go").click(); }
+})();
+</script>
+</body>
+</html>
