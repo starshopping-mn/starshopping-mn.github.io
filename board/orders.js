@@ -38,6 +38,14 @@ function renderOrders(DATA, QUERY) {
   const rPay = ruralAct.filter((r) => !r.prepaid_at && r.stock_ok)
     .sort((a, b) => (b.placed_mode === 'live' ? 1 : 0) - (a.placed_mode === 'live' ? 1 : 0) || new Date(a.placed_at) - new Date(b.placed_at));
   const rShip = ruralAct.filter((r) => r.prepaid_at).sort((a, b) => new Date(a.prepaid_at) - new Date(b.prepaid_at));
+  // CZ (2026-10-29, эзэн): Gyals-д цаашид өгөхгүй → «Nexpress-д бүртгэх» = дараалалд (do=nexpress); хуваарьт Claude (Haiku, Mac+Chrome) 11:30-д
+  // Nexpress вэбэд бүртгээд courier_queue_done → shipped (carrier nexpress, tracking = Nexpress дугаар). d.queue = courier_queue_view().
+  const NXQ = {}; ((d.queue && d.queue.rows) || []).forEach((q) => { NXQ[q.order_id] = q; });
+  const qPill = (r) => { const q = NXQ[r.order_id]; if (!q) return ''; if (q.registered_at) return '<span class="pill ok" title="Nexpress-д бүртгэгдсэн ' + esc(day(q.registered_at)) + '">Nexpress ' + esc(q.external_id || '✓') + '</span>';
+    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:30-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
+      + ' <button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="nexpress_undo" title="Дарааллаас хасах">болих</button>'; };
+  const nxBtn = (r) => NXQ[r.order_id] && !NXQ[r.order_id].registered_at ? qPill(r)
+    : '<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="nexpress" title="Nexpress бүртгэлийн дараалалд — 11:30-д автоматаар бүртгэнэ">📦 Nexpress-д бүртгэх</button>';
   const callBtn = (r) => (has(r.phone) ? '<button class="btn go cb" data-tel="' + esc(r.phone) + '" title="Дугаарыг хуулаад залгана">📞 Залгах</button> ' : '');
   const SRC = { ad: 'зар', web: 'вэб', chat: 'чат', ig: 'IG чат', comment: 'сэтгэгдэл', fb: 'FB', bio: 'bio холбоос', organic: 'органик' };
   const STG = { lead: 'сонирхол', order: 'хаягтай', confirmed: 'баталгаажсан', delivered: 'хүргэгдсэн', paid: 'төлсөн', cancelled: 'цуцлагдсан', test: 'тест', duplicate: 'давхардал' };
@@ -236,11 +244,11 @@ function renderOrders(DATA, QUERY) {
     const who = '<b>' + esc(r.customer || '—') + '</b><br><a href="tel:' + esc(r.phone) + '">' + esc(r.phone || '') + '</a><br><button class="btn tchb" title="Залгасан/ярьсан гэж тэмдэглэх">☐ залгасан</button>';
     let st = '', acts = '';
     if (mode === 'pay') {
-      st = (urgent ? '<span class="pill crit">🔴 яаралтай залга</span>' : '<span class="pill info">📞 залгах</span>')
-        + (r.pay_requested_at ? '<span class="pill ok">SMS явсан ' + dt(r.pay_requested_at) + '</span>' : '<span class="pill">SMS явуулаагүй</span>');
-      acts = callBtn(r)
-        + '<button class="btn go oa" data-id="' + id + '" data-do="prepay_sms" title="Энэ хүнд зориулсан төлбөрийн SMS (данс, дүн, утга)">💬 ' + (r.pay_requested_at ? 'SMS дахин' : 'Төлбөрийн SMS') + '</button> '
-        + '<button class="btn go oa" data-id="' + id + '" data-do="prepaid" title="Мөнгө данс руу орсон">✓ Мөнгө орсон</button> '
+      // CZ2 (2026-10-30, эзэн): орон нутагт Nexpress өөрөө залгаж тооцоо авна → урьдчилгаа шаардахгүй, авах дүн = үнэ (COD)
+      st = (urgent ? '<span class="pill crit">🔴 яаралтай залга</span>' : '<span class="pill info">📞 залгаж батлах</span>')
+        + '<span class="pill">Nexpress авахдаа ' + mnt(r.amount_mnt) + '</span>' + (r.pay_requested_at ? '<span class="pill ok">урьдчилгааны SMS явсан ' + dt(r.pay_requested_at) + '</span>' : '');
+      acts = callBtn(r) + nxBtn(r) + ' '
+        + '<button class="btn oa" data-id="' + id + '" data-do="prepaid" title="Хэрэв урьдчилж шилжүүлсэн бол — Nexpress авах дүн 0 болно">✓ урьдчилж төлсөн</button> '
         + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> <button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>' + addrForm(r);
     } else if (mode === 'ship') {
       st = '<span class="pill ok">төлсөн ' + mnt(r.prepaid_mnt) + ' · ' + dt(r.prepaid_at) + '</span>';
@@ -261,11 +269,11 @@ function renderOrders(DATA, QUERY) {
   };
   cur = T.rural;
   if (ruralAct.length) {
-    o('<div class="rural"><h2 style="margin-top:10px">🚚 Орон нутаг — 100% урьдчилж төлнө <span class="cnt">' + ruralAct.length + '</span></h2>');
-    o('<p class="sm mut">Бараа ирмэгц залгаж хаяг авна → «шилжүүлээрэй» гэж ярина → <b>💬 Төлбөрийн SMS</b> → мөнгө орвол <b>✓ Мөнгө орсон</b> → доорх «Gyals-д өгөх» жагсаалтад орно. Төлөөгүйг унаанд тавихгүй.</p>');
+    o('<div class="rural"><h2 style="margin-top:10px">🚚 Орон нутаг — Nexpress хүргэнэ, авахдаа төлнө <span class="cnt">' + ruralAct.length + '</span></h2>');
+    o('<p class="sm mut">10/30-аас (эзэн): Nexpress орон нутгийн хэрэглэгч рүү өөрөө залгаж тооцоогоо авдаг. Залгаж батлаад <b>📦 Nexpress-д бүртгэх</b> — авах дүн = барааны үнэ. Урьдчилж шилжүүлсэн хүн байвал <b>✓ урьдчилж төлсөн</b> (авах дүн 0).</p>');
     if (rPay.length) {
       const nu = rPay.filter((r) => r.placed_mode === 'live').length;
-      o('<h3>📞 Залгаж, төлбөр авах <span class="cnt">' + rPay.length + '</span>' + (nu ? ' <span class="pill crit">🔴 ' + nu + ' яаралтай — бэлэн бараатай захиалсан</span>' : '') + '</h3>');
+      o('<h3>📞 Залгаж батлаад Nexpress-д бүртгэх <span class="cnt">' + rPay.length + '</span>' + (nu ? ' <span class="pill crit">🔴 ' + nu + ' яаралтай — бэлэн бараатай захиалсан</span>' : '') + '</h3>');
       rTable(rPay, 'pay');
     }
     if (rShip.length) {
@@ -308,7 +316,7 @@ function renderOrders(DATA, QUERY) {
   // M12 (2026-10-22, эзэн): орон нутгийн ТӨЛСӨН захиалга (rShip) мөн түгээлтэд — маргааш Gyals-д өгөх жагсаалт нэг газар. Төлөөгүй орон нутаг орохгүй.
   const dspUb = addressed.filter((r) => !isAct(r) && !r.is_rural && !r.shipped_at && (r.stage === 'confirmed' || (r.stage === 'order' && r.placed_mode === 'live')) && !isBO(r)
     && !(r.pay_requested_at && !r.prepaid_at));   // CP: УБ урьдчилгаа ороогүй → түгээлтэд орохгүй
-  const dsp = dspUb.concat(rShip);
+  const dsp = dspUb.concat(rShip).concat(rPay);   // CZ2: орон нутгийн төлөөгүй (Nexpress COD) ч түгээлтэд
   const dspOk = (r) => !!(r.stock_ready_at || r.stock_ok || (r.prepaid_at));
   // M9 (2026-10-20): Gyals Excel (татах) + Gyals тайлан (оруулах) — өгөгдлийг клиент скрипт рүү дамжуулна
   const gxRow = (r) => ({ id: r.order_id, customer: r.customer || '', phone: r.phone || '', district: String(r.district || '').replace(/^Орон нутаг\s*/, ''), address: r.address || '',
@@ -320,14 +328,6 @@ function renderOrders(DATA, QUERY) {
   // ② 🚚 Gyals дээр (shipped, төлбөргүй) → «Хүргэгдсэн / Хойшилсон / Буцсан» (do=gyals). ③ Хүргэх өдөр өнгөрсөн, өгсөн гэж тэмдэглээгүй мөрийг
   // өнөөдрийнх рүү чимээгүй чихэхгүй — «Өгсөн үү?» гэж тусад нь асууна (10/23-нд өгсөн 5 захиалга 10/24-ний жагсаалтад дахин орсон алдааны засвар).
   // CK (10/26): 10/20–10/21-ний захиалга shipped_at-гүй, шууд «хүргэгдсэн» болсон тул өмнө нь тооцооны самбарт ороогүй (2.07 сая₮ харагдахгүй байв).
-  // CZ (2026-10-29, эзэн): Gyals-д цаашид өгөхгүй → «Nexpress-д бүртгэх» = дараалалд (do=nexpress); хуваарьт Claude (Haiku, Mac+Chrome) 11:30-д
-  // Nexpress вэбэд бүртгээд courier_queue_done → shipped (carrier nexpress, tracking = Nexpress дугаар). d.queue = courier_queue_view().
-  const NXQ = {}; ((d.queue && d.queue.rows) || []).forEach((q) => { NXQ[q.order_id] = q; });
-  const qPill = (r) => { const q = NXQ[r.order_id]; if (!q) return ''; if (q.registered_at) return '<span class="pill ok" title="Nexpress-д бүртгэгдсэн ' + esc(day(q.registered_at)) + '">Nexpress ' + esc(q.external_id || '✓') + '</span>';
-    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:30-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
-      + ' <button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="nexpress_undo" title="Дарааллаас хасах">болих</button>'; };
-  const nxBtn = (r) => NXQ[r.order_id] && !NXQ[r.order_id].registered_at ? qPill(r)
-    : '<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="nexpress" title="Nexpress бүртгэлийн дараалалд — 11:30-д автоматаар бүртгэнэ">📦 Nexpress-д бүртгэх</button>';
   const gyDay = (r) => (r.shipped_at || r.deliver_on || r.delivered_at || '').slice(0, 10);
   const onGyals = O.filter((r) => (r.shipped_at || r.stage === 'delivered') && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0)
     .sort((a, b) => gyDay(a).localeCompare(gyDay(b)));
