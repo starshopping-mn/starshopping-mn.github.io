@@ -107,8 +107,8 @@
       ],
       "featured": false,
       "deliveryPaidBy": "included",
-      "fulfillment": "preorder",
-      "shipsInDays": 14,
+      "fulfillment": "live",
+      "shipsInDays": null,
       "maxPerOrder": 2,
       "active": true
     }
@@ -116,6 +116,7 @@
   "bundles": [],
   "reviews": [],
   "stock": {
-    "Halaaguurtai-hantaaz": 17
+    "Halaaguurtai-hantaaz": 17,
+    "mashiny-haalganii-gerel": 135
   }
 }
