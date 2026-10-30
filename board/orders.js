@@ -44,14 +44,18 @@ function renderOrders(DATA, QUERY) {
   const rDate = (r) => '<label class="dlv' + (r.deliver_on ? ' set' : '') + '">📅 явуулах өдөр: <input type="date" class="dlvi" data-id="' + esc(r.order_id) + '" value="' + esc(r.deliver_on || '') + '" min="' + TODAY + '" title="Хоосон = дараагийн бүртгэл (өдөр бүр 11:19). Өдөр сонговол тэр өглөө Nexpress-д бүртгэнэ."></label>'
     + (r.deliver_on && r.deliver_on > TODAY ? '<span class="pill warn">⏳ ' + esc(r.deliver_on.slice(5).replace('-', '/')) + '-нд бүртгэнэ</span>' : (r.deliver_on ? '' : '<span class="sm mut">хоосон = дараагийн бүртгэлд</span>'));
   const rShip = ruralAct.filter((r) => r.prepaid_at).sort((a, b) => new Date(a.prepaid_at) - new Date(b.prepaid_at));
-  // CZ (2026-10-29, эзэн): Gyals-д цаашид өгөхгүй → «Nexpress-д бүртгэх» = дараалалд (do=nexpress); хуваарьт Claude (Haiku, Mac+Chrome) 11:30-д
+  // CZ (2026-10-29, эзэн): Gyals-д цаашид өгөхгүй → «Nexpress-д бүртгэх» = дараалалд (do=nexpress); хуваарьт Claude (Haiku, Mac+Chrome) 11:40-д
   // Nexpress вэбэд бүртгээд courier_queue_done → shipped (carrier nexpress, tracking = Nexpress дугаар). d.queue = courier_queue_view().
   const NXQ = {}; ((d.queue && d.queue.rows) || []).forEach((q) => { NXQ[q.order_id] = q; });
   const qPill = (r) => { const q = NXQ[r.order_id]; if (!q) return ''; if (q.registered_at) return '<span class="pill ok" title="Nexpress-д бүртгэгдсэн ' + esc(day(q.registered_at)) + '">Nexpress ' + esc(q.external_id || '✓') + '</span>';
-    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:30-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
+    return (q.last_error ? '<span class="pill crit" title="' + esc(q.last_error) + '">⚠ Nexpress алдаа ×' + (q.attempts || 1) + '</span>' : '<span class="pill info" title="Хуваарьт ажил 11:40-д Nexpress-д бүртгэнэ (12:00-ийн хаалтаас өмнө)">⏳ Nexpress дараалалд</span>')
       + ' <button class="btn oa" data-id="' + esc(r.order_id) + '" data-do="nexpress_undo" title="Дарааллаас хасах">болих</button>'; };
   const nxBtn = (r) => NXQ[r.order_id] && !NXQ[r.order_id].registered_at ? qPill(r)
-    : '<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="nexpress" title="Nexpress бүртгэлийн дараалалд — 11:30-д автоматаар бүртгэнэ">📦 Nexpress-д бүртгэх</button>';
+    : autoPill(r) + '<button class="btn go oa" data-id="' + esc(r.order_id) + '" data-do="nexpress" title="Nexpress бүртгэлийн дараалалд — 11:40-д автоматаар бүртгэнэ">📦 Nexpress-д бүртгэх</button>';
+  // CZ9 (2026-10-30, эзэн): автомат дараалал — pg_cron 11:35/11:39-д courier_queue_autofill() ижил дүрмээр нэмнэ; энд зөвхөн урьдчилан харуулна
+  const nxAuto = (r) => ['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && r.has_address && !!(r.stock_ready_at || r.stock_ok)
+    && (r.is_rural ? (r.stage === 'confirmed' || !!r.prepaid_at) : ((r.stage === 'confirmed' || r.placed_mode === 'live') && !(r.pay_requested_at && !r.prepaid_at)));
+  const autoPill = (r) => (nxAuto(r) && !NXQ[r.order_id] ? '<span class="pill info" title="Товч дарахгүй ч 11:35-д дараалалд орж 11:40-д Nexpress-д бүртгэгдэнэ. Өөр өдөр явуулах бол 📅 сонго, явуулахгүй бол Цуцлах.">⏱ 11:40-д автоматаар</span> ' : '');
   const callBtn = (r) => (has(r.phone) ? '<button class="btn go cb" data-tel="' + esc(r.phone) + '" title="Дугаарыг хуулаад залгана">📞 Залгах</button> ' : '');
   const SRC = { ad: 'зар', web: 'вэб', chat: 'чат', ig: 'IG чат', comment: 'сэтгэгдэл', fb: 'FB', bio: 'bio холбоос', organic: 'органик' };
   const STG = { lead: 'сонирхол', order: 'хаягтай', confirmed: 'баталгаажсан', delivered: 'хүргэгдсэн', paid: 'төлсөн', cancelled: 'цуцлагдсан', test: 'тест', duplicate: 'давхардал' };
@@ -59,7 +63,7 @@ function renderOrders(DATA, QUERY) {
 
   const out = [];
   // v3 (2026-10-22): хэсгүүдийг таб болгоно — буферт зурж, төгсгөлд нэг л таб харагдана. Хэсэг бүрийн агуулга хэвээр.
-  const T = { main: [], dsp: [], rural: [], wait: [], lead: [], other: [] };
+  const T = { main: [], dsp: [], nx: [], rural: [], wait: [], lead: [], other: [] };
   let cur = out;
   const o = (s) => cur.push(s);
   o('<!doctype html><html lang="mn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Starshopping · Захиалга</title>');
@@ -388,7 +392,7 @@ function renderOrders(DATA, QUERY) {
   });
   o('<div class="dsp"><h2 style="margin-top:10px">📦 Түгээлт</h2>');
   o('<div class="callbox" style="margin-bottom:10px"><b>Урсгал — 3 алхам</b>'
-    + '<b>Nexpress (CZ):</b> «📦 Nexpress-д бүртгэх» → дараалалд; хуваарьт Claude өдөр бүр 11:30-д (Mac + Chrome асаалттай) Nexpress вэбэд бүртгээд энд «Nexpress #…» болгоно. 12:00-оос хойш бүртгэгдсэн нь маргаашийн хүргэлт. Алдаатай мөр ⚠ улаанаар — шалтгааныг нь хулганаар харна.<br>'
+    + '<b>Nexpress (CZ):</b> «📦 Nexpress-д бүртгэх» → дараалалд; хуваарьт Claude өдөр бүр 11:40-д (Mac + Chrome асаалттай) Nexpress вэбэд бүртгээд энд «Nexpress #…» болгоно. 12:00-оос хойш бүртгэгдсэн нь маргаашийн хүргэлт. Алдаатай мөр ⚠ улаанаар — шалтгааныг нь хулганаар харна.<br>'
     + '① <b>Өдрийн жагсаалт</b>: өнөөдрийн хаягтай захиалга маргаашийн жагсаалтад автоматаар орно. Gyals-д өгөхдөө «📋 … хуулах + Gyals-д өгсөн» дар → тэр мөрүүд жагсаалтаас гарна, <b>дахин явахгүй</b>.<br>'
     + '② <b>🚚 Gyals дээр</b>: өгсөн захиалга хүргэгдтэл энд байна. Дүн ирэхээр «✓ Хүргэгдсэн» (мөнгө авсан) / «Хойшилсон» / «↩ Буцсан» дар, эсвэл доорх «📤 Gyals тайлан оруулах».<br>'
     + '③ Хүргэх өдөр нь өнгөрсөн ч «өгсөн» гэж тэмдэглээгүй мөр байвал дээр нь «⚠ Gyals-д өгсөн үү?» гэж асууна. Gyals өглөө <b>10:00</b>-д захиалга авч дуусгадаг.</div>');
@@ -517,6 +521,33 @@ function renderOrders(DATA, QUERY) {
   }
   o('</details>');
 
+  // ── CZ9 · NEXPRESS — бүртгэгдсэн хүргэлтүүд өдрөөр (эзэн 10/30: «12 цагаас хойш Mac дээрээ суухад бүртгэгдсэн бүгдийг нэг дор харна»)
+  cur = T.nx;
+  const nxReg = O.filter((r) => NXQ[r.order_id] && NXQ[r.order_id].registered_at && r.stage !== 'cancelled');
+  const nxDay = (r) => ubDate(Date.parse(NXQ[r.order_id].registered_at));
+  const NXD = {}; nxReg.forEach((r) => { const k = nxDay(r); (NXD[k] = NXD[k] || []).push(r); });
+  const nxOpenQ = O.filter((r) => NXQ[r.order_id] && !NXQ[r.order_id].registered_at && ['order', 'confirmed'].indexOf(r.stage) >= 0);
+  const nxAutoN = dsp.filter((r) => nxAuto(r) && !NXQ[r.order_id]).length;
+  {
+    o('<h2 style="margin-top:10px">🚚 Nexpress хүргэлт <span class="cnt">' + nxReg.length + ' бүртгэгдсэн</span></h2>');
+    o('<p class="sm mut">Өдөр бүр 11:35-д бэлэн захиалга дараалалд өөрөө орж, 11:40-д Claude (Mac + Chrome) Nexpress-д бүртгэнэ; 12:00-оос өмнө бүртгэгдсэн нь тэр өдөртөө хүргэгдэнэ. Та зөвхөн орон нутгийн захиалгыг залгаж «✓ Баталсан» дарна.</p>');
+    o('<div class="sm" style="margin:6px 0 10px"><b>Дараагийн бүртгэлд:</b> дараалалд ' + nxOpenQ.length + (nxAutoN ? ' · автоматаар орох ' + nxAutoN : '') + (nxReg.length ? '' : ' · бүртгэгдсэн алга') + '</div>');
+    Object.keys(NXD).sort().reverse().forEach((k) => {
+      const rows = NXD[k].slice().sort((a, b) => (a.is_rural ? 1 : 0) - (b.is_rural ? 1 : 0) || String(a.district || '').localeCompare(String(b.district || '')));
+      const dl = rows.filter((r) => r.stage === 'delivered' || r.stage === 'paid').length, pd = rows.filter((r) => r.stage === 'paid').length;
+      o('<h3>' + esc(k.slice(5).replace('-', '/')) + (k === TODAY ? ' · өнөөдөр' : '') + ' <span class="cnt">' + rows.length + ' захиалга · COD ' + big(rows.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮ · хүргэгдсэн ' + dl + ' · төлсөн ' + pd + '</span></h3>');
+      o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Дүн</th><th>Nexpress</th></tr></thead><tbody>');
+      rows.forEach((r) => {
+        const q = NXQ[r.order_id];
+        o('<tr data-keep="n-' + esc(r.order_id) + '">' + whoTd(r) + addrTd(r) + goodsTd(r) + amtTd(r)
+          + '<td><span class="pill ok" title="Бүртгэсэн ' + esc(dt(q.registered_at)) + '">' + esc(q.external_id || '✓') + '</span><br>'
+          + (r.stage === 'paid' ? '<span class="pill ok">төлсөн ' + day(r.paid_at) + '</span>' : r.stage === 'delivered' ? '<span class="pill ok">хүргэгдсэн ' + day(r.delivered_at) + '</span><span class="pill warn">тооцоо хүлээж буй</span>' : '<span class="pill info">замд · ' + esc(dt(q.registered_at)) + '</span>')
+          + (r.is_rural ? '<span class="pill">орон нутаг</span>' : '') + '</td></tr>');
+      });
+      o('</tbody></table></div>');
+    });
+    if (!nxReg.length) o('<p class="mut">Бүртгэгдсэн хүргэлт алга.</p>');
+  }
   // ── 3 · Цуцлагдсан / тест (нуусан)
   cur = T.other;
   if (others.length) {
@@ -530,6 +561,7 @@ function renderOrders(DATA, QUERY) {
   const TABS = [
     ['main', 'Хаягтай', addrMain.length, '', true],
     ['dsp', 'Түгээлт', dsp.length, [onGyals.length ? onGyals.length + ' Gyals дээр' : '', rShip.length ? rShip.length + ' орон нутаг' : '', bo.length ? bo.length + ' нөөц' : ''].filter(Boolean).join(' · '), true],
+    ['nx', 'Nexpress', nxReg.length, (nxOpenQ.length + nxAutoN) ? (nxOpenQ.length + nxAutoN) + ' дараагийн бүртгэлд' : '', true],
     ['rural', 'Орон нутаг', ruralAct.length, nUrg ? nUrg + ' яаралтай' : '', ruralAct.length > 0],
     ['wait', 'Хүлээлэг SMS', addrWait.length, '', addrWait.length > 0],
     ['lead', 'Сонирхол', leads.length, CALL.length ? CALL.length + ' залгах' : '', leads.length > 0],
@@ -541,7 +573,7 @@ function renderOrders(DATA, QUERY) {
   o('</div>');
   TABS.forEach((t) => { o('<section class="pane" data-pane="' + t[0] + '">'); out.push(...T[t[0]]); o('</section>'); });
   o('<datalist id="dl-d"></datalist>');
-  o('<footer>Блок C1 · захиалга = дүүрэг/хороо + хаяг (B1). Хаяг оруулах = захиалга + баталгаажсан. Төлсөн = хүргэгдэж мөнгөө авсан (COD); орон нутаг = 100% урьдчилж төлнө (S8). Цуцлах → нөөц дэвтэрт буцна. Шүүлт URL дээр хадгалагдана — хуваалцаж болно.</footer></div>');
+  o('<footer>Блок C1 · захиалга = дүүрэг/хороо + хаяг (B1). Хаяг оруулах = захиалга + баталгаажсан. Төлсөн = хүргэгдэж мөнгөө авсан (COD); орон нутаг = Nexpress COD, залгаж баталсны дараа бүртгэнэ (CZ6); Nexpress бүртгэл өдөр бүр 11:40 (CZ9). Цуцлах → нөөц дэвтэрт буцна. Шүүлт URL дээр хадгалагдана — хуваалцаж болно.</footer></div>');
 
   // ── үйлдлүүд
   o('<script>(function(){var U="https://starshopping.app.n8n.cloud/webhook/board-data",k="";try{k=localStorage.getItem("ss_board_key")||""}catch(x){}'
@@ -565,7 +597,7 @@ function renderOrders(DATA, QUERY) {
     + 'if(d==="delivered"&&!confirm("Хүргэгдсэн гэж тэмдэглэх үү? Мөнгө Gyals-аас ирэхэд Түгээлт → «💰 Gyals тооцоо нийлэх»-ээр бүртгэнэ."))return;'
     + 'if(d==="prepaid"&&!confirm("Мөнгө данс руу орсныг шалгасан уу?"))return;'
     + 'if(d==="deliver_sms"&&!confirm("Энэ хүнд хаяг + «маргааш хүргэнэ, авах бол Тийм гэж хариу бич» SMS явуулах уу?"))return;'
-    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",nexpress:"Nexpress дараалалд орлоо — 11:30-д автоматаар бүртгэнэ",nexpress_undo:"Дарааллаас хасав",delivered:"Хүргэгдсэн ✓ — мөнгө Gyals тооцоогоор",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
+    + 'post({action:"order",order_id:id,do:d,note:note||undefined,by:"самбар"},b,"out-o").then(function(j){say("out-o",{confirm:"Баталгаажлаа",cancel:"Цуцлагдлаа",shipped:"Ачсан гэж тэмдэглэв",prepay_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Төлбөрийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid:"Мөнгө орсон гэж бүртгэгдлээ ✓",deliver_sms:(j.already?"SMS саяхан дараалалд орсон — дахин явуулсангүй":"Хүргэлтийн SMS дараалалд орлоо — Mac-ээс 1–2 минутад явна"),prepaid_undo:"Буцаалаа",nexpress:"Nexpress дараалалд орлоо — 11:40-д автоматаар бүртгэнэ",nexpress_undo:"Дарааллаас хасав",delivered:"Хүргэгдсэн ✓ — мөнгө Gyals тооцоогоор",paid:"Төлбөр бүртгэгдлээ ✓ "+(j.paid_mnt?Number(j.paid_mnt).toLocaleString("en-US")+"₮":"")}[d]||"OK");reload()}).catch(function(){})})});'
     + 'document.querySelectorAll(".osave").forEach(function(b){b.addEventListener("click",function(){var id=b.dataset.id,dv=(document.getElementById("d-"+id).value||"").trim(),av=(document.getElementById("a-"+id).value||"").trim(),nv=(document.getElementById("n-"+id).value||"").trim();'
     + 'if(!dv||!av){say("out-o","Дүүрэг/хороо ба байр-тоот хоёулаа хэрэгтэй",true);return}'
     + 'post({action:"order",order_id:id,do:"address",district_full:dv,address_detail:av,note:nv||undefined,by:"самбар"},b,"out-o").then(function(){say("out-o","Хаяг хадгалагдлаа — захиалга баталгаажлаа ✓");reload()})'
@@ -577,7 +609,7 @@ function renderOrders(DATA, QUERY) {
     + 'document.querySelectorAll(".cpm").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean),k=b.dataset.k;cp(b.dataset.tsv).then(function(){if(!confirm(k+" жагсаалт ("+ids.length+" захиалга) хуулагдлаа — Gyals руу paste хий.\\n\\nЭдгээрийг Gyals-д ӨГСӨН гэж тэмдэглэх үү? Тэмдэглэсэн мөр жагсаалтаас гарч «Gyals дээр» хэсэгт шилжинэ, дахин явахгүй.")){say("out-o","Жагсаалт хуулагдлаа (тэмдэглээгүй)");return}b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"shipped",by:"самбар · түгээлт"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Gyals-д өгсөн гэж тэмдэглэгдлээ ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})})});'
     + 'document.querySelectorAll(".gyr").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st,note;if(st==="Цуцалсан"){note=prompt("Буцсан шалтгаан (сонголттой):","");if(note===null)return}else if(st==="Хүргэсэн"&&!confirm("Хүргэгдсэн гэж тэмдэглэх үү? Мөнгө Gyals-аас ирэхэд «💰 Gyals тооцоо нийлэх»-ээр бүртгэнэ."))return;post({action:"order",order_id:b.dataset.id,do:"gyals",status:st,note:note||undefined,by:"самбар · Gyals дээр"},b,"out-o").then(function(){say("out-o",st==="Хүргэсэн"?"Хүргэгдсэн ✓":st==="Хойшилсон"?"Хойшилсон гэж тэмдэглэв":"Буцсан — захиалга цуцлагдаж бараа нөөцөд буцлаа");reload(900)}).catch(function(){})})});'
     + 'document.querySelectorAll(".gyall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг бүгдийг нь хүргэгдсэн гэж тэмдэглэх үү? (мөнгө — «💰 Gyals тооцоо»-оор)"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"gyals",status:"Хүргэсэн",by:"самбар · Gyals дээр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга хүргэгдсэн ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
-    + 'document.querySelectorAll(".nxall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг Nexpress дараалалд оруулах уу? (11:30-д автоматаар бүртгэнэ)"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"nexpress",by:"самбар · бөөнөөр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Nexpress дараалалд ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
+    + 'document.querySelectorAll(".nxall").forEach(function(b){b.addEventListener("click",function(){var ids=(b.dataset.ids||"").split(",").filter(Boolean);if(!confirm(ids.length+" захиалгыг Nexpress дараалалд оруулах уу? (11:40-д автоматаар бүртгэнэ)"))return;b.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"nexpress",by:"самбар · бөөнөөр"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" захиалга Nexpress дараалалд ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})})});'
     + '(function(){var bx=document.querySelectorAll(".gsx"),inp=document.getElementById("gs-recv"),go=document.getElementById("gs-go");if(!go||!inp)return;'
     + 'function fm(x){return Math.round(x).toLocaleString("en-US")+"₮"}'
     + 'function calc(){var due=0,gr=0,c=0;bx.forEach(function(b){if(b.checked){due+=+b.dataset.due;gr+=+b.dataset.gross;c++}});var R=inp.value===""?null:Math.round(+inp.value),f=R===null?null:due-R;'
