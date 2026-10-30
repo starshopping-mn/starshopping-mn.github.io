@@ -227,7 +227,7 @@ function renderOrders(DATA, QUERY) {
   const stkCell = (r) => canSwap(r)
     ? '<td class="stk" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" data-al="' + ((r.stock_ready_at || r.stock_ok) ? 1 : 0) + '" data-qty="' + (n(r.qty) || 1) + '" data-lead="' + (r.stage === 'lead' ? 1 : 0) + '"><span class="mut">…</span></td>'
     : '<td class="stk"><span class="mut">—</span></td>';
-  const skuBtn = (r) => (canSwap(r) ? '<button class="btn osku" data-id="' + esc(r.order_id) + '" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" title="Өнгө/размерыг солих (мэдэгдэл явахгүй)">🔁 Бараа солих</button><div class="frm sku" id="k-' + esc(r.order_id) + '"></div>' : '');
+  const skuBtn = (r) => (canSwap(r) ? '<button class="btn osku" data-id="' + esc(r.order_id) + '" data-slug="' + esc(r.slug) + '" data-var="' + esc(r.variant || '') + '" data-qty="' + (n(r.qty) || 1) + '" title="Өнгө/размер эсвэл тоог солих (мэдэгдэл явахгүй)">🔁 Бараа / тоо солих</button><div class="frm sku" id="k-' + esc(r.order_id) + '"></div>' : '');
   const table = (rows, kind, empty) => {
     o('<div class="tw"><table class="ot"><colgroup><col style="width:7%"><col style="width:9%"><col style="width:12%"><col style="width:14%"><col style="width:12%"><col style="width:15%"><col style="width:13%"><col style="width:18%"></colgroup><thead><tr><th>Огноо</th><th>Эх үүсвэр</th><th>Хэн</th><th>Бараа</th><th>Нөөц</th><th>Хаяг</th><th>Төлөв</th><th>Үйлдэл</th></tr></thead><tbody>');
     rows.forEach((r) => o(row(r, kind)));
@@ -628,8 +628,21 @@ function ssStockUI(post, say, reload, e) {
         K.sort(function (a, b2) { return (ck ? ((b2.size === ck.size) - (a.size === ck.size)) || ((b2.color === ck.color) - (a.color === ck.color)) : 0) || ((num(b2.available) > 0) - (num(a.available) > 0)) || (num(b2.available) - num(a.available)); });
         f.innerHTML = '<div class="sm mut">Одоо: <b>' + e(cur || '—') + '</b></div><select>' + K.map(function (k, i) {
           var L = lab(k); return '<option value="' + i + '"' + (L === cur ? ' disabled' : '') + '>' + e(L) + ' · ' + (num(k.available) > 0 ? 'сул ' + num(k.available) : 'дууссан') + (L === cur ? ' (одоогийн)' : '') + '</option>';
-        }).join('') + '</select><button class="btn go">Солих</button><div class="sm mut">Мэдэгдэл явахгүй. Хуучин хувилбар оноогдсон байсан бол чөлөөлөгдөж хүлээж буй өөр захиалгад шилжинэ.</div>';
-        var sel = f.querySelector('select'), go = f.querySelector('button');
+        }).join('') + '</select><button class="btn go">Солих</button><div class="sm mut">Мэдэгдэл явахгүй. Хуучин хувилбар оноогдсон байсан бол чөлөөлөгдөж хүлээж буй өөр захиалгад шилжинэ.</div>'
+          // CZ4 (2026-10-30, эзэн): захиалгын тоо засах — order_action do=qty
+          + '<div class="sm" style="margin-top:10px;border-top:1px dashed var(--bd,#ddd);padding-top:8px">Тоо: <input class="qin" type="number" min="1" max="20" step="1" value="' + (Number(b.dataset.qty) || 1) + '" style="width:60px"> <button class="btn qgo">Тоо хадгалах</button></div>';
+        var sel = f.querySelector('select'), go = f.querySelector('button.go');
+        var qin = f.querySelector('.qin'), qgo = f.querySelector('.qgo'), q0 = Number(b.dataset.qty) || 1;
+        qgo.addEventListener('click', function () {
+          var q = Math.round(Number(qin.value));
+          if (!(q >= 1 && q <= 20)) { say('out-o', 'Тоо 1–20 байх ёстой', true); return; }
+          if (q === q0) { say('out-o', 'Тоо өөрчлөгдөөгүй'); return; }
+          if (!confirm('Захиалгын тоог ' + q0 + ' → ' + q + ' болгох уу? (SMS явахгүй)')) return;
+          post({ action: 'order', order_id: id, do: 'qty', qty: q, by: 'самбар' }, qgo, 'out-o').then(function (j) {
+            say('out-o', j.unchanged ? 'Тоо өөрчлөгдөөгүй' : 'Тоо ' + j.old + ' → ' + j.qty + ' болов ✓');
+            reload(900);
+          }).catch(function () {});
+        });
         for (var i = 0; i < sel.options.length; i++) if (!sel.options[i].disabled) { sel.selectedIndex = i; break; }
         f.classList.add('on');
         go.addEventListener('click', function () {
