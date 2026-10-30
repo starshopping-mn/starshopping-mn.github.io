@@ -156,7 +156,7 @@ function renderOps(DATA, QUERY) {
       A(po.items).forEach((it) => o('<tr><td>' + esc(it.label || it.sku_id) + (it.sku_id ? '' : ' <span class="sm mut">дагалдах</span>') + '</td><td>' + n(it.qty) + '</td><td>' + n(it.received_qty) + '</td>'
         + (open ? '<td><input class="q" type="number" min="0" max="' + n(it.qty) + '" data-po="' + n(po.po_id) + '" data-item="' + n(it.id) + '" placeholder="' + (n(it.qty) - n(it.received_qty)) + '"></td>' : '') + '</tr>'));
       o('</table></div>');
-      if (open) o('<div style="margin-top:8px"><button class="btn go recv" data-po="' + n(po.po_id) + '">Бараа хүлээн авах → дэвтэр + хуваарилалт + SMS</button> '
+      if (open) o('<div style="margin-top:8px"><button class="btn go recv" data-po="' + n(po.po_id) + '">Бараа хүлээн авах → нөөцөд + захиалгад оноох + SMS зөвхөн хаяггүйд</button> '
         + '<button class="btn pst" data-po="' + n(po.po_id) + '" data-st="shipped">ачигдсан</button><button class="btn pst" data-po="' + n(po.po_id) + '" data-st="ereen">Эрээнд</button>'
         + '<input id="eta-' + n(po.po_id) + '" type="date" value="' + esc(po.eta || '') + '" title="УБ-д ирэх"><button class="btn pst" data-po="' + n(po.po_id) + '" data-st="eta">ETA хадгалах</button></div>');
       o('</div>');
