@@ -37,6 +37,7 @@ function renderOps(DATA, QUERY) {
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px}h3{font-size:13.5px;margin:14px 0 6px}'
     + 'table.ot tr.tot td{font-weight:700;background:var(--s2)}'
+    + 'table.ot tr.urg td{background:rgba(220,38,38,.09)}table.ot tr.urg td:first-child{box-shadow:inset 4px 0 0 #dc2626}'
     + '.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:820px){.grid2{grid-template-columns:1fr}table.ot{font-size:12px}.kp b{font-size:18px}}'
     + '.po{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;margin:8px 0}.po .hdp{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}.po .hdp b{font-size:13.5px}.po table{width:100%;font-size:12.5px;border-collapse:collapse;margin-top:6px}.po td,.po th{padding:4px 6px;border-top:1px solid var(--ln3);text-align:left}.po input.q{width:64px}'
     + '.cash{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.cash div{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:10px 12px}.cash b{display:block;font-size:18px}.cash span{font-size:11.5px;color:var(--mut)}'
@@ -87,6 +88,34 @@ function renderOps(DATA, QUERY) {
       o('</tbody></table></div>');
       if (CU) o('<p class="sm mut" style="margin:4px 0 10px">' + carrierName + '-аас агуулахын тоогоо авч энэ баганатай тулга: агуулах ' + n(CU.on_hand) + ' + амлагдсан ' + n(CU.committed) + ' + хүргэлтэнд ' + n(CU.on_road) + ' = <b>' + n(CU.at_courier) + 'ш</b> (өртгөөр ' + mnt(CU.value_mnt) + '). Зөрвөл бараа алга болсон эсвэл бүртгэл дутуу.</p>');
     });
+    // CZ12 (2026-10-30, эзэн «нөөцийг ухаалаг барих»): Nexpress агуулахын тоо ↔ манай дэвтэр. Тэнцэл: Nexpress үлдэгдэл = өгсөн − (замд + хүргэгдсэн);
+    // манай (чөлөөт + амлагдсан) − тэр = Nexpress-ээс гадуур байгаа тоо (≥0). Зөрүүг тал талд нь ялгаж харуулна. Тоог 21:05-ийн синк Nexpress-ээс уншина.
+    const CS = d.courier_stock || null;
+    if (CS && A(CS.rows).length) {
+      o('<h2>🚚 Nexpress агуулахын нөөц' + (n(CS.n_warn) ? ' <span class="pill crit">⚠ ' + n(CS.n_warn) + ' зөрүү</span>' : ' <span class="pill ok">✓ тулсан</span>') + '</h2><div class="out" id="out-cs"></div>');
+      o('<p class="sm mut" style="margin:-2px 0 8px">Nexpress-ийн «Нийт үлдэгдэл» = бидний өгсөн − (замд + хүргэгдсэн); цуцлагдсан нь буцаж нэмэгдэнэ. Манай «чөлөөт + амлагдсан» үүнтэй тэнцэх ёстой (бүх нөөц Nexpress-д байвал). Тоог өдөр бүр 21:05-д Nexpress-ээс уншина.</p>');
+      o('<div class="tw"><table class="ot"><colgroup><col style="width:22%"><col><col><col><col><col><col><col><col style="width:22%"></colgroup><thead><tr><th>Nexpress бараа</th><th>Nexpress үлдэгдэл</th><th>Манай тооцоо</th><th>Өгсөн</th><th>Замд</th><th>Хүргэгдсэн</th><th>Чөлөөт + амлагдсан</th><th>Nexpress-ээс гадуур</th><th>Төлөв</th></tr></thead><tbody>');
+      A(CS.rows).forEach((r) => {
+        const okR = r.status === 'ok';
+        o('<tr' + (okR ? '' : ' class="urg"') + '><td><b>' + esc(r.ext_name) + '</b><br><span class="sm mut">' + A(r.skus).map((k) => esc(k.sku_id)).join(', ') + '</span></td>'
+          + '<td><b>' + (has(r.reported) ? n(r.reported) : '—') + '</b>' + (r.seen_at ? '<br><span class="sm mut">' + esc(dt(r.seen_at)) + '</span>' : '<br><span class="sm mut">уншаагүй</span>') + '</td>'
+          + '<td><b>' + n(r.expected) + '</b>' + (has(r.diff_nx) && n(r.diff_nx) !== 0 ? '<br><span class="pill crit">зөрүү ' + (n(r.diff_nx) > 0 ? '+' : '') + n(r.diff_nx) + '</span>' : '') + '</td>'
+          + '<td>' + n(r.handed) + '</td><td>' + n(r.open) + '</td><td>' + n(r.delivered) + (n(r.cancelled) ? '<br><span class="sm mut">цуцлагдсан ' + n(r.cancelled) + '</span>' : '') + '</td>'
+          + '<td>' + (n(r.on_hand) + n(r.committed)) + '<br><span class="sm mut">' + n(r.on_hand) + ' + ' + n(r.committed) + '</span></td>'
+          + '<td>' + (n(r.elsewhere) < 0 ? '<span class="pill crit">' + n(r.elsewhere) + '</span>' : n(r.elsewhere)) + '</td>'
+          + '<td>' + (okR ? '<span class="pill ok">✓</span>' : '<span class="pill crit">⚠</span> <span class="sm">' + esc(r.note || '') + '</span>') + '</td></tr>');
+      });
+      o('</tbody></table></div>');
+      const skuOpts = [];
+      SP.forEach((p) => A(p.skus).forEach((k) => skuOpts.push('<option value="' + esc(k.sku_id) + '">' + esc(p.name) + ' · ' + esc([k.color, k.size].filter(Boolean).join(' ') || k.sku_id) + ' (чөлөөт ' + n(k.available) + ')</option>')));
+      o('<details class="po" style="margin:8px 0 4px"><summary><b>📦 Nexpress-д өгсөн / буцааж авсан — бичих</b></summary><div class="frm on">'
+        + '<p class="sm mut" style="margin:0 0 6px">Бараа Nexpress агуулахад биечлэн өгөх бүрт энд бичнэ — тэгж байж дээрх тэнцэл үнэн байна. Nexpress-ийн бүтээгдэхүүнд SKU холбогдоогүй бол (жишээ хантааз) эхлээд Nexpress-д бүтээгдэхүүн үүсгээд надад хэл.</p>'
+        + '<select id="cs-sku">' + skuOpts.join('') + '</select> '
+        + '<select id="cs-reason"><option value="handover">Nexpress-д өгсөн (+)</option><option value="take_back">Nexpress-ээс буцааж авсан (−)</option><option value="adjust">Засвар (± тоо)</option></select> '
+        + '<input id="cs-qty" type="number" inputmode="numeric" placeholder="тоо" style="width:80px"> '
+        + '<input id="cs-note" type="text" placeholder="тайлбар (сонголттой)" style="width:220px"> '
+        + '<button class="btn go" id="cs-go">Бичих</button></div></details>');
+    }
     // S3 (2026-10-05): дараагийн ачааны жагсаалт — өнөөдрийн ачаанд багтаагүй, хаягтай захиалгууд (FIFO). Залгах жагсаалт.
     const WL = d.waitlist;
     if (Array.isArray(WL)) {
@@ -184,6 +213,9 @@ function renderOps(DATA, QUERY) {
     + 'if(!items.length){say("out-po","Ирсэн тоог мөр бүрт бичнэ үү (хоосон = ирээгүй)",true);return}'
     + 'if(!confirm("Хүлээн авах: "+items.reduce(function(s,x){return s+x.qty},0)+" ш. Дэвтэрт бичиж, бүрэн захиалгуудад хуваарилж, SMS дараалалд оруулна. Үргэлжлүүлэх үү?"))return;'
     + 'post({action:"receive",po_id:Number(po),items:items,by:"самбар"},b,"out-po").then(function(j){say("out-po","Ирсэн "+j.received+" ш · хуваарилагдсан захиалга "+j.allocated_orders+" · SMS дараалалд "+j.queued_sms);reload(1200)})})});'
+    + 'var csg=document.getElementById("cs-go");if(csg)csg.addEventListener("click",function(){var sku=document.getElementById("cs-sku").value,rs=document.getElementById("cs-reason").value,q=parseInt(document.getElementById("cs-qty").value,10),nt=document.getElementById("cs-note").value.trim();'
+    + 'if(!sku||!q){say("out-cs","SKU ба тоог оруулна уу",true);return}if(!confirm((rs==="handover"?"Nexpress-д өгсөн: ":rs==="take_back"?"Nexpress-ээс буцааж авсан: ":"Засвар: ")+q+" ш · "+sku+"\n\nНөөцийн дэвтэрт (in/sale) НӨЛӨӨЛӨХГҮЙ — зөвхөн хаана байгааг тэмдэглэнэ. Зөв үү?"))return;'
+    + 'post({action:"courier_stock",sku_id:sku,reason:rs,qty:q,note:nt||undefined,by:"самбар"},csg,"out-cs").then(function(j){say("out-cs","Бичлээ · Nexpress-д нийт "+j.handed_total+" ш ("+sku+")");reload(1000)})});'
     + 'document.querySelectorAll(".pst").forEach(function(b){b.addEventListener("click",function(){var po=Number(b.dataset.po),st=b.dataset.st,body={action:"po",po_id:po};'
     + 'if(st==="eta"){var v=(document.getElementById("eta-"+po)||{}).value;if(!v){say("out-po","ETA огноо сонгоно уу",true);return}body.eta=v}else body.status=st;'
     + 'post(body,b,"out-po").then(function(){say("out-po","PO шинэчлэгдлээ");reload()})})});'
