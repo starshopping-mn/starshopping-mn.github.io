@@ -35,7 +35,8 @@ function ssNav(on, themeQ) {
     board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all' }, rep_m: { view: 'report', range: 'month' } }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: { waitlist: 'waitlist', reorder: 'reorder' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
-    money:    { data: 'money',    extra: {}, render: 'renderMoney', passQuery: true } // блок C2: мөнгө — зардал vs орлого, дэвтэр
+    money:    { data: 'money2',   extra: {}, render: 'renderMoney2', passQuery: true }, // блок DB (10-31): мөнгө v2 — money_summary нэг дуудлага
+    money_old: { data: 'money',   extra: {}, render: 'renderMoney', passQuery: true }  // блок C2: хуучин мөнгө — ангилал, дэвтэр, сан (v2-ийн «Дэлгэрэнгүй»)
   };
   // C3: хуучин хаягууд → шинэ хуудас (хуучин холбоос, Telegram мессеж ажилласаар)
   var tqq = q.theme ? '&theme=' + q.theme : '';
