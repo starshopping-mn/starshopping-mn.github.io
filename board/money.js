@@ -196,7 +196,7 @@ function renderMoney(DATA, QUERY) {
 
   // ── хугацаа
   o('<form class="per" method="get" action="/board/"><input type="hidden" name="view" value="money">' + (themeQ ? '<input type="hidden" name="theme" value="' + themeQ + '">' : ''));
-  presets.forEach((p) => o('<a class="' + (p[1] + '→' + p[2] === cur ? 'on' : '') + '" href="/board/?view=money&amp;from=' + p[1] + '&amp;to=' + p[2] + tq + '">' + p[0] + '</a>'));
+  presets.forEach((p) => o('<a class="' + (p[1] + '→' + p[2] === cur ? 'on' : '') + '" href="/board/?view=money_old&amp;from=' + p[1] + '&amp;to=' + p[2] + tq + '">' + p[0] + '</a>'));
   o('<span class="mut">·</span> <input type="date" name="from" value="' + esc(d.from || '') + '"> – <input type="date" name="to" value="' + esc(d.to || '') + '"> <button class="btn">Харах</button>'
     + '<span class="sm mut" style="margin-left:auto">' + esc(day(d.from)) + ' – ' + esc(day(d.to)) + ' · ханш $' + n(FX.usd).toLocaleString('en-US') + ' · ¥' + n(FX.cny) + '</span></form>');
 
