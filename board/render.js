@@ -404,6 +404,9 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
         + row('Хүлээгдэж буйтай цэвэр', MSG(nt.expected))
         + '<div class="si sn">Одоогоор бараа замдаа тул зардал түрүүлж, орлого дараа орно. Бодит цэвэр хүргэлт эхэлмэгц засарна.</div>';
     }
+    // DF (2026-11-01): тоо аль хугацааных болохыг заавал харуулна (сар / нийт хоёр өөр тоо өгдөг тул андуурал гардаг байсан)
+    const per = (M.from || M.to) ? ' · ' + String(M.from || '').slice(5, 10).replace('-', '/') + '–' + String(M.to || '').slice(5, 10).replace('-', '/') : '';
+    if (per) s = s.replace(/(<div class="ks">)([\s\S]*?)(<\/div>)$/, function (_m, a1, a2, a3) { return a1 + a2 + per + a3; });
     return { s: '<div class="per ' + cls + '">' + s + '</div>', p: '<div class="per ' + cls + '">' + p + '</div>' };
   }
   function moneyTile(kind, label, extraCls) {
