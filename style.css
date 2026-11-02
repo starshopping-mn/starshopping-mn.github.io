@@ -1659,3 +1659,9 @@ body { letter-spacing: -0.01em; }
   .pdp4__info { padding-top: 0.4rem; }
   .pdp4__feat, .pdp4__steps, .pdp4__acc { max-width: 520px; }
 }
+
+/* DS (2026-11-02): өөрөө очиж авах цэг */
+.pickup { margin: 0 0 0.9rem; font-size: 0.86rem; line-height: 1.55; color: var(--fg-dim); }
+.pickup b { display: block; color: var(--fg); font-size: 0.78rem; margin-bottom: 0.15rem; }
+.pickup a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+.pickline { margin-top: 0.35rem; }
