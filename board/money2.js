@@ -129,6 +129,8 @@ function renderMoney2(DATA, QUERY) {
   o('<div class="ln"><span>Борлуулалт (мөнгө орсон · ' + sold + ' захиалга)</span><b class="nm">' + num(PL.revenue) + '</b></div>');
   o('<div class="ln"><span class="mu">− Зарагдсан барааны өртөг</span><span class="nm">' + num(PL.cogs) + '</span></div>');
   o('<div class="ln"><span class="mu">− Хүргэлтийн хөлс</span><span class="nm">' + num(PL.fees) + '</span></div>');
+  // DU (2026-11-02): хүргэгчийн алдагдал (Gyals хураасан мөнгөө дутуу шилжүүлсэн) — хөлснөөс тусдаа, нэг удаагийн
+  if (n(PL.loss)) o('<div class="ln"><span class="mu">− Хүргэгчийн алдагдал <span class="sb">(Gyals дутуу тооцоо · нэг удаа)</span></span><span class="nm neg">' + num(PL.loss) + '</span></div>');
   o('<div class="ln"><span class="mu">− Зар</span><span class="nm">' + num(PL.ads) + '</span></div>');
   o('<div class="ln hl"><span><b>Бохир ашиг</b> · захиалга бүрээс</span><b class="nm ' + (contrib >= 0 ? 'pos' : 'neg') + '">' + sg(contrib) + '</b></div>');
   o('<div class="ln"><span class="mu">− Тогтмол зардал (хэрэгсэл ' + num(toolsSum) + (otherFixed ? ' · бусад ' + num(otherFixed) : '') + ')</span><span class="nm">' + num(fixed) + '</span></div>');
