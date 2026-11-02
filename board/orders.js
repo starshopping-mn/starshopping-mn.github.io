@@ -274,19 +274,19 @@ function renderOrders(DATA, QUERY) {
       st = (urgent ? '<span class="pill crit">🔴 яаралтай залга</span>' : '<span class="pill info">📞 залгаж батлах</span>')
         + '<span class="pill">Nexpress авахдаа ' + mnt(r.amount_mnt) + '</span>' + rDate(r);
       acts = callBtn(r) + '<button class="btn go oa" data-id="' + id + '" data-do="confirm" title="Утсаар ярьж тохирсон — Nexpress-д бүртгэх жагсаалт руу (мэдэгдэл явахгүй)">✓ Баталсан</button> '
-        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> <button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>' + addrForm(r);
+        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> <button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button> ' + skuBtn(r) + addrForm(r);   // EC (2026-11-02, эзэн): орон нутагт ч бараа/тоо солих
     } else if (mode === 'pay') {
       // CZ2 (2026-10-30, эзэн): орон нутагт Nexpress өөрөө залгаж тооцоо авна → урьдчилгаа шаардахгүй, авах дүн = үнэ (COD)
       st = '<span class="pill ok">✓ баталсан' + (r.confirmed_at ? ' ' + dt(r.confirmed_at) : '') + '</span>'
         + '<span class="pill">Nexpress авахдаа ' + mnt(r.amount_mnt) + '</span>' + (r.pay_requested_at ? '<span class="pill ok">урьдчилгааны SMS явсан ' + dt(r.pay_requested_at) + '</span>' : '') + rDate(r);
       acts = callBtn(r) + nxBtn(r) + ' '
         + '<button class="btn oa" data-id="' + id + '" data-do="prepaid" title="Хэрэв урьдчилж шилжүүлсэн бол — Nexpress авах дүн 0 болно">✓ урьдчилж төлсөн</button> '
-        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> <button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button>' + addrForm(r);
+        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> <button class="btn stop oa" data-id="' + id + '" data-do="cancel">Цуцлах</button> ' + skuBtn(r) + addrForm(r);   // EC (2026-11-02, эзэн): орон нутагт ч бараа/тоо солих
     } else if (mode === 'ship') {
       st = '<span class="pill ok">төлсөн ' + mnt(r.prepaid_mnt) + ' · ' + dt(r.prepaid_at) + '</span>';
       acts = '<button class="btn go oa" data-id="' + id + '" data-do="shipped" title="Хүргэгч/унаанд өгсөн">Хүргэлтэд өглөө</button> '
         + '<button class="btn oa" data-id="' + id + '" data-do="prepaid_undo" title="Андуурч дарсан бол">↩ мөнгө орсонгүй</button> '
-        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button>' + addrForm(r);
+        + '<button class="btn oa" data-id="' + id + '" data-do="addr">Хаяг засах</button> ' + skuBtn(r) + addrForm(r);
     } else {
       st = '<span class="pill">бараа ирээгүй</span>';
       acts = '<span class="sm mut">Бараа ирмэгц «залгах» жагсаалтад орно</span>';
