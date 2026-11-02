@@ -3056,13 +3056,16 @@ async function renderOrder() {
       );
     }
 
-    /* BR: Purchase only now — an address makes it an order (B1). Same eventID
-       as the order id, so a server-side event for the same order dedups. */
+    /* DX (2026-11-02): an address is not yet a purchase — 12% of these later
+       cancelled or were refused at the door. The browser now reports
+       AddPaymentInfo; the server sends Purchase only when the goods are
+       delivered or paid (capi_sweep), so Meta learns from real buyers. The
+       eventID "addr:<order>" dedups with the server twin. */
     if (window.fbq && !placed.ownerTest && !placed.dup && !placed.purchased) {
       placed.purchased = true;
       fbq(
         "track",
-        "Purchase",
+        "AddPaymentInfo",
         {
           content_ids: [placed.slug],
           content_type: "product",
@@ -3070,7 +3073,7 @@ async function renderOrder() {
           num_items: Number(placed.qty) || 1,
           ...pixelValue(Number(placed.goods) || goodsNow()),
         },
-        { eventID: String(placed.orderId || "") }
+        { eventID: "addr:" + String(placed.orderId || "") }
       );
     }
     saveDone({ ship: shipPrice, shipName, payment, total: (Number(placed.goods) || goodsNow()) + shipPrice, noAddress: false });
