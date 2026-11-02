@@ -43,7 +43,7 @@ function ssPlanCard(plan, opt) {
     });
     h += '</tbody></table></div>';
     h += '<div class="foot">' + (plan.ads_on === false ? '<b>⚠️ Зар унтарсан — шинэ борлуулалт тооцоогүй;</b> зөвхөн хүргэлтэнд байгаа захиалгын мөнгө. Зар асаахад өөрөө дахин бодогдоно. ' : '') + 'Орлого = хүргэлтэд өгсөн × ' + Math.round(n(AS.ratio_shipped) * 100) + '% − хөлс ' + n(AS.gyals_fee_mnt).toLocaleString('en-US') + '₮, ' + n(AS.gyals_lag_days) + ' хоногийн хоцролттой. Борлуулалт нөөцөөр хязгаарлагдана — «дууссан» долоо хоног = алдсан орлого'
-      + (F.short_units && Object.keys(F.short_units).length ? ' (' + Object.keys(F.short_units).map((k) => k + ' ' + n(F.short_units[k]) + 'ш').join(', ') + ')' : '') + '. Хамгийн бага үлдэгдэл ' + big(F.min_balance) + ' (доод хязгаар ' + big(F.floor) + '). Долоо хоног бүр Gyals-ын тооцооны дараа дахин бодогдоно.</div>';
+      + (F.short_units && Object.keys(F.short_units).length ? ' (' + Object.keys(F.short_units).map((k) => k + ' ' + n(F.short_units[k]) + 'ш').join(', ') + ')' : '') + '. Хамгийн бага үлдэгдэл ' + big(F.min_balance) + ' (доод хязгаар ' + big(F.floor) + '). Долоо хоног бүр хүргэлтийн тооцооны дараа дахин бодогдоно.</div>';
   }
   h += '</div>';
   return h;
@@ -362,8 +362,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       p = row('Төлөгдсөн (бодит орлого)', mnt(rv.paid) + ' · ' + n(rv.paid_n) + ' захиалга', 'good')
         + row('Хүргэгдсэн, төлөгдөөгүй', mnt(rv.delivered_unpaid))
         + row('Захиалсан, хүргэгдээгүй', mnt(rv.pipeline_gross) + ' · ' + n(rv.pipeline_n))
-        + row('Хүлээгдэх (Gyals-д өгсөн ' + Math.round(n(has(M.ratio_shipped) ? M.ratio_shipped : M.ratio) * 100) + '% · бусад хаягтай ' + Math.round(n(M.ratio) * 100) + '% хүргэгддэг)', mnt(rv.pipeline_expected))
-        + (n(rv.delivery_cost) ? row('Gyals хүргэлтийн хөлс', '−' + mnt(rv.delivery_cost)) + row('Цэвэр орлого (хөлс хассан)', mnt(rv.net), 'good') : '');
+        + row('Хүлээгдэх (хүргэлтэд өгсөн ' + Math.round(n(has(M.ratio_shipped) ? M.ratio_shipped : M.ratio) * 100) + '% · бусад хаягтай ' + Math.round(n(M.ratio) * 100) + '% хүргэгддэг)', mnt(rv.pipeline_expected))
+        + (n(rv.delivery_cost) ? row('Хүргэлтийн хөлс', '−' + mnt(rv.delivery_cost)) + row('Цэвэр орлого (хөлс хассан)', mnt(rv.net), 'good') : '');
       bp.filter((x) => n(x.paid) > 0 || n(x.pipeline_gross) > 0).forEach((x) =>
         p += row('· ' + (x.name || x.slug), mnt(x.paid) + (n(x.pipeline_gross) ? ' (+' + short(x.pipeline_gross) + ' захиалсан)' : '')));
       p += '<div class="si sn">Үндсэн орлого = мөнгө нь орж ирсэн захиалга. «Захиалсан» нь хүргэлт баталгаажаагүй тул орлогод тооцогдоогүй.</div>';
@@ -981,7 +981,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   if (wns.length) P('<div class="note">⚠️ ' + wns.map(esc).join('<br>⚠️ ') + '</div>');
   P('<div class="note">Сүүлийн мессеж '
     + esc(ago(PU.last_inbound)) + ' · захиалга ' + esc(ago(PU.last_order)) + ' өмнө.</div>');
-  P('<div class="note">Орлого = мөнгө нь орж ирсэн захиалга. Хүргэгдсэн ч төлбөр бүртгэгдээгүй захиалга орлогод ороогүй — Gyals-ын тооцоо ирмэгц «Төлсөн» болгоно.</div>');
+  P('<div class="note">Орлого = мөнгө нь орж ирсэн захиалга. Хүргэгдсэн ч төлбөр бүртгэгдээгүй захиалга орлогод ороогүй — хүргэлтийн тооцоо ирмэгц «Төлсөн» болгоно.</div>');
   P('</div></div>');
 
   cur = B.tests;
@@ -1090,7 +1090,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<div class="note4">Сүүлийн мессеж ' + esc(ago(PU.last_inbound)) + ' өмнө. Чат SendPulse → Supabase bot-ingest-ээр ирдэг; «хүнтэй ярих» гэвэл Telegram-д ирнэ.</div></section>');
   // ordr
   P('<section class="pane4" data-pane="ordr"><div class="k4">' + kv4('захиалга 24ц', n(PU.orders)) + kv4('шалгах', n(C.needs_review), n(C.needs_review) ? 'c' : '') + kv4('нийт', n(C.orders)) + kv4('сүүлийн захиалга', ago(PU.last_order) + ' өмнө') + '</div>');
-  P('<div class="acts4">' + fl(ordersQ(''), 'Захиалга хуудас') + fl(ordersQ('&tab=dsp'), 'Түгээлт · Gyals') + fl(BASE + '/form/order', 'Гар захиалга', true) + '</div></section>');
+  P('<div class="acts4">' + fl(ordersQ(''), 'Захиалга хуудас') + fl(ordersQ('&tab=dsp'), 'Түгээлт · Nexpress') + fl(BASE + '/form/order', 'Гар захиалга', true) + '</div></section>');
   // conf
   P('<section class="pane4" data-pane="conf"><div class="k4">' + kv4('хүлээгдэж буй', n(C.awaiting_confirm), n(C.awaiting_confirm) ? 'w' : '') + kv4('утсаар залгах', toCall.length, toCall.length ? 'c' : '') + kv4('баталгаажсан %', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—') + kv4('хаяг дутуу', n(has(CF.leads_noaddr) ? CF.leads_noaddr : CF.to_call)) + '</div>');
   if (CF.verdict || CF.mode) P('<div class="note4">' + esc(CF.verdict || '') + (CF.mode ? '<br><span class="mut">' + esc(CF.mode) + '</span>' : '') + '</div>');
