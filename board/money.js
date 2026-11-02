@@ -70,7 +70,7 @@ function renderMoney(DATA, QUERY) {
     const pv = (k) => (POL[k] && has(POL[k].value) ? n(POL[k].value) : '');
     const pn = (k) => (POL[k] && POL[k].note ? String(POL[k].note) : '');
     // CL (2026-10-26): данс бүрийн үүрэг · дугтуй · 8 долоо хоногийн урсгал · захиалгын цэг (cash_plan)
-    o('<h2 style="margin-top:14px">💼 Мөнгөний төлөвлөгөө <span class="cnt">① USD тогтмол зардал → ② ₮ доод хязгаар → ③ бараа → ④ ашиг · долоо хоног бүр Gyals-ын тооцооны дараа</span></h2>');
+    o('<h2 style="margin-top:14px">💼 Мөнгөний төлөвлөгөө <span class="cnt">① USD тогтмол зардал → ② ₮ доод хязгаар → ③ бараа → ④ ашиг · долоо хоног бүр хүргэлтийн тооцооны дараа</span></h2>');
     o(typeof ssPlanCard === 'function' ? ssPlanCard(E.plan, {}) : '<p class="sm mut">render.js ачаалагдаагүй.</p>');
     o('<h2 style="margin-top:14px">💰 Мөнгөний хөдөлгүүр <span class="cnt">бэлэн → нөөц сан → татан авалт → чөлөөт → хөрөнгө оруулалт · өдөр бүр 09:30 шалгаж Telegram-д мэдэгдэнэ</span></h2>');
     o('<div class="eng">'
@@ -220,9 +220,9 @@ function renderMoney(DATA, QUERY) {
   // CH (2026-10-25, эзэн): НИЙТ ОРЛОГО = данс руу бодит орсон мөнгө − Gyals-ын хүргэлтийн хөлс; НИЙТ ЗАРЛАГА = бусад бүх зардал; НИЙТ АШИГ = орлого − зарлага.
   const gyFee = n(C.delivery), revNet = has(R.net) ? n(R.net) : revReal - gyFee, costEx = costTotal - gyFee;
   o('<div class="hero">'
-    + '<div class="' + (revNet > 0 ? 'pos' : '') + '"><b>+' + big(revNet) + '</b><span>НИЙТ ОРЛОГО (цэвэр) · данс руу орсон ' + n(R.paid_n) + ' захиалга ' + big(revReal) + ' − Gyals хүргэлтийн хөлс ' + big(gyFee)
+    + '<div class="' + (revNet > 0 ? 'pos' : '') + '"><b>+' + big(revNet) + '</b><span>НИЙТ ОРЛОГО (цэвэр) · данс руу орсон ' + n(R.paid_n) + ' захиалга ' + big(revReal) + ' − хүргэлтийн хөлс ' + big(gyFee)
       + (n(R.prepaid_n) ? ' · үүнээс урьдчилж төлсөн ' + n(R.prepaid_n) + ' (' + big(R.prepaid) + ')' : '')
-      + (revDelivUnpaid ? ' · <b style="display:inline;font-size:inherit">Gyals-аас ирэх ' + big(revDelivUnpaid) + '</b> (' + n(R.delivered_unpaid_n) + ' хүргэгдсэн, тооцоо нийлээгүй)' : '') + '</span></div>'
+      + (revDelivUnpaid ? ' · <b style="display:inline;font-size:inherit">Хүргэлтээс ирэх ' + big(revDelivUnpaid) + '</b> (' + n(R.delivered_unpaid_n) + ' хүргэгдсэн, тооцоо нийлээгүй)' : '') + '</span></div>'
     + '<div class="cost"><b>−' + big(costEx) + '</b><span>НИЙТ ЗАРЛАГА · бараа+карго ' + big(G.total) + ' · зар ' + big(AD.total) + ' · хэрэгсэл ' + big(T.total) + (n(C.other) ? ' · бусад ' + big(C.other) : '') + '</span></div>'
     + '<div class="' + (n(N.real) < 0 ? 'neg' : 'pos') + '"><b>' + sign(N.real) + '</b><span>НИЙТ АШИГ = цэвэр орлого − бүх зарлага</span></div>'
     + (has(R.inventory_mnt) ? '<div><b>' + big(n(R.inventory_mnt) + n(R.in_transit_mnt)) + '</b><span>БАРАА (өртгөөр) · агуулахад ' + n(R.inventory_units) + ' ш ' + big(R.inventory_mnt) + (n(R.in_transit_mnt) ? ' · замд ' + big(R.in_transit_mnt) : '') + ' · ашиг + бараа = ' + sign(N.with_stock) + '</span></div>' : '')
