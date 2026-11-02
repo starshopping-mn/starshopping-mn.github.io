@@ -90,6 +90,7 @@ function renderOps(DATA, QUERY) {
   o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Starshopping</div>');
   o('<div class="bs">нөөц · PO · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
+  o(ssNav('ops', themeQ));
   /* ── v2 (блок DR, 2026-11-02, эзэн «таалагдлаа, зөвшөөрлөө»): дүгнэлт → бараа хаана → бараа бүр → Nexpress тулгалт → татан авалт → өгөгдлийн шалгалт → систем → дэлгэрэнгүй/үйлдэл.
      Өгөгдөл = stock_position() (DR): хувилбар бүрт now/incoming/eta, pipeline, accessories, health. Хуучин хүснэгт, маягт, үйлдлүүд доод «Дэлгэрэнгүй»-д хэвээр. */
   const CU = d.custody || (ST && ST.custody) || null;
@@ -116,7 +117,8 @@ function renderOps(DATA, QUERY) {
     const tr = toRop(p);
     let t = '<b class="nm">' + short(p.name) + '</b>: одоо <span class="nm">' + nm(p.now) + '</span> ш';
     if (n(p.in_transit)) t += ', замд <span class="nm">' + nm(p.in_transit) + '</span>' + (p.next_eta ? ' (~' + day(p.next_eta) + ')' : '');
-    if (low.length && A(p.skus).some((s) => s.size)) t += '. Цөөн: ' + low.slice(0, 4).map((s) => esc([s.size || s.color].join('')) + ' ' + n(s.now)).join(', ');
+    const multiC = new Set(A(p.skus).map((s) => s.color)).size > 1;
+    if (low.length && A(p.skus).some((s) => s.size)) t += '. Цөөн: ' + low.slice(0, 5).map((s) => esc((multiC && s.size ? s.color + ' ' : '') + (s.size || s.color)) + ' ' + n(s.now)).join(', ');
     if (tr !== null && n(p.reorder_point) > 0) t += tr > 0 ? '. Дахин захиалах цэгт ~' + tr + ' хоногт хүрнэ' : '. <em>Дахин захиалах цэгт хүрсэн</em>';
     if (outs.length) t += '. Дууссан ' + outs.length + ' хувилбар';
     sent.push(t + '.');
@@ -138,7 +140,7 @@ function renderOps(DATA, QUERY) {
     o('<tr><td class="pn">' + esc(short(p.name)) + (p.mode !== 'live' ? ' <span class="s2pl nt">' + esc(p.mode) + '</span>' : '') + '</td>'
       + cell(PL.ordered || 0, '', n(PL.ordered) ? 'move' : '') + cell(PL.shipped || 0, n(PL.shipped) && p.next_eta ? '~' + day(p.next_eta) : '', n(PL.shipped) ? 'move' : '')
       + cell(PL.ereen || 0, '', n(PL.ereen) ? 'move' : '') + cell(n(p.now), varTxt, n(p.now) ? 'here' : 'zero')
-      + cell(cp ? n(cp.on_road) : null, cp && CU.carrier ? (CU.carrier === 'nexpress' ? 'Nexpress' : esc(CU.carrier)) : '', cp && n(cp.on_road) ? 'move' : '')
+      + cell(cp ? n(cp.on_road) : null, cp ? 'хүргэгдээгүй' : '', cp && n(cp.on_road) ? 'move' : '')
       + cell(rows.length ? deliv : null, rows.length ? 'Nexpress-ээр' : '', rows.length ? '' : 'zero') + '</tr>');
   });
   ACC.forEach((a) => {
