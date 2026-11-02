@@ -369,7 +369,7 @@ function renderOrders(DATA, QUERY) {
   // өнөөдрийнх рүү чимээгүй чихэхгүй — «Өгсөн үү?» гэж тусад нь асууна (10/23-нд өгсөн 5 захиалга 10/24-ний жагсаалтад дахин орсон алдааны засвар).
   // CK (10/26): 10/20–10/21-ний захиалга shipped_at-гүй, шууд «хүргэгдсэн» болсон тул өмнө нь тооцооны самбарт ороогүй (2.07 сая₮ харагдахгүй байв).
   const gyDay = (r) => (r.shipped_at || r.deliver_on || r.delivered_at || '').slice(0, 10);
-  const onGyals = O.filter((r) => (r.shipped_at || r.stage === 'delivered') && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0)
+  const onGyals = O.filter((r) => (r.shipped_at || r.stage === 'delivered') && ['order', 'confirmed', 'delivered'].indexOf(r.stage) >= 0 && r.carrier !== 'gyals')
     .sort((a, b) => gyDay(a).localeCompare(gyDay(b)));
   const rowsTsv = (rows) => rows.map((r) => [r.phone, r.customer, r.district, r.address, String(r.product || '').split(' · ')[0] + (r.variant ? ' ' + r.variant : '') + (n(r.qty) > 1 ? ' x' + n(r.qty) : ''), r.prepaid_at ? '0 (ТӨЛСӨН)' : Math.round(n(r.amount_mnt))].map((x) => String(x == null ? '' : x).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
   const attr = (s) => esc(s).replace(/\n/g, '&#10;').replace(/\t/g, '&#9;');
@@ -447,9 +447,9 @@ function renderOrders(DATA, QUERY) {
     });
     o('</tbody></table></div>');
   });
-  o('<h3 style="margin-top:18px">🚚 Хүргэлтэд (Gyals / Nexpress) — тооцоо хүлээж буй <span class="cnt">' + onGyals.length + ' захиалга · замд ' + onGyals.filter((r) => r.stage !== 'delivered').length + ' · хүргэгдсэн ' + onGyals.filter((r) => r.stage === 'delivered').length + ' · Gyals-аас авах ' + big(onGyals.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
+  o('<h3 style="margin-top:18px">🚚 Nexpress — тооцоо хүлээж буй <span class="cnt">' + onGyals.length + ' захиалга · замд ' + onGyals.filter((r) => r.stage !== 'delivered').length + ' · хүргэгдсэн ' + onGyals.filter((r) => r.stage === 'delivered').length + ' · Хүргэлтээс авах ' + big(onGyals.reduce((s, r) => s + (r.prepaid_at ? 0 : n(r.amount_mnt)), 0)) + '₮</span>'
     + (onGyals.filter((r) => r.stage !== 'delivered').length > 1 ? ' <button class="btn go gyall" data-ids="' + esc(onGyals.filter((r) => r.stage !== 'delivered').map((r) => r.order_id).join(',')) + '">✓ Бүгд хүргэгдсэн</button>' : '') + '</h3>');
-  if (!onGyals.length) o('<p class="sm mut">Одоогоор Gyals дээр хүргэлт хүлээж буй захиалга алга.</p>');
+  if (!onGyals.length) o('<p class="sm mut">Одоогоор Nexpress дээр хүргэлт хүлээж буй захиалга алга.</p>');
   else {
     o('<div class="tw"><table class="ot">' + COLS + '<thead><tr><th>Хэн</th><th>Хаяг</th><th>Бараа</th><th>Авах дүн</th><th>Дүн ирэхэд</th></tr></thead><tbody>');
     onGyals.forEach((r) => {
@@ -472,8 +472,8 @@ function renderOrders(DATA, QUERY) {
       g.n++; if (r.prepaid_at) { g.pre += gsGross(r); g.pren++; } else g.cod += gsDue(r); if (r.stage === 'delivered') g.dlv++; else g.ongy++; });
     const GT = Object.values(GD).reduce((t, g) => ({ n: t.n + g.n, cod: t.cod + g.cod, pre: t.pre + g.pre, pren: t.pren + g.pren, dlv: t.dlv + g.dlv, ongy: t.ongy + g.ongy }), { n: 0, cod: 0, pre: 0, pren: 0, dlv: 0, ongy: 0 });
     const codN = GT.n - GT.pren, feeGuess = 6000;
-    o('<details class="gsx-box" data-keep="gsettle" style="margin-top:14px;border:1px solid var(--bd,#ddd);border-radius:10px;padding:8px 10px"' + (gs.some((r) => r.stage === 'delivered') ? ' open' : '') + '><summary><b>💰 Gyals тооцоо нийлэх</b> <span class="sm mut">— Gyals мөнгө шилжүүлэхэд энд бүртгэнэ</span></summary>'
-      + '<p class="sm mut">Мөнгөнд нь орсон захиалгуудыг чагтлаад (хүргэгдсэн нь анхнаасаа чагттай), данс руу орсон дүнг бичнэ. <b>Авах дүн − ирсэн дүн = Gyals-ын хүргэлтийн хөлс</b>, захиалга бүрт тэнцүү хуваагдана. Дарахад захиалга бүр «төлсөн» болж, Мөнгө хуудсанд орлого хөлс хассан цэвэр дүнгээр орно.</p>'
+    o('<details class="gsx-box" data-keep="gsettle" style="margin-top:14px;border:1px solid var(--bd,#ddd);border-radius:10px;padding:8px 10px"' + (gs.some((r) => r.stage === 'delivered') ? ' open' : '') + '><summary><b>💰 Хүргэлтийн тооцоо нийлэх</b> <span class="sm mut">— хүргэгч мөнгө шилжүүлэхэд энд бүртгэнэ</span></summary>'
+      + '<p class="sm mut">Мөнгөнд нь орсон захиалгуудыг чагтлаад (хүргэгдсэн нь анхнаасаа чагттай), данс руу орсон дүнг бичнэ. <b>Авах дүн − ирсэн дүн = хүргэлтийн хөлс</b>, захиалга бүрт тэнцүү хуваагдана. Дарахад захиалга бүр «төлсөн» болж, Мөнгө хуудсанд орлого хөлс хассан цэвэр дүнгээр орно.</p>'
       + (d.courier ? (function (K) { const U = n(K.unregistered), L = A(K.settlements)[0];
           return '<div class="sm" style="margin:6px 0 8px;padding:8px 10px;border-radius:9px;background:' + (U >= 1000 ? 'rgba(245,158,11,.14)' : U <= -1000 ? 'rgba(239,68,68,.10)' : 'rgba(34,197,94,.10)') + ';line-height:1.6">'
             + '🏦 <b>Банкнаас:</b> хүргэлтийн компаниас нийт ' + mnt(K.received) + ' орсон (' + n(K.received_n) + ' гүйлгээ' + (L ? ', сүүлийнх ' + day(L.at) + ' ' + mnt(L.amount) + ' «' + esc(L.utga || '') + '»' : '') + ') · захиалгад бүртгэсэн ' + mnt(K.registered)
@@ -481,11 +481,11 @@ function renderOrders(DATA, QUERY) {
                : U <= -1000 ? ' → <b>⚠️ бүртгэсэн нь ' + mnt(-U) + '-өөр их</b>: мөнгө нь банкинд харагдахгүй байна (SMS ирээгүй эсвэл «Хүргэлтийн компанийн тооцоо» гэж ангилаагүй) — Мөнгө → Данс ба гүйлгээ.'
                : ' → ✓ тэнцүү.')
             + (n(K.debts_open) > 0 ? '<br>💳 Нээлттэй өр <b>' + mnt(K.debts_open) + '</b> — хүргэлтийн мөнгө ормогц ХХБ руу буцаана.' : '') + '</div>'; })(d.courier) : '')
-      + '<h4 style="margin:8px 0 4px">Gyals-д өгсөн бүх захиалга — тооцоо хүлээж буй</h4>'
-      + '<div class="tw"><table class="ot gsum"><thead><tr><th>Өгсөн өдөр</th><th>Захиалга</th><th>Хүргэгдсэн / замд</th><th>Gyals-аас авах (COD)</th><th>Эзний данс руу төлсөн</th></tr></thead><tbody>'
+      + '<h4 style="margin:8px 0 4px">Хүргэлтэд өгсөн бүх захиалга — тооцоо хүлээж буй</h4>'
+      + '<div class="tw"><table class="ot gsum"><thead><tr><th>Өгсөн өдөр</th><th>Захиалга</th><th>Хүргэгдсэн / замд</th><th>Хүргэлтээс авах (COD)</th><th>Эзний данс руу төлсөн</th></tr></thead><tbody>'
       + Object.keys(GD).sort().map((k) => { const g = GD[k]; return '<tr><td>' + esc(k.slice(5).replace('-', '/')) + '</td><td>' + g.n + '</td><td>' + g.dlv + ' / ' + g.ongy + '</td><td><b>' + mnt(g.cod) + '</b></td><td>' + (g.pren ? mnt(g.pre) + ' (' + g.pren + ')' : '—') + '</td></tr>'; }).join('')
       + '<tr class="tot"><td><b>Нийт</b></td><td><b>' + GT.n + '</b></td><td>' + GT.dlv + ' / ' + GT.ongy + '</td><td><b>' + mnt(GT.cod) + '</b></td><td>' + (GT.pren ? mnt(GT.pre) + ' (' + GT.pren + ')' : '—') + '</td></tr></tbody></table></div>'
-      + '<p class="sm" style="margin:6px 0 10px"><b>Gyals-аас хүлээж буй дүн: ' + mnt(GT.cod) + '</b> (' + codN + ' захиалга) − хүргэлтийн хөлс ~' + mnt(codN * feeGuess) + ' (' + codN + ' × ' + feeGuess.toLocaleString('en-US') + '₮ таамаг) ≈ <b>' + mnt(GT.cod - codN * feeGuess) + '</b>. Бодит хөлсийг Gyals-ын шилжүүлсэн дүнгээс систем өөрөө гаргана. «Эзний данс руу төлсөн» нь орон нутгийн урьдчилгаа — Gyals-аас авахгүй, орлогод аль хэдийн орсон.</p>'
+      + '<p class="sm" style="margin:6px 0 10px"><b>Хүргэлтээс хүлээж буй дүн: ' + mnt(GT.cod) + '</b> (' + codN + ' захиалга) − хүргэлтийн хөлс ~' + mnt(codN * feeGuess) + ' (' + codN + ' × ' + feeGuess.toLocaleString('en-US') + '₮ таамаг) ≈ <b>' + mnt(GT.cod - codN * feeGuess) + '</b>. Бодит хөлсийг хүргэгчийн шилжүүлсэн дүнгээс систем өөрөө гаргана. «Эзний данс руу төлсөн» нь орон нутгийн урьдчилгаа — Gyals-аас авахгүй, орлогод аль хэдийн орсон.</p>'
       + '<div class="tw"><table class="ot"><thead><tr><th></th><th>Хэн</th><th>Бараа</th><th>Авах дүн</th><th>Төлөв</th></tr></thead><tbody>');
     gs.forEach((r) => {
       const dl = r.stage === 'delivered';
@@ -495,8 +495,8 @@ function renderOrders(DATA, QUERY) {
     });
     o('</tbody></table></div>'
       + '<div style="margin-top:6px;line-height:2">Сонгосон <b id="gs-n">0</b> захиалга · авах дүн <b id="gs-due">—</b><br>'
-      + 'Gyals-аас данс руу орсон: <input id="gs-recv" type="number" min="0" step="1000" inputmode="numeric" placeholder="жишээ 820000" style="width:140px"' + (d.courier && n(d.courier.unregistered) >= 1000 ? ' value="' + Math.round(n(d.courier.unregistered)) + '"' : '') + '> ₮<br>'
-      + 'Gyals хөлс: <b id="gs-fee">—</b> · нэг захиалгад <b id="gs-per">—</b> · цэвэр орлого <b id="gs-net">—</b><br>'
+      + 'Хүргэлтээс данс руу орсон: <input id="gs-recv" type="number" min="0" step="1000" inputmode="numeric" placeholder="жишээ 820000" style="width:140px"' + (d.courier && n(d.courier.unregistered) >= 1000 ? ' value="' + Math.round(n(d.courier.unregistered)) + '"' : '') + '> ₮<br>'
+      + 'Хүргэлтийн хөлс: <b id="gs-fee">—</b> · нэг захиалгад <b id="gs-per">—</b> · цэвэр орлого <b id="gs-net">—</b><br>'
       + '<button class="btn go" id="gs-go" disabled>💰 Тооцоо нийлэх — сонгосныг «төлсөн» болгох</button></div></details>');
   }
   o('</div>');
