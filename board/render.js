@@ -571,18 +571,21 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     faProducts.forEach((pr) => {
       P('<div class="si" style="margin-top:.4rem"><b>' + esc(pr.name || pr.slug) + '</b> · ' + n(pr.opened) + ' нээж · ' + n(pr.ok) + ' маягт · ' + n(pr.orders) + ' захиалга'
         + (has(pr.cpo_mnt) ? ' · CPO ' + mnt(pr.cpo_mnt) : '')
+        // DY (2026-11-02): худалдан авагчийн чанар — A төлсөн / B хаалган дээр татгалзсан / C хаяг өгөөгүй; ₮/A = зардал ÷ төлсөн
+        + (has(pr.a_paid) ? ' · <b>A ' + n(pr.a_paid) + '</b> / B ' + n(pr.b_refused) + ' / C ' + n(pr.c_noaddr) + (has(pr.cpa_real_mnt) ? ' · ₮/A ' + mnt(pr.cpa_real_mnt) : '') : '')
         + (has(pr.attributed_pct) ? ' · эх үүсвэр мэдэгдсэн ' + n(pr.attributed_pct) + '%' : '') + '</div>');
-      P('<table class="fa"><tr><th></th><th>нээж</th><th>утас</th><th>маягт</th><th>захиалга</th><th>батлагд.</th><th>зардал</th><th>CPO</th></tr>');
+      P('<table class="fa"><tr><th></th><th>нээж</th><th>утас</th><th>маягт</th><th>захиалга</th><th>батлагд.</th><th title="A = хүргэгдсэн/төлсөн">A</th><th title="B = хаягтай ч цуцлагдсан (татгалзсан)">B</th><th title="C = хаяг өгөөгүй">C</th><th>зардал</th><th>CPO</th><th title="зардал ÷ A">₮/A</th></tr>');
       (Array.isArray(pr.rows) ? pr.rows : []).forEach((r) => {
         const label = r.kind === 'ad' ? r.key : (SRCL[r.key] || r.key);
         P('<tr class="' + (r.kind === 'src' ? 'fa-src' : '') + '"><td>' + esc(label) + (n(r.orders_chat) ? ' <small>(' + n(r.orders_chat) + ' чатаар)</small>' : '') + '</td>'
           + '<td class="nm">' + n(r.opened) + '</td><td class="nm">' + n(r.typed) + '</td><td class="nm">' + n(r.ok) + '</td>'
           + '<td class="nm">' + n(r.orders) + '</td><td class="nm">' + n(r.confirmed) + '</td>'
-          + '<td class="nm">' + (has(r.spend_mnt) ? short(r.spend_mnt) : '—') + '</td><td class="nm">' + (has(r.cpo_mnt) ? short(r.cpo_mnt) : '—') + '</td></tr>');
+          + '<td class="nm"><b>' + n(r.a_paid) + '</b></td><td class="nm">' + n(r.b_refused) + '</td><td class="nm">' + n(r.c_noaddr) + '</td>'
+          + '<td class="nm">' + (has(r.spend_mnt) ? short(r.spend_mnt) : '—') + '</td><td class="nm">' + (has(r.cpo_mnt) ? short(r.cpo_mnt) : '—') + '</td><td class="nm">' + (has(r.cpa_real_mnt) ? short(r.cpa_real_mnt) : '—') + '</td></tr>');
       });
       P('</table>');
     });
-    P('<div class="si sn">«Чат холбоос» = ботын өгсөн холбоосоор вэбээр захиалсан; ref байвал тэр зар дээр тоологдоно. «Тодорхойгүй (хуучин)» = 2026-10-01-ээс өмнөх тэмдэггүй мөр.</div>');
+    P('<div class="si sn">«Чат холбоос» = ботын өгсөн холбоосоор вэбээр захиалсан; ref байвал тэр зар дээр тоологдоно. «Тодорхойгүй (хуучин)» = 2026-10-01-ээс өмнөх тэмдэггүй мөр. A = хүргэгдсэн/төлсөн, B = хаягтай ч цуцлагдсан (хаалган дээр татгалзсан/урьдчилгаа төлөөгүй), C = хаяг өгөөгүй. Зарын зорилго: ₮/A буурах, B+C багасах.</div>');
   }
   P('</div></details>');
   P('</div>');
