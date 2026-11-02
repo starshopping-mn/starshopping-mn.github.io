@@ -135,12 +135,12 @@ function renderOps(DATA, QUERY) {
   o('<div class="s2flow"><table><thead><tr><th>Бараа</th><th>Хятадад<small>захиалсан</small></th><th>Хятад → Эрээн<small>ачигдсан</small></th><th>Эрээн → УБ<small>Odod карго</small></th><th>Агуулахад<small>зарж болно</small></th><th>Хүргэлтэнд<small>курьерт</small></th><th>Хүргэгдсэн<small>нийт</small></th></tr></thead><tbody>');
   SP.forEach((p) => {
     const PL = p.pipeline || {}, cp = cuProd(p), rows = csRowsOf(p);
-    const deliv = rows.reduce((s, r) => s + n(r.delivered), 0);
+    const deliv = rows.reduce((s, r) => s + n(r.delivered), 0), onRoad = rows.reduce((s, r) => s + n(r.open), 0);
     const varTxt = A(p.skus).filter((s) => n(s.now) > 0).slice(0, 4).map((s) => esc(s.size || short(s.color)) + ' ' + n(s.now)).join(' · ');
     o('<tr><td class="pn">' + esc(short(p.name)) + (p.mode !== 'live' ? ' <span class="s2pl nt">' + esc(p.mode) + '</span>' : '') + '</td>'
       + cell(PL.ordered || 0, '', n(PL.ordered) ? 'move' : '') + cell(PL.shipped || 0, n(PL.shipped) && p.next_eta ? '~' + day(p.next_eta) : '', n(PL.shipped) ? 'move' : '')
       + cell(PL.ereen || 0, '', n(PL.ereen) ? 'move' : '') + cell(n(p.now), varTxt, n(p.now) ? 'here' : 'zero')
-      + cell(cp ? n(cp.on_road) : null, cp ? 'хүргэгдээгүй' : '', cp && n(cp.on_road) ? 'move' : '')
+      + cell(rows.length ? onRoad : null, rows.length ? 'Nexpress' : '', onRoad ? 'move' : '')
       + cell(rows.length ? deliv : null, rows.length ? 'Nexpress-ээр' : '', rows.length ? '' : 'zero') + '</tr>');
   });
   ACC.forEach((a) => {
