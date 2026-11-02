@@ -436,6 +436,8 @@ const isTest = (p) => false;
    Хугацааг 2-р алхамд (хаяг) тухайн барааны үнэнээр хэлнэ. */
 const showsWait = () => false;
 const FAST_LINE = "Улаанбаатар дотор 24 цагт хүргэнэ";
+/* DS (2026-11-02, эзэн): нөөцтэй бараа Nexpress-ийн агуулахад байдаг — үйлчлүүлэгч өөрөө очиж үзэж, авч болно. */
+const PICKUP = { place: "Наран Билэг төв", where: "25-р эмийн сангийн урд, Төмөр замын эмнэлгийн зүүн талд", how: "төвийн хаалгаар ороод чигээрээ шатаар доош бууна", map: "https://maps.app.goo.gl/WHoPZFWK8LU4Tx8L6" };
 /* Блок BJ (2026-10-01, эзэн). Зочинд хэлэх зүйл нь тухайн бараа БОДИТ юу вэ, мөн хэр хол явсан бэ гэдгээс хамаарна:
    · 1-р алхам (нэр, утас): хугацааны тухай юу ч үгүй — зөвхөн «Хүргэлт үнэгүй»;
    · 2-р алхам (хаяг): ТЭР барааны үнэн —
@@ -1822,7 +1824,8 @@ function renderProduct(slug) {
                 someone. The number is the one already in the header; here it
                 is a way to order, not a complaint line. -->
            <p class="pdp4__trust"><span>${deliveryIncluded(p) ? "хүргэлт үнэгүй" : "хүргэлт " + esc(deliverySummary())}</span><span>${isPreorder(p) ? "урьдчилгаагүй" : "хүлээж аваад төлнө"}</span><span>${esc(leadTime)}</span></p>
-           <p class="pdp4__alt">Асуух зүйл байна уу? <a class="callbuy" href="tel:95505717">9550-5717</a> · ${chatButton(p.name, p.slug)}</p>`
+           <p class="pdp4__alt">Асуух зүйл байна уу? <a class="callbuy" href="tel:95505717">9550-5717</a> · ${chatButton(p.name, p.slug)}</p>
+           ${isPreorder(p) ? "" : `<p class="pdp4__alt pickline">📍 Өөрөө очиж үзэж, авч болно · <a class="callbuy" href="${PICKUP.map}" target="_blank" rel="noopener">${esc(PICKUP.place)}</a></p>`}`
     }
 
     ${F ? `<div class="pdp4__feat">${F.cards.map((c) => `<div class="pdp4__fcard"><i>${featIcon(c.t + " " + c.d)}</i><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div>`).join("")}</div>` : descBlock(p.desc)}
@@ -1843,7 +1846,8 @@ function renderProduct(slug) {
           <div><b>Төлбөр</b>${isPreorder(p) ? "Бараа ирэхэд, хүргэлтээр" : "Хүргэлтээр эсвэл шилжүүлгээр"}</div>
           <div><b>Захиалгын код</b>Бүртгэл, хяналттай</div>
         </div>
-        <p class="leadnote">${esc(leadNote)}</p></details>
+        <p class="leadnote">${esc(leadNote)}</p>
+        ${isPreorder(p) ? "" : `<p class="pickup"><b>Өөрөө очиж үзэх, авах</b>${esc(PICKUP.place)} — ${esc(PICKUP.where)}. ${esc(PICKUP.how[0].toUpperCase() + PICKUP.how.slice(1))}. <a href="${PICKUP.map}" target="_blank" rel="noopener">Газрын зураг →</a></p>`}</details>
       <details class="pdp4__d"><summary>Буцаалт, солилт</summary><p class="pdp4__p">Хэмжээ таараагүй бол хүргэлтээс хойш 7 хоногийн дотор сольж өгнө. Гэмтэлтэй ирсэн бол мөнгийг буцаана. <a href="#/policy/return">Буцаалтын бодлого →</a></p></details>
     </div>
     <button class="share" type="button" data-slug="${esc(p.slug)}">Холбоос хуулах</button>`;
