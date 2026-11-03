@@ -262,13 +262,20 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   const stProducts = n(C.products) === 0 ? 'wait' : 'flow';
   const stCreative = n(C.creatives) === 0 ? (n(C.products) > 0 ? 'wait' : 'idle') : (n(PU.spend_mnt) > 0 ? 'flow' : 'idle');
   const stChat     = n(PU.msg_in) > 0 ? 'flow' : 'idle';
-  const stOrder    = n(C.needs_review) > 0 ? 'wait' : (n(PU.orders) > 0 ? 'flow' : 'idle');
+  const stOrder    = n(C.needs_review) > 0 ? 'wait' : (n(has(PU.orders_net) ? PU.orders_net : PU.orders) > 0 ? 'flow' : 'idle');
   const stConfirm  = n(C.awaiting_confirm) > 0 ? 'wait' : (n(PU.confirm_sent) > 0 ? 'flow' : 'idle');
   const stDeliver  = stalled.length > 0 ? 'block' : (n(PU.delivered) > 0 ? 'flow' : 'idle');
 
   const steps = Array.isArray(FN.steps) ? FN.steps : [];
   const fStep = (k) => steps.find((s) => s.key === k) || {};
   const fConv = fStep('conversations'), fPlaced = fStep('placed');
+  // EM: бодит тоо (тест/цуцлагдсан/оператор хассан). SQL EM суугаагүй бол хуучин талбар руу буцна.
+  const msgIn = has(PU.msg_in_real) ? n(PU.msg_in_real) : n(PU.msg_in);
+  const ordNet = has(PU.orders_net) ? n(PU.orders_net) : n(PU.orders);
+  const ordCanc = has(PU.orders_cancelled) ? n(PU.orders_cancelled) : null;
+  const ordReal = has(C.orders_real) ? n(C.orders_real) : n(C.orders);
+  const conv30 = has(C.conversations_30d) ? n(C.conversations_30d) : n(fConv.n);
+  const botOp = has(PU.msg_bot) ? n(PU.msg_bot) + ' · ' + n(PU.msg_operator) : n(PU.msg_out);
   const fConf = fStep('confirmed'), fDeliv = fStep('delivered');
 
   const PODS = [
@@ -278,12 +285,12 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     { id: 'crea', t: 'КРЕАТИВ · ЗАР', v: n(C.creatives), u: 'бүртгэлтэй креатив', st: stCreative, vol: n(C.creatives),
       href: '/form/creative', act: 'Креатив бүртгэх',
       rows: [['зар 24ц', mnt(PU.spend_mnt)], ['төлөв', STN[stCreative]]] },
-    { id: 'chat', t: 'ЧАТ · СЭТГЭГДЭЛ', v: n(PU.msg_in), u: 'мессеж 24ц', st: stChat, vol: n(fConv.n),
+    { id: 'chat', t: 'ЧАТ · СЭТГЭГДЭЛ', v: msgIn, u: 'мессеж 24ц', st: stChat, vol: n(fConv.n),
       href: '', act: '',
-      rows: [['бот хариу', n(PU.msg_out)], ['яриа 30х', n(fConv.n)]] },
-    { id: 'ordr', t: 'ЗАХИАЛГА', v: n(PU.orders), u: 'захиалга 24ц', st: stOrder, vol: n(fPlaced.n),
+      rows: [['яриа 24ц', has(PU.conv_24h) ? n(PU.conv_24h) : '—'], [has(PU.msg_bot) ? 'бот · оператор' : 'бот хариу', botOp], ['яриа 30х', conv30]] },
+    { id: 'ordr', t: 'ЗАХИАЛГА', v: ordNet, u: 'бодит захиалга 24ц', st: stOrder, vol: n(fPlaced.n),
       href: '/form/order', act: 'Гар захиалга',
-      rows: [['шалгах', n(C.needs_review)], ['нийт', n(C.orders)]] },
+      rows: [['цуцлагдсан 24ц', ordCanc === null ? '—' : ordCanc], ['шалгах', n(C.needs_review)], ['нийт бодит', ordReal]] },
     { id: 'conf', t: 'БАТАЛГААЖУУЛАЛТ', v: n(C.awaiting_confirm), u: 'хүлээгдэж буй', st: stConfirm, vol: n(fConf.n),
       href: '/form/confirm', act: 'Утсаар баталгаажуулах',
       rows: [['утсаар залгах', toCall.length], ['баталгаажсан', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—']] },
@@ -836,8 +843,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   const CHIPS = {
     prod: chip(n(C.products) + ' амьд', 'on') + (lowStock.length ? chip(lowStock.length + ' нөөц бага', 'w') : chip('нөөц ✓')),
     crea: (acOn === null ? '' : chip(acOn + ' on', acOn ? 'on' : '')) + (acWait ? chip(acWait + ' 07:00', 'w') : '') + (acRev ? chip(acRev + ' review', 'w') : ''),
-    chat: n(PU.msg_in) ? chip(n(PU.msg_in) + ' мессеж', 'on') : chip('чимээгүй'),
-    ordr: (n(C.needs_review) ? chip(n(C.needs_review) + ' шалгах', 'c') : '') + chip(n(PU.orders) + ' өнөөдөр', n(PU.orders) ? 'on' : ''),
+    chat: msgIn ? chip(msgIn + ' мессеж', 'on') + (has(PU.conv_24h) ? chip(n(PU.conv_24h) + ' яриа') : '') : chip('чимээгүй'),
+    ordr: (n(C.needs_review) ? chip(n(C.needs_review) + ' шалгах', 'c') : '') + chip(ordNet + ' өнөөдөр', ordNet ? 'on' : '') + (ordCanc ? chip(ordCanc + ' цуцлагдсан', 'w') : ''),
     conf: (n(C.awaiting_confirm) ? chip(n(C.awaiting_confirm) + ' хүлээж', 'w') : '') + (toCall.length ? chip(toCall.length + ' залгах', 'c') : ''),
     delv: (stalled.length ? chip(stalled.length + ' гацсан', 'c') : '') + chip(has(DR.pct) ? 'бодит ' + DR.pct + '%' : 'хүргэсэн ' + n(PU.delivered))
   };
@@ -1071,8 +1078,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('</main>');
 
   // Баруун: дэлгэрэнгүй цонх — станц бүрт нэг pane
-  const PT = { prod: ['Бараа · Шүүр', n(C.products) + ' идэвхтэй бараа'], crea: ['Креатив · Зар', 'зар удирдах · үзүүлэлт'], chat: ['Чат · Сэтгэгдэл', n(PU.msg_in) + ' мессеж 24ц'],
-    ordr: ['Захиалга', n(C.orders) + ' нийт'], conf: ['Баталгаажуулалт', n(C.awaiting_confirm) + ' хүлээгдэж буй'], delv: ['Хүргэлт', (stalled.length ? stalled.length + ' гацсан' : 'хэвийн')], brain: ['Тархи', 'тест · шийдвэр · тайлан'] };
+  const PT = { prod: ['Бараа · Шүүр', n(C.products) + ' идэвхтэй бараа'], crea: ['Креатив · Зар', 'зар удирдах · үзүүлэлт'], chat: ['Чат · Сэтгэгдэл', msgIn + ' мессеж 24ц'],
+    ordr: ['Захиалга', ordReal + ' бодит · ' + n(C.orders) + ' нийт бүртгэл'], conf: ['Баталгаажуулалт', n(C.awaiting_confirm) + ' хүлээгдэж буй'], delv: ['Хүргэлт', (stalled.length ? stalled.length + ' гацсан' : 'хэвийн')], brain: ['Тархи', 'тест · шийдвэр · тайлан'] };
   const kv4 = (l, v, c) => '<div><span class="l">' + esc(l) + '</span><div class="v ' + (c || '') + '">' + esc(v) + '</div></div>';
   P('<aside class="drw4" id="drw" aria-label="Дэлгэрэнгүй"><div class="ph"><b id="dtitle">' + esc(PT.crea[0]) + '</b><span class="n" id="dsub">' + esc(PT.crea[1]) + '</span><button class="x" type="button" title="Хаах">×</button></div>');
   P('<script type="application/json" id="paneTitles">' + JSON.stringify(PT).replace(/</g, '\\u003c') + '</script>');
@@ -1089,10 +1096,10 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   H.push(...B.prod);
   P('</section>');
   // chat
-  P('<section class="pane4" data-pane="chat"><div class="k4">' + kv4('мессеж 24ц', n(PU.msg_in)) + kv4('бот хариу', n(PU.msg_out)) + kv4('яриа 30 хоног', n(fConv.n)) + kv4('операторын дараалал', n(C.operator_queue), n(C.operator_queue) ? 'c' : '') + '</div>');
+  P('<section class="pane4" data-pane="chat"><div class="k4">' + kv4('мессеж 24ц', msgIn) + kv4('яриа 24ц', has(PU.conv_24h) ? n(PU.conv_24h) : '—') + kv4(has(PU.msg_bot) ? 'бот · оператор' : 'бот хариу', botOp) + kv4('яриа 30 хоног', conv30) + kv4('операторын дараалал', n(C.operator_queue), n(C.operator_queue) ? 'c' : '') + '</div>');
   P('<div class="note4">Сүүлийн мессеж ' + esc(ago(PU.last_inbound)) + ' өмнө. Чат SendPulse → Supabase bot-ingest-ээр ирдэг; «хүнтэй ярих» гэвэл Telegram-д ирнэ.</div></section>');
   // ordr
-  P('<section class="pane4" data-pane="ordr"><div class="k4">' + kv4('захиалга 24ц', n(PU.orders)) + kv4('шалгах', n(C.needs_review), n(C.needs_review) ? 'c' : '') + kv4('нийт', n(C.orders)) + kv4('сүүлийн захиалга', ago(PU.last_order) + ' өмнө') + '</div>');
+  P('<section class="pane4" data-pane="ordr"><div class="k4">' + kv4('бодит захиалга 24ц', ordNet) + kv4('цуцлагдсан 24ц', ordCanc === null ? '—' : ordCanc, ordCanc ? 'w' : '') + kv4('шалгах', n(C.needs_review), n(C.needs_review) ? 'c' : '') + kv4('нийт бодит', ordReal) + kv4('цуцлагдсан нийт', has(C.orders_cancelled) ? n(C.orders_cancelled) : '—') + kv4('сүүлийн захиалга', ago(PU.last_order) + ' өмнө') + '</div>');
   P('<div class="acts4">' + fl(ordersQ(''), 'Захиалга хуудас') + fl(ordersQ('&tab=dsp'), 'Түгээлт · Nexpress') + fl(BASE + '/form/order', 'Гар захиалга', true) + '</div></section>');
   // conf
   P('<section class="pane4" data-pane="conf"><div class="k4">' + kv4('хүлээгдэж буй', n(C.awaiting_confirm), n(C.awaiting_confirm) ? 'w' : '') + kv4('утсаар залгах', toCall.length, toCall.length ? 'c' : '') + kv4('баталгаажсан %', has(CF.confirm_pct) ? CF.confirm_pct + '%' : '—') + kv4('хаяг дутуу', n(has(CF.leads_noaddr) ? CF.leads_noaddr : CF.to_call)) + '</div>');
@@ -1137,7 +1144,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
 
   P('<footer>');
   [['Бараа', n(C.products)], ['Креатив', n(C.creatives)],
-   ['Яриа', n(C.conversations)], ['Захиалга', n(C.orders)],
+   ['Яриа', n(C.conversations)], ['Захиалга бодит', ordReal],
    ['Page', pages.length]].forEach((x) => P('<span>' + esc(x[0]) + ' ' + esc(x[1]) + '</span>'));
   P('<span>Хүргэлт бодит ' + (has(DR.pct) ? DR.pct + '%' : 'дата алга') + '</span>');
   P('</footer></div>');
