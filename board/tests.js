@@ -106,6 +106,17 @@ function renderTests(DATA, QUERY) {
       + '<i class="t2-ce" style="width:' + w(P.econ) + '%"></i><i class="t2-cf" style="width:' + w(P.fit) + '%"></i></div>';
   };
 
+  // EL (11-03): алгоритм v2 — 8 шалгуурын оноо (татах хүч 30 · МН тохирол 10 · үнэ цэнэ 20 · эрэлт 15 · ялах+Temu+ажиллагаа 25)
+  const v2bar = (c) => {
+    const V = c.v2_parts || {}, w = (v) => Math.max(0, Math.min(100, n(v)));
+    return '<div class="t2-stk"><i class="t2-cv" style="width:' + w(n(V.wow) + n(V.need)) + '%" title="татах хүч (wow + надад хэрэгтэй)"></i>'
+      + '<i class="t2-cf" style="width:' + w(V.mn_fit) + '%" title="Монголд тохирох"></i>'
+      + '<i class="t2-ce" style="width:' + w(V.value) + '%" title="үнэ цэнэ (зарах ÷ өртөг)"></i>'
+      + '<i class="t2-cg" style="width:' + w(V.demand) + '%" title="эрэлтийн нотолгоо"></i>'
+      + '<i class="t2-cw" style="width:' + w(n(V.win) + n(V.temu) + n(V.ops)) + '%" title="ялах боломж · Temu · ажиллагаа"></i></div>';
+  };
+  const v2miss = (c) => A((c.v2_parts || {}).missing);
+
   // ── өгөгдлийн шалгалт (хуудас бүрт дахин бодно) → дүгнэлт, анхаарах зүйлс
   const rk = (L) => L.map((c) => '#' + n(c.rank)).join(', ');
   const mnOld = C.filter((c) => !((c.rv || {}).mn || {}).fresh);
@@ -196,7 +207,7 @@ function renderTests(DATA, QUERY) {
    + '.t2-no{font:800 20px var(--t2m);color:var(--mut)}tr.open .t2-no{color:var(--gold)}.t2-pn{min-width:210px}.t2-pn b{display:block;font-size:13.5px;line-height:1.3}.t2-pn span{font-size:11.5px;color:var(--mut)}'
    + '.t2-sc{display:flex;flex-direction:column;gap:4px;min-width:118px}.t2-sc b{font:600 18px var(--t2m);line-height:1}.t2-sc b small{font-size:11px;color:var(--mut);font-weight:500;font-family:inherit}'
    + '.t2-stk{display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--s2);width:110px}.t2-stk i{display:block;height:100%}'
-   + '.t2-cv{background:#d9772b}.t2-cg{background:var(--f3)}.t2-ce{background:var(--good)}.t2-cf{background:var(--gold)}.t2-cx{background:repeating-linear-gradient(135deg,var(--f3) 0 2px,transparent 2px 5px);opacity:.6}'
+   + '.t2-cv{background:#d9772b}.t2-cg{background:var(--f3)}.t2-ce{background:var(--good)}.t2-cf{background:var(--gold)}.t2-cw{background:var(--mut)}.t2-cx{background:repeating-linear-gradient(135deg,var(--f3) 0 2px,transparent 2px 5px);opacity:.6}'
    + '.t2-ev{display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:1.35;min-width:110px;max-width:210px}.t2-ev .t2-pl{align-self:flex-start}.t2-ev small{color:var(--mut);font-size:11px}'
    + '.t2-dp[hidden]{display:none}.t2-ph{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}.t2-ph h3{font-size:17px;font-weight:700;margin:0}.t2-sub{font-size:12.5px;color:var(--ink2);margin-top:4px}'
    + '.t2-e4{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:14px}'
@@ -243,7 +254,7 @@ function renderTests(DATA, QUERY) {
   o('<div class="t2-kp"><div class="' + (readyN ? 'ok' : 'cr') + '"><b>' + readyN + '/' + C.length + '</b><span>тестэд бэлэн</span></div>'
     + '<div class="' + (wr === null ? '' : wr >= tg ? 'ok' : 'wr') + '"><b>' + n(K.wins) + '/' + n(K.closed) + '</b><span>WIN ' + (wr === null ? '—' : wr + '%') + ' · зорилт ' + tg + '%</span></div>'
     + '<div><b>' + n(S.used) + '/' + n(S.max) + '</b><span>зэрэг тест</span></div>'
-    + '<div><b>' + n(TH.min_score) + '</b><span>тестийн босго оноо</span></div>'
+    + '<div><b>' + n((C[0] || {}).v2_min || 55) + '</b><span>тестийн босго · v2 оноо</span></div>'
     + '<div><b>¥1=' + n(ST.fx_cny) + '₮</b><span>ханш · карго ' + mnt(ST.cargo_min) + '</span></div></div></div>');
   o('<div class="t2-cd t2-at"><div class="t2-lb">Анхаарах ' + ATT.length + '</div>'
     + (ATT.length ? ATT.map((x) => '<div><i class="' + x[0] + '"></i><span>' + x[1] + '</span></div>').join('') : '<div><i class="ok"></i><span>Өгөгдөлд анхаарах зүйл алга.</span></div>')
@@ -268,18 +279,18 @@ function renderTests(DATA, QUERY) {
 
   // ── 2 · РАНК + НОТОЛГОО
   const TR = ACT.concat(EV).filter((t) => has(t.rank_now)).sort((a, b) => n(a.rank_now) - n(b.rank_now));
-  o('<section class="t2-s"><div class="t2-sh"><h2>2 · Ранк · нэр дэвшигчид</h2><p class="t2-why">Мөр дээр дарахад доор нотолгоо нь нээгдэнэ. Оноо = вирал + МН зай + ашиг + тохирол + тестээс сурсан; Монголын шалгалт нягтлаагүй бол МН зайг хагасаар тооцно (тасархай хэсэг).'
+  o('<section class="t2-s"><div class="t2-sh"><h2>2 · Ранк · нэр дэвшигчид</h2><p class="t2-why">Мөр дээр дарахад доор нотолгоо нь нээгдэнэ. Эрэмбэ = алгоритм v2 (11/03): 8 шалгуурын оноо — татах хүч, надад хэрэгтэй, МН тохирол, үнэ цэнэ (≤30k өртөг → ~95k), эрэлт, ялах боломж, Temu, ажиллагаа. Хатуу хаалгад тэнцээгүй бараа жагсаалтаас гарна. 1688 холбоосгүй бараа холбоостойн доор.'
     + (TR.length ? ' Тестэд байгаа: ' + TR.map((t) => '#' + n(t.rank_now) + ' ' + esc(t.name)).join(', ') + '.' : '') + '</p></div>');
   if (!C.length) o('<div class="em">Нэр дэвшигч алга — өдөр бүрийн шүүлт ажилласны дараа энд гарна.</div>');
   else {
-    o('<div class="t2-leg"><span><i class="t2-cv"></i>вирал</span><span><i class="t2-cg"></i>МН зай</span><span><i class="t2-cx"></i>МН нягтлаагүй (хассан)</span><span><i class="t2-ce"></i>ашиг</span><span><i class="t2-cf"></i>тохирол</span></div>');
-    o('<div class="t2-rk"><table><thead><tr><th>#</th><th>Бараа</th><th>Оноо<small>суурь · сурсан · МН засвар</small></th><th>TikTok<small>≤90 хоног</small></th><th>1688<small>зөв SKU · Эрээнд</small></th><th>Монгол<small>≤7 хоног</small></th><th>Ашиг<small>≥' + mnt(((C[0].rv || {}).econ || {}).min || 20000) + ' / захиалга</small></th><th>Төлөв</th></tr></thead><tbody>');
+    o('<div class="t2-leg"><span><i class="t2-cv"></i>татах хүч</span><span><i class="t2-cf"></i>МН тохирол</span><span><i class="t2-ce"></i>үнэ цэнэ</span><span><i class="t2-cg"></i>эрэлт</span><span><i class="t2-cw"></i>ялах · Temu · ажиллагаа</span></div>');
+    o('<div class="t2-rk"><table><thead><tr><th>#</th><th>Бараа</th><th>Оноо v2<small>8 шалгуур · хуучин оноо</small></th><th>TikTok<small>≤90 хоног</small></th><th>1688<small>зөв SKU · Эрээнд</small></th><th>Монгол<small>≤7 хоног</small></th><th>Ашиг<small>≥' + mnt(((C[0].rv || {}).econ || {}).min || 20000) + ' / захиалга</small></th><th>Төлөв</th></tr></thead><tbody>');
     C.forEach((c, i) => {
       const G = gs(c), rv = c.rv || {};
       const ev = (x) => '<div class="t2-ev">' + pl(x.cls, x.label) + (x.sub ? '<small>' + x.sub + '</small>' : '') + '</div>';
       o('<tr class="t2-r' + (i === 0 ? ' open' : '') + '" data-i="' + i + '" data-keep="f' + n(c.find_id) + '"><td><span class="t2-no">' + n(c.rank) + '</span></td>'
         + '<td class="t2-pn"><b>' + esc(c.product) + '</b><span>' + esc(c.category || '—') + (rv.season ? ' · ' + esc(rv.season) : '') + (c.resurfaced ? ' · ↻ эргэн ирсэн' : '') + '</span></td>'
-        + '<td><div class="t2-sc"><b class="t2-nm">' + n(c.score_adj) + ' <small>' + n(c.score) + (n(c.adj) ? ' ' + sgn(c.adj) : '') + (n(c.mn_adj) ? ' · МН ' + sgn(c.mn_adj) : '') + '</small></b>' + bar(c) + '</div></td>'
+        + '<td><div class="t2-sc"><b class="t2-nm">' + (has(c.score_v2) ? n(c.score_v2) : '—') + ' <small>хуучин ' + n(c.score_adj) + (v2miss(c).length ? ' · дутуу: ' + esc(v2miss(c).join(', ')) : '') + '</small></b>' + (has(c.score_v2) ? v2bar(c) : bar(c)) + '</div></td>'
         + '<td>' + ev(G.tt) + '</td><td>' + ev(G.cn) + '</td><td>' + ev(G.mn) + '</td><td>' + ev(G.econ) + '</td><td>' + stat(c) + '</td></tr>');
     });
     o('</tbody></table></div>');
@@ -505,7 +516,7 @@ function renderTests(DATA, QUERY) {
   o('<section class="t2-s"><div class="t2-sh"><h2>7 · Ранк системд хэрхэн холбогддог вэ</h2><p class="t2-why">Нотолгоо → оноо → таны шийдвэр → тест → үр дүн → оноо дахин суралцана.</p></div><div class="t2-cd t2-sys">'
     + '<div class="t2-col"><div class="t2-lb">Нотолгоо</div><div class="t2-nd"><b>Судлаач · өдөр бүр ' + esc(RS.task_next || '10:07') + '</b>TikTok ≤90 хоног · 1688 зургаар · Монгол 4 эх сурвалж</div>'
     + '<div class="t2-nd"><b>Зарын сан (Ad Library)</b>7 хоног бүр Монголын идэвхтэй зар</div><div class="t2-nd"><b>Таны шалгалт</b>«Би шалгасан / Буруу» · өртөг, үнэ, дэлгүүрийн тоо</div></div>'
-    + '<div class="t2-core"><b>Ранк</b><p>Шат бүрт хугацаа, эх сурвалж, итгэлийн түвшин</p><div class="eq">оноо = вирал + МН зай + ашиг + тохирол + сурсан</div><div class="eq">МН нягтлаагүй → МН зай ÷ 2</div><div class="eq">бэлэн = 9 нягтлалт · оноо ≥ ' + n(TH.min_score) + '</div></div>'
+    + '<div class="t2-core"><b>Ранк</b><p>Шат бүрт хугацаа, эх сурвалж, итгэлийн түвшин</p><div class="eq">оноо v2 = татах хүч 30 + МН 10 + үнэ цэнэ 20 + эрэлт 15 + ялах 25</div><div class="eq">хатуу хаалга: ≥2.5х өртөг · ≥20k ашиг · ≤30k өртөг</div><div class="eq">бэлэн = 9 нягтлалт · v2 ≥ ' + n((C[0] || {}).v2_min || 55) + '</div></div>'
     + '<div class="t2-col"><div class="t2-lb">Гарц</div><div class="t2-nd"><b>Таны шийдвэр</b>сонгох · дахин судлуулах · татгалзах</div><div class="t2-nd"><b>Тест</b>сайтад ТЕСТ горим, зар, 24 цагийн шалгалт</div>'
     + '<div class="t2-nd"><b>WIN / LOSS</b>ангилал, эх сурвалж, ижил барааны жин өөрчлөгдөнө</div></div></div></section>');
   o('<footer>' + esc(d.rule || '') + '</footer></div>');
