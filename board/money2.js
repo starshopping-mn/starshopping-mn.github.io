@@ -181,14 +181,15 @@ function renderMoney2(DATA, QUERY) {
     o('<section class="cd col" aria-label="Бараа бүрээр" style="gap:10px"><div class="hr"><h2 class="h">4 · Бараа бүрээр</h2><span class="sb">бохир ашиг = борлуулалт − өртөг − хөлс − зар</span></div><div class="tbl"><table><thead><tr><th>Бараа</th><th class="r">Мөнгө орсон</th><th class="r">Авлага · замд</th><th class="r">Нөөц</th><th class="r">Бохир ашиг</th><th class="r">Нэг захиалгад</th><th>Төлөв</th></tr></thead><tbody>');
     PRV.forEach((p) => {
       const s = n(p.sold_n), m = MODE[p.mode] || [p.mode || '—', 'nt'];
+      const pend = has(p.expected_total) ? n(p.expected_total) - n(p.contrib) : 0;   // EN: хүргэгдсэн + замд (мөнгө ирээгүй)
       const stk = n(p.stock_units) ? num(p.stock_units) + ' ш' + (has(p.stock_free) && n(p.stock_free) !== n(p.stock_units) ? ' (чөлөөт ' + num(p.stock_free) + ')' : '') : '0';
       o('<tr><td style="font-weight:600;white-space:normal;min-width:160px">' + esc(short(p.name)) + '</td>'
         + '<td class="r nm">' + num(p.revenue) + (s ? '<div class="sb mu">' + s + ' захиалга</div>' : '') + '</td>'
         + '<td class="r nm">' + (n(p.unpaid_gross) ? num(p.unpaid_gross) : '0') + '<div class="sb mu">' + (n(p.unpaid_n) ? n(p.unpaid_n) + ' хүргэгдсэн' : '') + (n(p.on_road_n) ? (n(p.unpaid_n) ? ' · ' : '') + n(p.on_road_n) + ' замд' : '') + '</div></td>'
         + '<td class="r nm">' + stk + (n(p.incoming_units) ? '<div class="sb mu">+ ' + num(p.incoming_units) + ' ш ирж яваа</div>' : '') + '</td>'
-        + '<td class="r nm ' + (n(p.contrib) >= 0 ? 'pos' : 'neg') + '">' + sg(p.contrib) + '</td>'
-        + '<td class="r nm">' + (s ? sg(n(p.contrib) / s) : '—') + '</td>'
-        + '<td><span class="pl ' + m[1] + '">' + esc(m[0]) + '</span>' + (has(p.recovery_pct) && n(p.spent) ? '<div class="sb mu">зарцуулснаа ' + n(p.recovery_pct) + '% буцаасан</div>' : '') + '</td></tr>');
+        + '<td class="r nm ' + (n(p.contrib) >= 0 ? 'pos' : 'neg') + '">' + sg(p.contrib) + (pend > 0 ? '<div class="sb pos" title="Хүргэгдсэн ба замд яваа захиалгын мөнгө орж ирэхэд нэмэгдэх бохир ашиг (бүсийн бодит хөлсөөр)">+' + bn(pend) + ' хүлээгдэж</div>' : '') + '</td>'
+        + '<td class="r nm"' + (n(p.loss) ? ' title="Нэг удаагийн хүргэгчийн алдагдал (' + num(p.loss) + '₮) хасаагүй"' : '') + '>' + (s ? sg((n(p.contrib) + n(p.loss)) / s) : '—') + '</td>'
+        + '<td><span class="pl ' + m[1] + '">' + esc(m[0]) + '</span>' + (has(p.recovery_pct) && n(p.spent) ? '<div class="sb mu">' + (n(p.revenue) || n(p.recovery_pct) ? 'зарцуулснаа ' + n(p.recovery_pct) + '% буцаасан' : 'зарцуулсан ' + bn(p.spent) + ' · буцаагүй') + '</div>' : '') + '</td></tr>');
     });
     o('</tbody></table></div></section>');
   }
