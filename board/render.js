@@ -854,6 +854,37 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     p.rows.forEach((r) => { h += '<div class="pcr"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'; });
     if (CHIPS[p.id]) h += '<div class="pcb">' + CHIPS[p.id] + '</div>';
     return h + '</button>'; };
+
+  // EU (2026-11-04, эзэн): Зах зээлийн ханалт v2 — нүүрний 7 дахь карт + баруун цонх. Өгөгдөл d.sat = sat_board() (EU PASTE).
+  const SATP = d.sat && Array.isArray(d.sat.products) ? d.sat.products : null;
+  const SAT_ST = { new: ['Шинэ', 'шинэ', 0], growing: ['Өсөж байна', 'өсөж', 1], stable: ['Тогтвортой', 'тогтвор', 2], saturating: ['Ханаж байна', 'ханаж', 3], exhausted: ['Дууссан', 'дууссан', 4] };
+  const SAT_CA = { reach: ['хүрээ нарийссан', 'w'], creative: ['бичлэг ядарсан', 'w'], audience: ['үзэгч ханасан', 'c'], economics: ['ашиггүй болсон', 'c'], data: ['өгөгдөл дутуу', ''], none: ['хэвийн', 'on'] };
+  const SAT_FL = { budget: 'төсөв 50%+ өөрчлөгдсөн', price: 'үнэ өөрчлөгдсөн', restart: 'зогсоод дахин эхэлсэн', dr_guess: 'хүргэлтийн хувь таамаг' };
+  const SAT_CONF = { high: 'итгэл өндөр', medium: 'итгэл дунд', low: 'итгэл бага' };
+  const satName = (x) => String(x.name || x.slug || '').split(' · ')[0];
+  const satSt = (x) => SAT_ST[x.stage] || SAT_ST.new;
+  const satMult = (x) => '×' + (has(x.demand_mult) ? n(x.demand_mult).toFixed(2) : '1.00');
+  const satHead = (x) => {
+    if (x.stage === 'new' || x.cause === 'data') return ['—', 'өгөгдөл хүлээж буй'];
+    if (has(x.margin_ratio) && n(x.margin_ratio) >= 1) return ['0', 'ашиггүй'];
+    if (!has(x.headroom_weeks)) return ['∞', 'CPA өсөөгүй'];
+    const h = n(x.headroom_weeks);
+    return [h > 52 ? '52+' : '~' + Math.round(h), '7 хоног зай'];
+  };
+  const stSat = !SATP || !SATP.length ? 'idle' : SATP.some((x) => x.stage === 'exhausted') ? 'block'
+    : SATP.some((x) => x.stage === 'saturating' || (has(x.demand_mult) && n(x.demand_mult) < 0.85)) ? 'wait' : 'flow';
+  const satCard = () => {
+    const cols = ST[stSat], main = SATP && SATP.length ? SATP[0] : null, hd = main ? satHead(main) : ['—', 'өгөгдөл алга'];
+    let h = '<button type="button" class="pc" data-id="sat" style="--st:' + cols[3] + '">'
+      + '<div class="pct"><span class="pcd"></span>ЗАХ ЗЭЭЛ · ХАНАЛТ</div><div class="pcv">' + esc(hd[0]) + '<em>' + esc(hd[1]) + '</em></div>';
+    if (!SATP || !SATP.length) h += '<div class="pcr"><span>өдөр бүр 20:10</span><b>хүлээж буй</b></div>';
+    else SATP.slice(0, 2).forEach((x) => { h += '<div class="pcr"><span>' + esc(satName(x)) + '</span><b>' + esc(satSt(x)[1] + ' ' + satMult(x)) + '</b></div>'; });
+    const cz = {};
+    (SATP || []).forEach((x) => { if (x.cause && x.cause !== 'none') cz[x.cause] = (cz[x.cause] || 0) + 1; });
+    const cb = Object.keys(cz).map((k) => chip((SAT_CA[k] || [k, ''])[0], (SAT_CA[k] || ['', ''])[1])).join('');
+    if (cb) h += '<div class="pcb">' + cb + '</div>';
+    return h + '</button>';
+  };
   // үйл явдлын тууз — байгаа цагийн тэмдгүүдээс (SQL нэмэлтгүй)
   const tkAt = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Ulaanbaatar', hour: '2-digit', minute: '2-digit' }) : '');
   const TKS = [];
@@ -866,7 +897,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   const tkHtml = TKS.map((t) => '<span>' + (t[0] ? '<i>' + esc(t[0]) + '</i>' : '') + esc(t[1]) + '</span>').join('');
   P('</div></div>');
   P('<div class="ticker"><b>СҮҮЛИЙН ҮЙЛ ЯВДАЛ</b><div class="tkw"><div class="tk">' + tkHtml + tkHtml + '</div></div></div>');
-  P('<div class="pcards">' + ['prod', 'crea', 'chat', 'ordr', 'conf', 'delv'].map(cardOf).join('') + '</div>');
+  P('<div class="pcards">' + ['prod', 'crea', 'chat', 'ordr', 'conf', 'delv'].map(cardOf).join('') + satCard() + '</div>');
 
   P('<div class="legend">');
   [['idle', STN.idle], ['flow', STN.flow], ['wait', STN.wait], ['block', STN.block]].forEach((L2) => {
@@ -885,6 +916,9 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     P('<div class="vv">' + esc(short(p.v)) + '</div>');
     P('</button>');
   });
+  { const m0 = SATP && SATP.length ? SATP[0] : null, hd0 = m0 ? satHead(m0) : ['—', ''];
+    P('<button type="button" class="sp2" data-open="sat"><span class="d" style="background:' + ST[stSat][0] + '"></span><div class="tt"><div class="n1">Зах зээл · Ханалт</div><div class="n2">'
+      + esc(m0 ? satName(m0) + ' · ' + satSt(m0)[1] + ' ' + satMult(m0) : 'өгөгдөл алга') + '</div></div><div class="vv">' + esc(hd0[0]) + '</div></button>'); }
   P('</div>');
 
   const ACTS = [
@@ -1079,7 +1113,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
 
   // Баруун: дэлгэрэнгүй цонх — станц бүрт нэг pane
   const PT = { prod: ['Бараа · Шүүр', n(C.products) + ' идэвхтэй бараа'], crea: ['Креатив · Зар', 'зар удирдах · үзүүлэлт'], chat: ['Чат · Сэтгэгдэл', msgIn + ' мессеж 24ц'],
-    ordr: ['Захиалга', ordReal + ' бодит · ' + n(C.orders) + ' нийт бүртгэл'], conf: ['Баталгаажуулалт', n(C.awaiting_confirm) + ' хүлээгдэж буй'], delv: ['Хүргэлт', (stalled.length ? stalled.length + ' гацсан' : 'хэвийн')], brain: ['Тархи', 'тест · шийдвэр · тайлан'] };
+    ordr: ['Захиалга', ordReal + ' бодит · ' + n(C.orders) + ' нийт бүртгэл'], conf: ['Баталгаажуулалт', n(C.awaiting_confirm) + ' хүлээгдэж буй'], delv: ['Хүргэлт', (stalled.length ? stalled.length + ' гацсан' : 'хэвийн')], sat: ['Зах зээл · Ханалт', SATP && SATP.length ? SATP.length + ' бараа · өдөр бүр 20:10' : 'өгөгдөл алга'], brain: ['Тархи', 'тест · шийдвэр · тайлан'] };
   const kv4 = (l, v, c) => '<div><span class="l">' + esc(l) + '</span><div class="v ' + (c || '') + '">' + esc(v) + '</div></div>';
   P('<aside class="drw4" id="drw" aria-label="Дэлгэрэнгүй"><div class="ph"><b id="dtitle">' + esc(PT.crea[0]) + '</b><span class="n" id="dsub">' + esc(PT.crea[1]) + '</span><button class="x" type="button" title="Хаах">×</button></div>');
   P('<script type="application/json" id="paneTitles">' + JSON.stringify(PT).replace(/</g, '\\u003c') + '</script>');
@@ -1110,6 +1144,54 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<section class="pane4" data-pane="delv"><div class="k4">' + kv4('хүргэсэн 24ц', n(PU.delivered)) + kv4('гацсан 5+ хоног', stalled.length, stalled.length ? 'c' : 'g') + kv4('бодит хүргэлт', has(DR.pct) ? DR.pct + '%' : '—') + kv4('30 хоног', n(E30.delivered) + ' / ' + n(E30.placed)) + '</div>');
   if (WG.length) P('<div class="note4">Бараа хүлээж буй: ' + WG.map((x) => esc(String(x.product || '').split(' · ')[0]) + ' ' + n(x.orders) + ' захиалга (PO' + esc(x.po_id) + ', ирэх ' + esc(String(x.eta || '').slice(5).replace('-', '/')) + (n(x.late_days) > 0 ? ' · <b>' + n(x.late_days) + ' хоног хоцорсон</b>' : '') + ')').join(' · ') + ' — эдгээр нь «гацсан»-д тоологдохгүй.</div>');
   P('<div class="acts4">' + fl(ordersQ('&tab=dsp'), 'Маргаашийн түгээлт · Excel') + fl(ordersQ('&stage=confirmed'), 'Гацсан хүргэлт') + fl(BASE + '/form/delivery', 'Статус оруулах', true) + '</div></section>');
+  // sat (EU): бараа бүрийн ханалт — үе шат, шалтгаан, зай, PO үржүүлэгч, өмнөх ↔ одоогийн цонх
+  P('<section class="pane4" data-pane="sat">');
+  if (!SATP || !SATP.length) P('<div class="note4">Ханалтын өгөгдөл алга. EU PASTE суусны дараа өдөр бүр 20:10-д шинэчлэгдэнэ.</div>');
+  else {
+    const pc = (v) => (has(v) ? Math.round(n(v) * 100) + '%' : '—');
+    const num = (v, dg) => (has(v) ? n(v).toLocaleString('en-US', { maximumFractionDigits: dg || 0 }) : '—');
+    const ddm = (s) => String(s || '').slice(5).replace('-', '/');
+    const todayUB = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+    SATP.forEach((x) => {
+      const s = satSt(x), hd = satHead(x), c = x.cur || {}, p0 = x.prev || {}, ca = SAT_CA[x.cause] || ['—', ''];
+      const mc = has(x.demand_mult) && n(x.demand_mult) < 0.9 ? 'w' : '';
+      P('<div class="sat4"><div class="sath"><b>' + esc(satName(x)) + '</b><span class="satp s' + s[2] + '">' + esc(s[0]) + '</span></div>');
+      P('<div class="satbar">' + [0, 1, 2, 3, 4].map((i) => '<i class="' + (i <= s[2] ? 'on s' + s[2] : '') + '"></i>').join('') + '</div>');
+      P('<div class="satbl"><span>шинэ</span><span>өсөж</span><span>тогтвор</span><span>ханаж</span><span>дууссан</span></div>');
+      P('<div class="k4">' + kv4(hd[1], hd[0], hd[0] === '0' ? 'c' : '') + kv4('PO эрэлт / 7 хоног', satMult(x), mc)
+        + kv4('хүрсэн хүн', has(x.reach_total) ? num(x.reach_total) + (has(x.penetration) ? ' · ' + (n(x.penetration) * 100).toFixed(1) + '%' : '') : '—')
+        + kv4('бодит CPA / ашиг', has(x.cpa_real) ? mnt(x.cpa_real) + (has(x.margin_ratio) ? ' · ' + Math.round(n(x.margin_ratio) * 100) + '%' : '') : '—', has(x.margin_ratio) && n(x.margin_ratio) >= 0.6 ? 'c' : '') + '</div>');
+      P('<div class="satr"><span>Шалтгаан</span><b class="' + ca[1] + '">' + esc(ca[0]) + '</b><em>' + esc(SAT_CONF[x.confidence] || '') + '</em></div>');
+      if (Array.isArray(x.drivers) && x.drivers.length) P('<ol class="satd">' + x.drivers.slice(0, 3).map((t) => '<li>' + esc(t) + '</li>').join('') + '</ol>');
+      if (x.prev) {
+        const rw = (l, a, b, good, f) => { const up = has(a) && has(b) && n(b) !== n(a) ? (n(b) > n(a)) : null, cls = up === null || good === null ? '' : (up === good ? 'g' : 'c');
+          return '<tr><td>' + esc(l) + '</td><td class="r">' + esc(f(a)) + '</td><td class="r ' + cls + '">' + esc(f(b)) + (up === null ? '' : up ? ' ↑' : ' ↓') + '</td></tr>'; };
+        const f2 = (v) => num(v, 2), fct = (v) => (has(v) ? n(v).toFixed(2) + '%' : '—');
+        P('<div class="sc satt"><table><thead><tr><th>Цонх</th><th class="r">' + esc(ddm(p0.d0) + '–' + ddm(p0.d1)) + '</th><th class="r">' + esc(ddm(c.d0) + '–' + ddm(c.d1)) + '</th></tr></thead><tbody>'
+          + rw('Шинэ хүнд хүрэх', p0.new_share, c.new_share, true, pc)
+          + rw('1000 шинэ хүнд захиалга', p0.opr, c.opr, true, f2)
+          + rw('Захиалга', p0.orders, c.orders, true, num)
+          + rw('CPA (зар)', p0.cpa, c.cpa, false, mnt)
+          + rw('CTR', p0.ctr, c.ctr, true, fct)
+          + rw('Өдрийн зардал', p0.spend_day, c.spend_day, null, mnt)
+          + '</tbody></table></div>');
+      }
+      const act = { economics: 'Бодит CPA ашгаас давсан — төсөв бууруулж, бичлэг ба үнийг шалга.',
+        audience: 'Шинэ үзэгч ч хариу өгөхөө больж байна — жинхэнэ ханалт. Шинэ хувилбар эсвэл шинэ сегмент; PO-г бага захиал.',
+        creative: 'Бичлэг ' + (x.worst_creative || '') + ' ядарсан — шинэ бичлэг нэм.',
+        reach: 'Зах зээл биш, Meta-гийн хүрээ нарийссан — төсөв нэмэхээс өмнө шинэ бичлэг эсвэл шинэ бүс.',
+        data: 'Харьцуулах өгөгдөл дутуу — 6+ идэвхтэй зарын өдөр хүлээнэ.', none: 'Хэвийн — үргэлжлүүл.' }[x.cause] || '';
+      if (act) P('<div class="satdo"><b>Хийх:</b> ' + esc(act) + '</div>');
+      const fl2 = (Array.isArray(x.flags) ? x.flags : []).map((f) => SAT_FL[f] || f);
+      if (has(c.d1) && c.d1 < todayUB && (new Date(todayUB) - new Date(c.d1)) / 864e5 > 2) fl2.unshift('зар ' + ddm(c.d1) + '-нээс хойш зогссон');
+      if (fl2.length) P('<div class="note4 satf">⚑ ' + esc(fl2.join(' · ')) + '</div>');
+      P('</div>');
+    });
+    const m0 = SATP[0];
+    P('<div class="note4">Шинэчилсэн ' + esc(String(m0.computed_at || '').replace('T', ' ').slice(5, 16)) + ' · reach ' + esc(ddm(m0.reach_as_of)) + ' (Да/Пү 19:47). '
+      + 'Зай = CPA одоогийн хурдаар өсвөл бодит CPA нэг захиалгын ашигт хүрэх хүртэлх долоо хоног. PO эрэлт = Нөөц · PO төлөвлөгчид орох долоо хоногийн үржүүлэгч.</div>');
+  }
+  P('<div class="acts4">' + fl('/board/?view=ops' + tq0, 'Нөөц · PO хуудас') + '</div></section>');
   // brain
   P('<section class="pane4" data-pane="brain">');
   H.push(...B.tests);
@@ -1132,7 +1214,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<script>(function(){'
     + 'var st=document.getElementById("st4"),drw=document.getElementById("drw");if(!st||!drw)return;var K="ss_home_pane",PT={};try{PT=JSON.parse(document.getElementById("paneTitles").textContent)}catch(e){}'
     + 'var box=st.querySelector(".sbox"),sc=st.querySelector(".scene");'
-    + 'function fit(){if(!box||!sc)return;var pcs=st.querySelector(".pcards"),lg=st.querySelector(".map4 .legend"),tk=st.querySelector(".map4 .ticker"),w=box.clientWidth;if(pcs)pcs.classList.toggle("six",w>=790);var ch=(pcs?pcs.offsetHeight+10:0)+(lg?lg.offsetHeight+14:0)+(tk?tk.offsetHeight:0),h=Math.max(200,(box.parentElement.clientHeight||558)-ch-8),k=Math.min(1.3,Math.max(.45,Math.min(w/1000,h/558*1.12))),bh=Math.min(Math.round(558*k),h);sc.style.transform="scale("+k+")";box.style.height=bh+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px";sc.style.top=Math.min(0,Math.round((bh-558*k)/2))+"px"}'
+    + 'function fit(){if(!box||!sc)return;var pcs=st.querySelector(".pcards"),lg=st.querySelector(".map4 .legend"),tk=st.querySelector(".map4 .ticker"),w=box.clientWidth;if(pcs)pcs.classList.toggle("six",w>=940);var ch=(pcs?pcs.offsetHeight+10:0)+(lg?lg.offsetHeight+14:0)+(tk?tk.offsetHeight:0),h=Math.max(200,(box.parentElement.clientHeight||558)-ch-8),k=Math.min(1.3,Math.max(.45,Math.min(w/1000,h/558*1.12))),bh=Math.min(Math.round(558*k),h);sc.style.transform="scale("+k+")";box.style.height=bh+"px";sc.style.left=Math.max(0,Math.round((w-1000*k)/2))+"px";sc.style.top=Math.min(0,Math.round((bh-558*k)/2))+"px"}'
     + 'function open(id,save){st.classList.remove("closed");st.querySelectorAll(".pc").forEach(function(c){c.classList.toggle("sel",c.dataset.id===id)});'
     + 'drw.querySelectorAll(".pane4").forEach(function(p){p.classList.toggle("on",p.dataset.pane===id)});var t=PT[id]||["",""];document.getElementById("dtitle").textContent=t[0];document.getElementById("dsub").textContent=t[1];'
     + 'if(save){try{localStorage.setItem(K,id)}catch(e){}}drw.scrollTop=0;fit()}'
