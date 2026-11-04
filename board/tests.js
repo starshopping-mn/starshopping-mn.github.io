@@ -54,6 +54,20 @@ function renderTests(DATA, QUERY) {
 
   const C = A(d.candidates), ACT = A(d.active), EV = A(d.evaluating), HIS = A(d.history), LEARN = A(d.learn);
   const S = d.slots || {}, ST = d.settings || {};
+  // EV (11/04): видео + дэлгүүрийн холбоос, үнийг эзэн засна → оноо тэр дор нь дахин бодогдоно
+  const GAPS = A((d.gaps || {}).rows);
+  const lkVal = (v) => (has(v) ? esc(v) : '');
+  const lkForm = (c) => { const id = n(c.find_id);
+    return '<form class="t2-lk" id="lk' + id + '" data-f="' + id + '" hidden autocomplete="off">'
+      + '<div class="t2-lkg"><b>① Анх олсон суваг · видео</b>'
+      + '<label>Видео холбоос (TikTok / Instagram / Douyin)<input name="reel_url" type="url" inputmode="url" placeholder="https://www.tiktok.com/@…/video/…" value="' + lkVal(c.reel_url) + '"></label>'
+      + '<div class="t2-lk2"><label>Нийтэлсэн огноо<input name="reel_posted_at" type="date" value="' + lkVal(c.reel_posted_at) + '"></label><label>Үзэлт<input name="reel_views" inputmode="numeric" placeholder="255600" value="' + lkVal(c.reel_views) + '"></label></div></div>'
+      + '<div class="t2-lkg"><b>② Зарагдаж буй дэлгүүр · үнэ</b>'
+      + '<label>1688 / Taobao offer холбоос<input name="cn_offer_url" type="url" inputmode="url" placeholder="https://detail.1688.com/offer/….html" value="' + lkVal(c.cn_offer_url) + '"></label>'
+      + '<div class="t2-lk3"><label>Барааны үнэ ¥ (зөв SKU)<input name="cn_item_cny" inputmode="decimal" value="' + lkVal(has(c.cn_item_cny) ? c.cn_item_cny : c.cn_price) + '"></label><label>Хятад доторх хүргэлт ¥<input name="cn_ship_cny" inputmode="decimal" value="' + lkVal(c.cn_ship_checked === false ? '' : c.cn_ship_cny) + '"></label><label>Жин, г<input name="weight_g" inputmode="numeric" value="' + lkVal(c.weight_g) + '"></label></div></div>'
+      + '<label>Тэмдэглэл<input name="note" placeholder="Юуг яагаад зассан (заавал биш)"></label>'
+      + '<div class="t2-lkb"><button type="submit" class="btn p">Хадгалаад оноо дахин бодох</button><button type="button" class="btn s lk-x">Болих</button></div>'
+      + '<div class="out"></div></form>'; };
   const free = Math.max(0, n(S.max) - n(S.used));
 
 
@@ -216,6 +230,9 @@ function renderTests(DATA, QUERY) {
    + '.t2-row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px dashed var(--ln3);padding-bottom:5px}.t2-row span{color:var(--mut);flex:none}.t2-row em{font-style:normal;font-variant-numeric:tabular-nums;font-size:12.5px;text-align:right;overflow-wrap:anywhere;min-width:0}'
    + '.t2-ln{display:inline-flex;gap:6px;align-items:center;padding:7px 10px;border:1px solid var(--ln2);border-radius:9px;font-size:12.5px;font-weight:650;color:var(--ink);text-decoration:none;background:var(--s1);align-self:flex-start}.t2-ln:hover{border-color:var(--f3)}'
    + '.t2-it{display:flex;flex-direction:column;gap:4px;font-size:12px}.t2-it a,.t2-it div{color:var(--ink2);text-decoration:none;border-left:2px solid var(--ln2);padding-left:8px;overflow-wrap:anywhere}.t2-it a:hover{border-color:var(--f3)}'
+   + '.t2-lk[hidden]{display:none!important}.t2-lk{display:flex;flex-direction:column;gap:10px;margin:12px 0 0;padding:14px;border:1px solid var(--gold-ln);border-radius:12px;background:var(--s1)}.t2-lk label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut);min-width:0}.t2-lk input{font:inherit;font-size:13.5px;color:var(--ink);background:var(--bg);border:1px solid var(--ln2);border-radius:8px;padding:8px 10px;min-width:0;width:100%}.t2-lk input:focus{outline:2px solid var(--gold);outline-offset:1px}'
+   + '.t2-lkg{display:flex;flex-direction:column;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--ln3)}.t2-lkg>b{font-size:13px;color:var(--ink)}.t2-lk2,.t2-lk3{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}.t2-lk3{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:560px){.t2-lk3{grid-template-columns:1fr 1fr}}.t2-lkb{display:flex;gap:8px;flex-wrap:wrap}'
+   + '.t2-gp{display:flex;flex-direction:column;gap:8px}.t2-gr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 14px;align-items:center;padding:10px 12px;border:1px solid var(--ln);border-radius:10px;background:var(--s1)}.t2-gr .t2-lk{grid-column:1/-1}.t2-gn{display:flex;flex-direction:column;min-width:0}.t2-gn b{font-size:13.5px}.t2-gn span{font-size:11.5px;color:var(--mut)}.t2-gl{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}.t2-gl a{color:var(--f3)}.t2-miss{color:var(--warn);font-weight:650}@media(max-width:620px){.t2-gr{grid-template-columns:1fr}}'
    + '.t2-em{font-size:12.5px;color:var(--mut);border:1px dashed var(--ln2);border-radius:9px;padding:9px 11px;line-height:1.45}'
    + '.t2-vf{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:auto;padding-top:6px}'
    + '.t2-cf2{margin-top:12px;border-radius:12px;padding:12px 14px;background:var(--crit-a);color:var(--ink);font-size:13px;line-height:1.5}.t2-cf2 b{color:var(--crit)}'
@@ -279,7 +296,7 @@ function renderTests(DATA, QUERY) {
 
   // ── 2 · РАНК + НОТОЛГОО
   const TR = ACT.concat(EV).filter((t) => has(t.rank_now)).sort((a, b) => n(a.rank_now) - n(b.rank_now));
-  o('<section class="t2-s"><div class="t2-sh"><h2>2 · Ранк · нэр дэвшигчид</h2><p class="t2-why">Мөр дээр дарахад доор нотолгоо нь нээгдэнэ. Эрэмбэ = алгоритм v2 (11/03): 8 шалгуурын оноо — татах хүч, надад хэрэгтэй, МН тохирол, үнэ цэнэ (≤30k өртөг → ~95k), эрэлт, ялах боломж, Temu, ажиллагаа. Хатуу хаалгад тэнцээгүй бараа жагсаалтаас гарна. 1688 холбоосгүй бараа холбоостойн доор.'
+  o('<section class="t2-s"><div class="t2-sh"><h2>2 · Ранк · нэр дэвшигчид</h2><p class="t2-why">Мөр дээр дарахад доор нотолгоо нь нээгдэнэ. Эрэмбэ = алгоритм v2 (11/03): 8 шалгуурын оноо — татах хүч, надад хэрэгтэй, МН тохирол, үнэ цэнэ (≤30k өртөг → ~95k), эрэлт, ялах боломж, Temu, ажиллагаа. Хатуу хаалгад тэнцээгүй бараа жагсаалтаас гарна. <b>Хатуу дүрэм (11/04):</b> видео (TikTok) + дэлгүүр (1688) холбоос ба үнэ гурвуулаа байж л ранкад орно — дутуу бол доорх «Холбоос дутуу» хэсэгт.'
     + (TR.length ? ' Тестэд байгаа: ' + TR.map((t) => '#' + n(t.rank_now) + ' ' + esc(t.name)).join(', ') + '.' : '') + '</p></div>');
   if (!C.length) o('<div class="em">Нэр дэвшигч алга — өдөр бүрийн шүүлт ажилласны дараа энд гарна.</div>');
   else {
@@ -296,6 +313,17 @@ function renderTests(DATA, QUERY) {
     o('</tbody></table></div>');
   }
   o('</section>');
+  // EV: холбоос дутуу — ранкад орохгүй (эзэн эсвэл судлаач нөхнө)
+  if (GAPS.length) {
+    o('<section class="t2-s"><div class="t2-sh"><h2>Холбоос дутуу · ранкад ороогүй</h2><p class="t2-why">Оноо өндөр ч видео эсвэл дэлгүүрийн холбоос дутуу тул ранкад ороогүй. Өдрийн судлаач нөхөж хайна; та өөрөө олсон бол «Холбоос нэмэх» дарж оруулбал оноо, ранк тэр дор нь шинэчлэгдэнэ.</p></div><div class="t2-gp">');
+    GAPS.forEach((g) => { const G2 = g.gate || {};
+      o('<div class="t2-gr"><div class="t2-gn"><b>' + esc(g.product) + '</b><span>' + esc(g.category || '—') + ' · v2 ' + (has(g.score_v2) ? n(g.score_v2) : '—') + '</span></div>'
+        + '<div class="t2-gl">' + (G2.tt_link ? '<a href="' + url(G2.tt_link) + '" target="_blank" rel="noopener">▶ видео ↗</a>' : '<span class="t2-miss">видео алга</span>')
+        + (G2.cn_link ? '<a href="' + url(G2.cn_link) + '" target="_blank" rel="noopener">🛒 дэлгүүр ↗</a>' : '<span class="t2-miss">дэлгүүр алга</span>') + (g.cn_price_stale ? '<span class="t2-miss">үнэ шалгах</span>' : '') + '</div>'
+        + '<button type="button" class="btn s lk-b" data-f="' + n(g.find_id) + '">Холбоос нэмэх</button>' + lkForm(g) + '</div>');
+    });
+    o('</div></section>');
+  }
 
   // нотолгооны самбар — бараа бүрт нэг (серверт биш, энд зурж нуусан; мөр дарахад нээгдэнэ)
   C.forEach((c, i) => {
@@ -320,7 +348,7 @@ function renderTests(DATA, QUERY) {
       + (url(c.reel_url) ? '<a class="t2-ln" href="' + url(c.reel_url) + '" target="_blank" rel="noopener">▶ ' + (/instagram/i.test(c.reel_url) ? 'Instagram' : 'TikTok') + ' reel нээх ↗</a>' : '')
       + (IT.length ? '<div class="t2-it">' + IT.slice(0, 4).map((x) => (url(x.url) ? '<a href="' + url(x.url) + '" target="_blank" rel="noopener">' : '<div>') + '▶ ' + esc(day(x.posted_at)) + (has(x.views) ? ' · ' + bigN(x.views) + ' үзэлт' : '') + (x.note ? ' · ' + esc(String(x.note).slice(0, 80)) : '') + (url(x.url) ? '</a>' : '</div>')).join('') + '</div>'
         : '<div class="t2-em">Судлаач ≤90 хоногийн reel хайгаад энд огноо, үзэлттэй нь 3 хүртэл reel гаргана (дараагийн ажил ' + esc(RS.task_next || '10:07') + ').</div>')
-      + vbtn('tt') + '</div>');
+      + vbtn('tt', '<button type="button" class="btn s lk-b" data-f="' + id + '">Холбоос · үнэ засах</button>') + '</div>');
     // 1688
     let alt = CN.alt; try { const j = JSON.parse(alt); if (Array.isArray(j)) alt = j.map((x) => (typeof x === 'object' ? (x.url || x.id || '') + (x.cny ? ' ¥' + x.cny : '') : x)).join(' · '); } catch (er) { /* текст хэвээр */ }
     o('<div class="t2-eg ' + G.cn.cls + '"><div class="t2-eh"><b>1688 · авах бараа</b><span>' + pl(G.cn.cls, c.cn_ship_checked ? 'хүргэлт шалгасан' : isOffer(c) ? 'хүргэлт таамаг' : 'offer алга') + ' ' + ownerPill(c, 'cn') + '</span></div>'
@@ -333,7 +361,7 @@ function renderTests(DATA, QUERY) {
       + row('Өртөг шалгасан', c.cn_price_by ? esc(c.cn_price_by) + (c.cn_price_at ? ' · ' + esc(day(c.cn_price_at)) : '') : 'Claude олсон — шалгаагүй')
       + row('Тэмдэглэл', esc(String(c.supplier_note || '').slice(0, 180)))
       + (isOffer(c) ? '<a class="t2-ln" href="' + url(c.cn_offer_url) + '" target="_blank" rel="noopener">🛒 1688 offer нээх ↗</a>' : c.cn_url ? '<a class="t2-ln" href="' + url(c.cn_url) + '" target="_blank" rel="noopener">1688 хайлт ↗</a>' : '')
-      + vbtn('cn', '<button class="btn s cost-b" data-f="' + id + '">Өртөг засах</button>') + '<div class="out" id="out-cost' + id + '"></div></div>');
+      + vbtn('cn', '<button type="button" class="btn s lk-b" data-f="' + id + '">Холбоос · үнэ засах</button>') + '<div class="out" id="out-cost' + id + '"></div></div>');
     // Монгол
     const SL = A(M.sellers);
     o('<div class="t2-eg ' + G.mn.cls + '"><div class="t2-eh"><b>Монголын зах зээл</b><span>' + pl(G.mn.cls, M.fresh ? 'шинэ' : has(M.age_days) ? n(M.age_days) + ' хоног хуучирсан' : 'шалгаагүй') + ' ' + ownerPill(c, 'mn') + '</span></div>'
@@ -358,6 +386,7 @@ function renderTests(DATA, QUERY) {
       + row('Оноонд', 'ашиг ' + n(P.econ) + ' · тохирол ' + n(P.fit))
       + vbtn('econ', '<button class="btn s prc-b" data-f="' + id + '" data-p="' + (has(E.price) ? n(E.price) : '') + '">Үнэ тогтоох</button>') + '<div class="out" id="out-prc' + id + '"></div></div>');
     o('</div>');
+    o(lkForm(c));
     // яагаад анхааралтай байх вэ
     const cw = [];
     if (n(c.mn_adj) < 0) cw.push('Оноо ' + n(c.score_base) + '-ийн «МН зай» ' + n(P.gap) + ' нь ' + esc(MNSRC[M.src] || '?') + (has(M.age_days) ? ' (' + n(M.age_days) + ' хоногийн өмнө)' : '') + '-д тулгуурласан тул <b>' + n(c.mn_adj) + '</b> хассан → ' + n(c.score_adj) + '. Монголын хэсгийг шалгаад «Би шалгасан» дарах эсвэл судлаач шинэчлэхэд буцна.');
@@ -522,7 +551,7 @@ function renderTests(DATA, QUERY) {
   o('<footer>' + esc(d.rule || '') + '</footer></div>');
 
   // ── өгөгдөл + үйлдэл: товч бүр = SQL-ийн нэг шилжилт (10b POST action=…)
-  o('<script type="application/json" id="TB">' + JSON.stringify({ c: C, free: free }).replace(/</g, '\\u003c') + '</script>');
+  o('<script type="application/json" id="TB">' + JSON.stringify({ c: C, free: free, g: GAPS }).replace(/</g, '\\u003c') + '</script>');
   o('<script>(' + String(testsClient) + ')();</script></body></html>');
   return P.join('');
 }
@@ -544,7 +573,7 @@ function testsClient() {
       .catch(function (x) { if (btn) { btn.disabled = false; btn.textContent = btn.dataset.tx; } show(out, '⚠️ ' + e(x.message)); throw x; });
   }
   function reload(ms) { setTimeout(function () { if (window.ssRefresh) window.ssRefresh(); else location.reload(); }, ms || 400); }
-  function cand(id) { for (var i = 0; i < D.c.length; i++) if (+D.c[i].find_id === +id) return D.c[i]; return {}; }
+  function cand(id) { var L = (D.c || []).concat(D.g || []); for (var i = 0; i < L.length; i++) if (+L[i].find_id === +id) return L[i]; return {}; }
   function q(s) { return root.querySelectorAll(s); }
 
   // ранкийн мөр → нотолгооны самбар
@@ -607,6 +636,43 @@ function testsClient() {
         .then(function () { b.textContent = '✓ хадгаллаа'; reload(); });
     });
   });
+  // EV: Холбоос · үнэ засах (do=links) — 2 холбоос заавал, үнэ солигдвол оноо/ранк тэр дор нь дахин бодогдоно
+  q('.lk-b').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = document.getElementById('lk' + b.dataset.f); if (!f) return;
+      q('.t2-lk').forEach(function (x) { if (x !== f) x.hidden = true; });
+      f.hidden = !f.hidden; if (!f.hidden) { var i = f.querySelector('input'); if (i) i.focus(); }
+    });
+  });
+  q('.t2-lk .lk-x').forEach(function (b) { b.addEventListener('click', function () { b.closest('.t2-lk').hidden = true; }); });
+  q('.t2-lk').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var c = cand(f.dataset.f), out = f.querySelector('.out'), btn = f.querySelector('button[type=submit]');
+      var v = function (nm) { return String(f.elements[nm].value || '').trim(); };
+      var num = function (s) { s = String(s).replace(',', '.').replace(/[^0-9.]/g, ''); return s === '' ? null : +s; };
+      var same = function (a, b2) { return String(a == null ? '' : a) === String(b2 == null ? '' : b2); };
+      var p = { action: 'findact', do: 'links', find_id: +f.dataset.f, by: 'эзэн', note: v('note') };
+      var reel = v('reel_url'), cn = v('cn_offer_url'), it = num(v('cn_item_cny')), sh = num(v('cn_ship_cny')), w = num(v('weight_g'));
+      if (reel && !same(reel, c.reel_url)) { p.reel_url = reel; p.reel_posted_at = v('reel_posted_at') || null; p.reel_views = num(v('reel_views')); }
+      else if (reel && (!same(v('reel_posted_at'), c.reel_posted_at) || !same(num(v('reel_views')), c.reel_views))) { p.reel_url = reel; p.reel_posted_at = v('reel_posted_at') || null; p.reel_views = num(v('reel_views')); }
+      var cnChanged = cn && !same(cn, c.cn_offer_url);
+      var priceChanged = it !== null && (!same(it, has2(c.cn_item_cny) ? c.cn_item_cny : c.cn_price) || !same(sh, c.cn_ship_checked === false ? null : c.cn_ship_cny) || !same(w, c.weight_g));
+      if (cnChanged) p.cn_offer_url = cn;
+      if (cnChanged && !priceChanged) { show(out, '⚠️ Дэлгүүрийн холбоос солигдсон — шинэ дэлгүүрийн БАРААНЫ үнийг (¥) оруулна уу. Хуучин үнэ өөр барааных байж магадгүй.'); return; }
+      if (priceChanged || cnChanged) { p.cn_item_cny = it; p.cn_ship_cny = sh; p.weight_g = w; }
+      if (!p.reel_url && !p.cn_offer_url && p.cn_item_cny == null) { show(out, 'Өөрчлөлт алга.'); return; }
+      post(p, btn, out).then(function (j) {
+        var g = j.gate || {}, d2 = (j.v2_new != null && j.v2_prev != null) ? (j.v2_new - j.v2_prev) : null;
+        show(out, '✓ Хадгаллаа · оноо v2 <b>' + e(j.v2_prev == null ? '—' : j.v2_prev) + ' → ' + e(j.v2_new == null ? '—' : j.v2_new) + '</b>' + (d2 ? ' (' + (d2 > 0 ? '+' : '') + d2 + ')' : '')
+          + (j.cn_total != null ? ' · Эрээнд нийт ¥' + e(j.cn_total) : '')
+          + (g.links_ok ? ' · 2 холбоос бүрэн — ранкад орно' : ' · дутуу: ' + e(g.missing || '?') + ' — ранкад орохгүй')
+          + ((j.hard || []).length ? '<br>⛔ Хатуу хаалга: ' + e(j.hard.join(' · ')) : '') + '<br>Ранк шинэчлэгдэж байна…');
+        btn.textContent = '✓'; reload(1800);
+      });
+    });
+  });
+  function has2(x) { return x !== null && x !== undefined && x !== ''; }
   // Өртөг засах (1688 барааны ¥ + Хятад доторх хүргэлт + жин + offer)
   q('.cost-b').forEach(function (b) {
     b.addEventListener('click', function () {
