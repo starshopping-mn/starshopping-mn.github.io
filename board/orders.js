@@ -601,6 +601,14 @@ function renderOrders(DATA, QUERY) {
     ['other', 'Бусад', others.length, 'цуцлагдсан · тест', others.length > 0]
   ].filter((t) => t[4]);
   const defTab = Q.tab && TABS.some((t) => t[0] === Q.tab) ? Q.tab : (nUrg ? 'rural' : (anyFilter ? 'main' : ''));
+  // EP (2026-11-04, эзэн: архивласан хүнийг хайхад олдохгүй байсан — тэр нь «Сонирхол → Архив» табд нуугдсан байв):
+  // хайлт хийхэд олдсон бүх мөр (архив, цуцлагдсан ч) табын ДЭЭР нэг дор харагдана; архивласан бол шууд «↩ Сэргээх».
+  if (has(Q.q)) {
+    o('<section class="qres" style="margin:10px 0 14px"><h3 style="margin:0 0 6px;font-size:15px">🔎 «' + esc(Q.q) + '» — хайлтын үр дүн (' + O.length + ')</h3>'
+      + (O.some(isArch) ? '<p class="sm mut" style="margin:0 0 6px">Архивласан сонирхлыг «↩ Сэргээх» дарж Сонирхол руу буцаана — хувилбар нөөцөд байвал дахин түгжинэ.</p>' : ''));
+    table(O.slice().sort((a, b) => new Date(b.placed_at) - new Date(a.placed_at)), 'other', 'Олдсонгүй — сонгосон хугацаанд ийм утас / нэр / хаяг алга. Огноо шүүлтийг сунгаж үзнэ үү.');
+    o('</section>');
+  }
   o('<div class="otabs" id="otabs" role="tablist" data-def="' + esc(defTab) + '">');
   TABS.forEach((t) => o('<button type="button" class="otb" role="tab" data-tab="' + t[0] + '"' + (t[0] === 'rural' && nUrg ? ' data-urg="1"' : '') + '>' + esc(t[1]) + ' <b>' + t[2] + '</b>' + (t[3] ? '<span class="sm">· ' + esc(t[3]) + '</span>' : '') + '</button>'));
   o('</div>');
