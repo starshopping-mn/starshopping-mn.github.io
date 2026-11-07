@@ -9,6 +9,7 @@ function ssNav(on, themeQ) {
     ['money', '/board/?view=money' + tq, 'Мөнгө'],
     ['ops', '/board/?view=ops' + tq, 'Нөөц · PO'],
     ['growth', '/board/?view=growth' + tq, 'Өсөлт'],
+    ['reach', '/board/?view=reach' + tq, 'Хүрээ'],
     ['research', '/board/?view=research&tab=rank' + tq, 'Судалгаа']
   ];
   return '<nav class="nav">' + items.map(function (it) {
@@ -38,6 +39,7 @@ function ssNav(on, themeQ) {
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
     money:    { data: 'money2',   extra: {}, render: 'renderMoney2', passQuery: true }, // блок DB (10-31): мөнгө v2 — money_summary нэг дуудлага
     growth:   { data: 'growth',   extra: {}, render: 'renderGrowth' },   // блок EK (11-03): өсөлтийн шат — growth_plan, дохио
+    reach:    { data: 'reach',    extra: {}, render: 'renderReach' },    // блок FL (11-07): хүрээний хамгаалалт — reach_board, засварын бүртгэл
     money_old: { data: 'money',   extra: {}, render: 'renderMoney', passQuery: true }  // блок C2: хуучин мөнгө — ангилал, дэвтэр, сан (v2-ийн «Дэлгэрэнгүй»)
   };
   // C3: хуучин хаягууд → шинэ хуудас (хуучин холбоос, Telegram мессеж ажилласаар)
