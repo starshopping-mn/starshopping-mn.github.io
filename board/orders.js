@@ -192,6 +192,8 @@ function renderOrders(DATA, QUERY) {
       else if (!r.is_rural && r.pay_requested_at && !r.shipped_at) st.push('<span class="pill warn" title="Урьдчилгааны SMS явсан — мөнгө орохоос өмнө түгээлтэд орохгүй">💳 урьдчилгаа хүлээж буй · ' + esc(ago(r.pay_requested_at)) + '</span>');
       if (r.deliver_sms_at) st.push('<span class="pill info">💬 SMS ' + dt(r.deliver_sms_at) + '</span>');
     }
+    // FO (2026-11-07): суулгах заавар reel-ийн холбоос явсан эсэх (чат эсвэл SMS)
+    if (r.guide_at) st.push('<span class="pill info" title="Хаалганы гэрэл суулгах заавар бичлэгийн холбоос явсан">📘 заавар · ' + (r.guide_ch === 'chat' ? 'чат' : 'SMS') + ' ' + dt(r.guide_at) + '</span>');
     // M6: хүргэх өдөр (хоосон = маргааш). Зөвхөн УБ, хаягтай, ачаагүй.
     if (['order', 'confirmed'].indexOf(r.stage) >= 0 && !r.shipped_at && !r.is_rural) {
       st.push('<label class="dlv' + (r.deliver_on ? ' set' : '') + '">📅 хүргэх: <input type="date" class="dlvi" data-id="' + esc(r.order_id) + '" value="' + esc(r.deliver_on || '') + '" min="' + TODAY + '" title="Хоосон = өнөөдөр. Өөр өдөр авна гэвэл сонго."></label>' + (r.deliver_on ? '' : '<span class="sm mut">хоосон = өнөөдөр</span>'));
