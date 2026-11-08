@@ -376,7 +376,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       p += '<div class="si sn">Үндсэн орлого = мөнгө нь орж ирсэн захиалга. «Захиалсан» нь хүргэлт баталгаажаагүй тул орлогод тооцогдоогүй.</div>';
     } else if (kind === 'exp') {
       s = '<div class="kv">' + mnt(cs.total) + '</div><div class="ks">зар ' + short(cs.ads && cs.ads.total) + ' · бараа ' + short(cs.goods && cs.goods.total)
-        + ' · хүргэлт ' + short(cs.delivery) + ' · систем ' + short(cs.tools && cs.tools.total) + '</div>';
+        + ' · хүргэлт ' + short(cs.delivery) + ' · систем ' + short(cs.tools && cs.tools.total)
+        + ((M.econ && M.econ.total && (n(M.econ.total.stock_mnt) + n(M.econ.total.incoming_mnt)) > 0) ? ' · үүнээс зарагдаагүй бараа (агуулах + замд) ' + short(n(M.econ.total.stock_mnt) + n(M.econ.total.incoming_mnt)) + ' — зардал биш, нөөц' : '') /* MF2 */ + '</div>';
       p = row('Зар (Meta)', mnt(cs.ads && cs.ads.total))
         + row('Бараа + карго (Эрээн/PO)', mnt(cs.goods && cs.goods.total))
         + row('Хүргэлт + буцаалт', mnt(cs.delivery))
@@ -392,6 +393,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
         + (has(OP.expected) ? ' · хүлээгдэж буйтай ' + MSG(OP.expected) : '') + ' · мөнгөний урсгал ' + MSG(OP.cash_real) + '</div>';
       p = row('Орлого · ' + n(ET.sold_n) + ' зарагдсан', mnt(ET.revenue))
         + row('− борлуулсан барааны өртөг', '−' + mnt(ET.cogs)) + row('− хүргэлтийн хөлс, буцаалт', '−' + mnt(ET.fees)) + row('− зар', '−' + mnt(ET.ads))
+        + (n(ET.loss) ? row('− хүргэгчийн алдагдал (Gyals хаалт)', '−' + mnt(ET.loss), 'crit') : '') /* MF1 2026-11-08 */
         + row('Барааны хувь нэмэр', MSG(ET.contrib), n(ET.contrib) >= 0 ? 'good' : 'crit')
         + row('− систем / хэрэгсэл / бусад', '−' + mnt(OP.fixed))
         + row('Үйл ажиллагааны үр дүн', MSG(res), res >= 0 ? 'good' : 'crit')
@@ -438,7 +440,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     P('<div class="mb"><div class="l">' + esc(label) + (kind === 'inc' ? '<span class="seg perseg"><button type="button" class="pt on" data-p="m">сар</button><button type="button" class="pt" data-p="a">нийт</button></span>' : '') + '</div>' + a.s + b.s + '</div>');
   };
   P('<div class="money4" id="mrow" data-per="m">');
-  barTile('inc', 'Орлого (төлөгдсөн)'); barTile('exp', 'Зардал'); barTile('net', 'Цэвэр');
+  barTile('inc', 'Орлого (төлөгдсөн)'); barTile('exp', 'Мөнгө гарсан'); barTile('net', 'Цэвэр');
   cur = B.money;
   // M12 (2026-10-20): Мөнгөний хөдөлгүүр — Мөнгө хуудасны engine-тэй ижил 4 тоо (бэлэн · нөөц сан · чөлөөт · тааз)
   const EN = (MM && MM.engine) || (MA && MA.engine) || null;
@@ -453,7 +455,17 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     const balAge = accAt ? Math.floor((Date.now() - accAt) / 864e5) : EC.snapshot_d ? Math.floor((Date.now() - new Date(String(EC.snapshot_d).slice(0, 10) + 'T00:00:00+08:00').getTime()) / 864e5) : null;
     const balOld = balAge !== null && balAge > (accAt ? 1 : 3) ? ' · ⚠ ' + balAge + ' хоногийн өмнөх — ' + (accAt ? 'банкны SMS ирэхгүй байна' : 'шинэчил') : '';
     const balLbl = accAt ? 'банкны SMS ' + new Date(accAt).toLocaleString('en-GB', { timeZone: 'Asia/Ulaanbaatar', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') : 'баланс оруулаагүй';
-    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', balLbl + balOld, balOld ? 'warn' : ''],
+    // MF3 (2026-11-08, эзэн): данс бүрийн яг одоогийн үлдэгдэл (банкны SMS-ээс)
+    const BN = { khan: 'Хаан', tdb: 'ХХБ', khas: 'Хас', golomt: 'Голомт', state: 'Төрийн', cash: 'Бэлэн' };
+    const accList = (Array.isArray(EC.accounts) ? EC.accounts : []).filter((a) => has(a.balance) && Math.abs(n(a.balance)) >= 1)
+      .map((a) => {
+        const nm = (BN[a.bank] || a.bank || '') + (a.currency === 'USD' ? ' USD' : '') + (a.in_cash ? '' : ' (' + (/зээл/i.test(a.name || '') ? 'зээлийн' : 'тооцоонд ороогүй') + ')');
+        const v = a.currency === 'USD' ? '$' + n(a.balance).toFixed(2) : mnt(Math.round(n(a.balance)));
+        const age = a.balance_at ? Math.floor((Date.now() - new Date(a.balance_at).getTime()) / 864e5) : null;
+        return nm + ' ' + v + (age && age >= 1 ? ' (' + age + ' хоногийн өмнөх)' : '');
+      });
+    const accLine = accList.length ? accList.join(' · ') : '';
+    const EB = [['бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', (accLine ? accLine + ' · ' : '') + balLbl + balOld, balOld ? 'warn' : ''],
       ['нөөц сан', has(ER.pct) ? n(ER.pct) + '%' : '—', short(ER.now) + ' / ' + short(ER.target), n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit'],
       ['чөлөөт', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : ''],
       ['сарын тааз', over.length ? 'давсан' : warn.length ? '80%+' : '✓', over.length ? over.join(', ') : warn.length ? warn.join(', ') : 'хязгаарт', over.length ? 'crit' : warn.length ? 'warn' : 'good']];
@@ -461,7 +473,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     EB.forEach((e) => P('<div class="mb mini"><div class="l">' + esc(e[0]) + '</div><div class="kv ' + e[3] + '">' + esc(e[1]) + '</div><div class="ks">' + esc(e[2]) + '</div></div>'));
     cur = B.money;
     P('<div class="krow krow4">');
-    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', accAt ? balLbl + balOld : EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
+    kpi('Бэлэн мөнгө', has(EC.now) ? mnt(EC.now) : '—', accAt ? (accLine ? accLine + ' · ' : '') + balLbl + balOld : EC.snapshot_d ? 'баланс ' + String(EC.snapshot_d).slice(5).replace('-', '/') + balOld + ' + төлөгдсөн ' + short(EC.in_paid) + ' − зардал ' + short(n(EC.out_ledger) + n(EC.out_ads) + n(EC.out_po)) : 'Мөнгө хуудсанд балансаа оруул');
     kpi('Нөөц сан', (has(ER.pct) ? n(ER.pct) + '%' : '—'), short(ER.now) + ' / ' + short(ER.target) + ' · ' + n(ER.months) + ' сарын систем + татан авалт', n(ER.pct) >= 100 ? 'good' : n(ER.pct) >= 50 ? 'warn' : 'crit');
     kpi('Чөлөөт мөнгө', has(EF.mnt) ? MSG(EF.mnt) : '—', STN[EF.state] || '', EF.state === 'ready' ? 'good' : EF.state === 'locked' ? 'crit' : '');
     kpi('Сарын тааз', over.length ? '🔴 давсан' : warn.length ? '🟡 80%+' : '✓', over.length ? over.join(', ') + ' давсан' : warn.length ? warn.join(', ') + ' 80%-д хүрсэн' : caps.map((c) => c.label + ' ' + short(c.spent) + (has(c.cap) ? '/' + short(c.cap) : '')).join(' · '), over.length ? 'crit' : warn.length ? 'warn' : 'good');
