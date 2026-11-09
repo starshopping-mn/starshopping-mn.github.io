@@ -108,7 +108,7 @@ function renderBoard(DATA, QUERY) {
   const H = [];
   // Нүүр v3 (2026-10-22): хэсгүүдийг тусдаа буферт зурж, төгсгөлд нь бүсээр (Өнөөдөр → Зар → Мөнгө → Зураглал → …) эрэмбэлнэ.
   // Код хөдөлгөхгүй — зөвхөн cur-ийг сольж бичнэ. Мэдээлэл нэгийг ч хасаагүй, зөвхөн дараалал.
-  const B = { today: [], adsctl: [], ads: [], moneybar: [], money: [], rep: [], map: [], ops: [], work: [], tests: [], crea: [], prod: [] };
+  const B = { today: [], adsctl: [], ads: [], output: [], moneybar: [], money: [], rep: [], map: [], ops: [], work: [], tests: [], crea: [], prod: [] };
   let cur = H;
   const P = (s) => cur.push(s);
 
@@ -504,6 +504,43 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
     + 'function set(p){rs.forEach(function(r){r.setAttribute("data-per",p)});document.querySelectorAll(".perseg button").forEach(function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
     + 'var p="m";try{p=localStorage.getItem(K)==="a"?"a":"m"}catch(e){}set(p);'
     + 'document.addEventListener("click",function(e){var b=e.target.closest(".perseg button");if(!b)return;var q=b.getAttribute("data-p");try{localStorage.setItem(K,q)}catch(x){}set(q)})})();</script>');
+
+  // FW (2026-11-09, эзэн «заа тэг»): ГАРАЛТЫН KPI — бидний 100% удирдах ажил (hook · organic пост · шинэ зар · блогер · өмнөх худалдан авагч).
+  // Дүрэм: бүх зорилт 2 долоо хоног дараалан биелэх хүртэл шинэ дэд бүтэц барихгүй (мөнгө/захиалгын засвараас бусад). Эх: output_kpi().
+  cur = B.output;
+  {
+    const OK = d.output && Array.isArray(d.output.items) ? d.output : null;
+    const dm = (x) => String(x || '').slice(5).replace('-', '/');
+    if (!OK) {
+      P('<div class="out4"><div class="oh"><b>Гаралт · энэ 7 хоног</b><span class="od">өгөгдөл ирсэнгүй (FW суугаагүй эсвэл сүлжээ)</span></div></div>');
+    } else {
+      const day = Math.max(1, Math.min(7, n(OK.day) || 1)), met = n(OK.weeks_met), need = n(OK.rule_weeks) || 2;
+      const MAN = { hook: 1, post: 1, creator: 1, buyer_msg: 1 };
+      P('<div class="out4" id="out4"><div class="oh"><b>Гаралт · энэ 7 хоног</b><span class="od">' + esc(dm(OK.week_from) + '–' + dm(OK.week_to)) + ' · ' + day + '/7 өдөр</span>'
+        + '<span class="orule ' + (met >= need ? 'ok' : 'w') + '">' + (met >= need ? '✓ ' + met + ' долоо хоног дараалан биелсэн — шинэ систем барьж болно'
+          : 'Дүрэм: бүх зорилт ' + need + ' долоо хоног дараалан биелэх хүртэл шинэ систем барихгүй · одоо ' + met + '/' + need) + '</span></div><div class="og">');
+      OK.items.forEach((it) => {
+        const t = it.target == null ? null : n(it.target), v = n(it.n);
+        const pace = t ? t * day / 7 : 0;
+        const cls = t == null ? '' : v >= t ? 'good' : v >= pace ? '' : (v === 0 && day >= 3) || v < pace / 2 ? 'crit' : 'warn';
+        const pct = t ? Math.min(100, Math.round(v / t * 100)) : 0;
+        P('<div class="oc"><div class="l">' + esc(it.label) + '</div>');
+        P('<div class="kv ' + cls + '">' + v + (t != null ? '<small> / ' + t + '</small>' : '') + '</div>');
+        P('<div class="obar"><i class="' + cls + '" style="width:' + pct + '%"></i></div>');
+        P('<div class="ks">өмнөх 7х: ' + n(it.prev) + ' · ' + esc(it.auto || '') + '</div>');
+        if (MAN[it.kind]) P('<div class="obt"><button type="button" class="ob" data-k="' + esc(it.kind) + '">+1</button><button type="button" class="ob u" data-k="' + esc(it.kind) + '" data-u="1" title="Энэ долоо хоногийн сүүлийн гар бүртгэлийг буцаах">↶</button></div>');
+        P('</div>');
+      });
+      P('</div><div class="out" id="out4o"></div></div>');
+      P('<script>(function(){var U="https://starshopping.app.n8n.cloud/webhook/board-data",k="";try{k=localStorage.getItem("ss_board_key")||""}catch(x){}'
+        + 'var w=document.getElementById("out4");if(!w)return;w.addEventListener("click",function(e){var b=e.target.closest(".ob");if(!b||b.disabled)return;'
+        + 'var body={action:"money",do:"output_log",kind:b.dataset.k};if(b.dataset.u)body.undo=true;b.disabled=true;var o=document.getElementById("out4o");'
+        + 'fetch(U+"?k="+encodeURIComponent(k),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})'
+        + '.then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(j){if(!j||j.ok===false)throw new Error((j&&(j.error||j.message))||"алдаа");'
+        + 'if(window.ssRefresh)window.ssRefresh();else location.reload()})'
+        + '.catch(function(x){b.disabled=false;if(o){o.className="out on";o.textContent="⚠️ "+x.message}})})})();</script>');
+    }
+  }
 
   cur = B.ops;
   P('<div class="krow krow5">');
@@ -1211,7 +1248,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('</section>');
   P('</aside></div>');
 
-  // Доод: мөнгөний мөр
+  // Доод: гаралтын мөр (FW) + мөнгөний мөр
+  H.push(...B.output);
   H.push(...B.moneybar);
 
   // Доошоо: хураангуй хэсгүүд (бүгд хэвээр)
