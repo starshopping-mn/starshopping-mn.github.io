@@ -49,6 +49,11 @@ function ssOutlook(OUT, mode, themeQ) {
   }
 
   const out = [CSS, '<div class="so7">'];
+  // Таамгийн өгөгдөл мөн эсэх (GQ SQL суугаагүй бол board_read өөр өгөгдөл буцаадаг)
+  if (!(D.ok && D.as_of && Array.isArray(D.products) && (!D.products.length || 'status' in D.products[0]))) {
+    out.push('<div class="o7c"><div class="o7m">Таамгийн өгөгдөл ирсэнгүй — Supabase-д <b>2026-11-11-GQ-sales-outlook-PASTE.sql</b>-ийг ажиллуулсны дараа энд график гарна.</div></div></div>');
+    return out.join('');
+  }
   if (!P.length) { out.push('<div class="o7m">Таамаглах бараа алга (зар явсан бараа байхгүй).</div></div>'); return out.join(''); }
   if (mode === 'compact') {
     out.push('<div class="o7rs">');
