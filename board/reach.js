@@ -86,6 +86,7 @@ function renderReach(DATA, QUERY) {
     + '.rg .cmp{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink2)}.rg .cmp b{color:var(--ink);font-weight:600}'
     + '.rg .tbl{width:100%;border-collapse:collapse;font-size:13px}.rg .tbl th{text-align:left;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--ln)}.rg .tbl td{padding:9px 10px;border-bottom:1px solid var(--ln3);vertical-align:top;color:var(--ink)}.rg .tbl td.r{text-align:right}'
     + '.rg .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
+    + '.rg .pl{animation:none;transform:none}'   // GQ: board.css-ийн .pl (icon анимейшн) пиллийг анивчуулдаг байсан
     + '.rg .rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px}.rg .rules .cd{gap:6px;padding:14px 16px}'
     + '.rg details{border:1px solid var(--ln);border-radius:12px;background:var(--s1);padding:12px 16px}.rg summary{cursor:pointer;font-weight:650;font-size:14px;color:var(--ink)}'
     + '.rg .days{display:flex;gap:6px;flex-wrap:wrap}.rg .days span{display:inline-flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut);min-width:36px}'
@@ -131,6 +132,9 @@ function renderReach(DATA, QUERY) {
     + '<div class="meta" style="margin-top:8px"><span>Сүүлийн шалгалт <b>' + esc(mdhm(T.created_at)) + '</b>' + (T.sent_at ? ' · Telegram илгээсэн' : '') + '</span>'
     + '<span>Дараагийн шалгалт <b>' + esc(mdhm(S.tick)) + '</b></span><span>Автомат засвар <b>' + esc(mdhm(S.fix)) + '</b></span>'
     + '<span>Meta өгөгдөл ' + (T.fresh === false ? '<b style="color:var(--crit)">хуучирсан</b>' : '<b>шинэ</b> (3 цаг тутам)') + '</span></div></div></section>');
+
+  // ── 1б. Ирэх 7 хоногийн таамаг (блок GQ, 2026-11-11) — outlook.js
+  if (typeof ssOutlook === 'function' && d.outlook) o('<section aria-label="Ирэх 7 хоногийн таамаг">' + ssOutlook(d.outlook, 'full', themeQ) + '</section>');
 
   // ── 2. Таны шийдэх зүйл
   if (proposals.length || evals.length) {
