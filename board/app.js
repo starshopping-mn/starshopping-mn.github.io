@@ -280,6 +280,9 @@ function ssNav(on, themeQ) {
       if (SAY.a) return sayStop();
       if (SAY.busy) return;
       SAY.busy = true; sayLabel('⏳ Бэлдэж байна…');
+      // iPhone/Safari: дууг ДАРСАН агшинд нээж өгөхгүй бол дараа нь play() хориглогдоно → чимээгүй богино дуугаар «түгжээ тайлна»
+      var au = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=');
+      au.play().catch(function () { /* зүгээр */ });
       var voice = ''; try { voice = localStorage.getItem('ss_voice') || ''; } catch (er) { /* private */ }
       fetch(SB_RPC.replace('/rest/v1/rpc/board_read', '/functions/v1/brief-voice'), { method: 'POST',
         headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
@@ -288,7 +291,7 @@ function ssNav(on, themeQ) {
           if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.err || ('http ' + r.status)); });
           var h = ''; try { h = decodeURIComponent(r.headers.get('X-Headline') || ''); } catch (er) { h = ''; }
           return r.blob().then(function (bl) {
-            var a = new Audio(URL.createObjectURL(bl)); SAY.a = a;
+            var a = au; a.src = URL.createObjectURL(bl); SAY.a = a;
             a.onended = sayStop; a.onerror = sayStop;
             sayLabel('■ Зогсоох'); sayNote(h);
             return a.play();
