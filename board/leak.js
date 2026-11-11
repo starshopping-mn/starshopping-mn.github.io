@@ -1,8 +1,6 @@
-/* Самбар · АЛДАГДЛЫН ГАЗРЫН ЗУРАГ (блок GG, 2026-11-11 — эзэн «Зөвшөөрлөө, нэг удаагийн хийлтээр бүгдийг хий»)
-   Өгөгдөл: ?view=leak → board_read view 'leak' → leak_map(p); нэмэлт 'crm' → car_owner_book(p). n8n зарцуулахгүй.
-   Юу харуулна: (1) зар → чат/сайт → «таарна» → утас → захиалга → хаяг → хүргэгдсэн шат бүрийг сүүлийн 3 өдөр / өмнөх 7 өдрөөр харьцуулж,
-                    хамгийн их захиалга алдаж буй шатыг нэрлэнэ; (2) бичлэг бүрийн зардал ба сонирхол; (3) тестийн слот; (4) машин эзэмшигчдийн сан (зөвхөн тоо).
-   Өглөөний тайлан (daily_decision_brief) ижил leak_map-аас «🕳 Алдагдал» мөрийг авна. Энэ хуудас зөвхөн УНШИНА. */
+/* Самбар · АЛДАГДАЛ v2 (блок GK, 2026-11-11 — эзэн: «хэтэрхий сунжирсан, анхаарал татахгүй → графикаар, цэвэрхэн»)
+   Өгөгдөл өөрчлөгдөөгүй: ?view=leak → leak_map(p) + extra crm → car_owner_book(p). Зөвхөн УНШИНА, n8n нэмэхгүй.
+   Бүтэц: 1 мөр дүгнэлт → 4 KPI → 3 график (юүлүүр · 14 хоног · бичлэг) → 2 карт (тест · машины сан) → дэлгэрэнгүй (нээгддэг). */
 function renderLeak(DATA, QUERY) {
   const d = DATA || {};
   const Q = QUERY || {};
@@ -16,188 +14,176 @@ function renderLeak(DATA, QUERY) {
   const mdhm = (iso) => (iso ? md(ub(iso)) + ' ' + ub(iso).slice(11, 16) : '—');
   const num = (v, dg) => (has(v) ? (Math.round(n(v) * Math.pow(10, dg || 0)) / Math.pow(10, dg || 0)).toLocaleString('en-US') : '—');
   const fmt = (v, f) => (!has(v) ? '—' : f === 'pct' ? Math.round(n(v) * 100) + '%' : f === 'pct1' ? (n(v) * 100).toFixed(1) + '%' : f === 'mnt' ? num(v) + '₮' : n(v).toFixed(1));
-  const LV = { ok: ['ok', 'Хэвийн', '🟢'], y: ['wr', 'Анхаар', '🟡'], r: ['cr', 'Унасан', '🔴'], na: ['nt', '—', '⚪'] };
-  const lv = (k) => LV[k] || LV.na;
+  const f1 = (v) => Math.round(v * 10) / 10;
+  const LVC = { ok: 'var(--good)', y: 'var(--warn)', r: 'var(--crit)', na: 'var(--ln2)' };
+  const LVK = { ok: 'good', y: 'warn', r: 'crit', na: '' };
 
   const out = [];
   const o = (s) => out.push(s);
 
-  const CSS = '.w{max-width:1200px;margin:0 auto;padding:14px 16px 60px}'
-    + '.nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 6px}.nav a{padding:8px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);text-decoration:none;font-size:13px;font-weight:600}.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
-    + '.rg{display:flex;flex-direction:column;gap:22px;margin-top:10px}'
-    + '.rg .nm{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}'
-    + '.rg .cd{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:18px 20px;min-width:0;display:flex;flex-direction:column;gap:12px}'
-    + '.rg .lb{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}'
-    + '.rg .sb{font-size:12.5px;color:var(--ink2);line-height:1.45}.rg .mu{color:var(--mut)}'
-    + '.rg .h{margin:0;font-size:18px;font-weight:700;color:var(--ink);letter-spacing:0;text-transform:none}.rg .h:after{display:none}'
-    + '.rg .hr{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}'
-    + '.rg .pl{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;align-self:flex-start}'
-    + '.rg .pl.ok{background:var(--good-a);color:var(--good)}.rg .pl.wr{background:var(--warn-a);color:var(--warn)}.rg .pl.cr{background:var(--crit-a);color:var(--crit)}.rg .pl.bl{background:var(--blue-a);color:var(--f3)}.rg .pl.nt{background:var(--s2);color:var(--ink2)}'
-    + '.rg .ban{display:flex;flex-wrap:wrap;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:14px;background:var(--s2);border:1px solid var(--ln2)}.rg .ban.ok{background:var(--good-a)}.rg .ban.wr{background:var(--warn-a)}.rg .ban.cr{background:var(--crit-a)}'
-    + '.rg .ban .tx{flex:1 1 380px;font-size:14.5px;line-height:1.55;color:var(--ink)}'
-    + '.rg .meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--ink2)}.rg .meta b{color:var(--ink);font-weight:600}'
-    + '.rg .todo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:10px}'
-    + '.rg .todo .cd{gap:6px;padding:14px 16px;border-left:4px solid var(--warn)}.rg .todo .cd.cr{border-left-color:var(--crit)}'
-    + '.rg .todo .tt{font-size:14.5px;font-weight:650;color:var(--ink)}'
-    + '.rg .sig{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}@media(max-width:980px){.rg .sig{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.rg .sig{grid-template-columns:minmax(0,1fr)}}'
-    + '.rg .tile .sh{display:flex;justify-content:space-between;align-items:center;gap:8px}.rg .tile{border:1px solid var(--ln);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:var(--bg);min-width:0;position:relative}'
-    + '.rg .tile:before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--ln2)}'
-    + '.rg .tile.ok:before{background:var(--good)}.rg .tile.wr:before{background:var(--warn)}.rg .tile.cr:before{background:var(--crit)}'
-    + '.rg .tile .sv{font-size:26px;font-weight:650;line-height:1.05;color:var(--ink)}'
-    + '.rg .tile .st{font-size:12.5px;font-weight:650;color:var(--ink2)}'
-    + '.rg .ctrs{display:flex;flex-direction:column;gap:7px;margin-top:2px}'
-    + '.rg .ctr{display:grid;grid-template-columns:34px minmax(0,1fr) 92px;gap:8px;align-items:center;font-size:12.5px}'
-    + '.rg .bar{height:8px;background:var(--s2);border-radius:999px;overflow:hidden;position:relative}.rg .bar i{display:block;height:100%;border-radius:999px;background:var(--ink2)}.rg .bar i.ok{background:var(--good)}.rg .bar i.wr{background:var(--warn)}.rg .bar i.cr{background:var(--crit)}'
-    + '.rg .kvg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px}'
-    + '.rg .kvg>div{border-top:1px solid var(--ln3);padding-top:8px;display:flex;flex-direction:column;gap:2px}.rg .kvg .kk{font-size:12px;color:var(--mut)}.rg .kvg .kx{font-size:18px;font-weight:650;color:var(--ink)}'
-    + '.rg .chart{width:100%;height:auto;display:block}'
-    + '.rg .lg{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--ink2)}.rg .lg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}.rg .lg i.bx{height:10px;width:10px;border-radius:2px}'
-    + '.rg .tln{display:flex;flex-direction:column}'
-    + '.rg .ev{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:12px 0;border-top:1px solid var(--ln3)}.rg .ev:first-child{border-top:0}'
-    + '.rg .ev .when{font-size:12.5px;color:var(--mut);line-height:1.4}.rg .ev .what{display:flex;flex-direction:column;gap:5px;min-width:0}'
-    + '.rg .ev .evr{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rg .ev .tt{font-size:14px;font-weight:650;color:var(--ink)}'
-    + '.rg .cmp{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink2)}.rg .cmp b{color:var(--ink);font-weight:600}'
-    + '.rg .tbl{width:100%;border-collapse:collapse;font-size:13px}.rg .tbl th{text-align:left;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--ln)}.rg .tbl td{padding:9px 10px;border-bottom:1px solid var(--ln3);vertical-align:top;color:var(--ink)}.rg .tbl td.r{text-align:right}'
-    + '.rg .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
-    + '.rg .rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px}.rg .rules .cd{gap:6px;padding:14px 16px}'
-    + '.rg details{border:1px solid var(--ln);border-radius:12px;background:var(--s1);padding:12px 16px}.rg summary{cursor:pointer;font-weight:650;font-size:14px;color:var(--ink)}'
-    + '.rg .days{display:flex;gap:6px;flex-wrap:wrap}.rg .days span{display:inline-flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut);min-width:36px}'
-    + '@media(max-width:860px){.rg .cd{padding:15px 14px}.rg .ev{grid-template-columns:minmax(0,1fr)}.rg .tile .sv{font-size:23px}}'
-    + 'footer{margin:26px 0 10px;font-size:12px;color:var(--mut)}'
-    + '.rg .fn td.lbl{font-weight:600;white-space:normal;min-width:140px;max-width:340px}.rg .fn tr.w td{background:var(--crit-a)}.rg .fn tr.w.y td{background:var(--warn-a)}'
-    + '.rg .dl{font-variant-numeric:tabular-nums;font-weight:650}.rg .dl.dn{color:var(--crit)}.rg .dl.up{color:var(--good)}'
-    + '.rg .shb{display:grid;grid-template-columns:44px minmax(60px,1fr);gap:8px;align-items:center}'
-    + '.rg .big{font-size:19px;font-weight:700;line-height:1.35;color:var(--ink)}'
-    + '.rg ul.rc{margin:8px 0 0;padding:0 0 0 18px;font-size:12.5px;color:var(--ink2);line-height:1.6}';
+  const CSS = '.nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.nav a{padding:7px 13px;border-radius:999px;border:1px solid var(--ln);background:var(--s1);color:var(--ink2);font-size:12.5px;font-weight:600}.nav a.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
+    + '.lk{display:flex;flex-direction:column;gap:14px}'
+    + '.lk .hero{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--s1);border:1px solid var(--ln);border-left:4px solid var(--hc);border-radius:14px;padding:16px 18px}'
+    + '.lk .hero .ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--ha);color:var(--hc);font-size:19px;font-weight:800;flex:none}'
+    + '.lk .hero .tx{flex:1 1 320px;min-width:0}.lk .hero .t1{font-size:17px;font-weight:700;line-height:1.35}.lk .hero .t2{font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.5}'
+    + '.lk .hero .win{font-size:11px;color:var(--mut);text-align:right;line-height:1.5}'
+    + '.lk .krow{margin:0}.lk .k .ks b{font-weight:700}.lk .dn{color:var(--crit)}.lk .up{color:var(--good)}'
+    + '.lk .g2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}@media(max-width:980px){.lk .g2{grid-template-columns:minmax(0,1fr)}}'
+    + '.lk .cd{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:15px 16px 12px;min-width:0;display:flex;flex-direction:column;gap:8px}'
+    + '.lk .ch{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}.lk .ch b{font-size:13.5px;font-weight:700}.lk .ch span{font-size:11.5px;color:var(--mut)}'
+    + '.lk svg.c{width:100%;height:auto;display:block;overflow:visible}.lk svg.c text{font-family:inherit}'
+    + '.lk .lgd{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--mut)}.lk .lgd i{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}.lk .lgd i.ln{height:2px;width:14px;border-radius:1px;vertical-align:3px}'
+    + '.lk .mm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}.lk .mm div{font-size:11px;color:var(--mut)}.lk .mm b{display:block;font-size:20px;color:var(--ink);font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}'
+    + '.lk .bars{display:flex;flex-direction:column;gap:6px;margin-top:4px}.lk .br{display:grid;grid-template-columns:minmax(0,130px) minmax(0,1fr) 54px;gap:8px;align-items:center;font-size:12px}.lk .br span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}'
+    + '.lk .tr{height:8px;background:var(--s2);border-radius:999px;overflow:hidden;display:flex}.lk .tr i{display:block;height:100%}.lk .br em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}'
+    + '.lk details.more{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:12px 16px}.lk details.more>summary{cursor:pointer;font-weight:650;font-size:13px;color:var(--ink2)}.lk details.more[open]>summary{margin-bottom:10px}'
+    + '.lk .sc{border-radius:10px;margin-top:8px}.lk .sc td.r,.lk .sc th.r{text-align:right}.lk .note{font-size:11.5px;color:var(--mut);line-height:1.5;margin:6px 0 0}'
+    + '.lk .fn{display:flex;flex-direction:column;gap:4px}.lk .fr{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) 58px;gap:10px;align-items:center;padding:7px 8px;border-radius:10px}.lk .fr.hl{background:var(--crit-a)}'
+    + '.lk .fl b{display:block;font-size:13px;font-weight:650;line-height:1.25}.lk .fl span{font-size:10.5px;color:var(--mut)}'
+    + '.lk .fb{display:flex;flex-direction:column;gap:4px}.lk .fb .t0{display:flex;align-items:center;gap:6px}.lk .fb .t0 i{display:block;height:7px;border-radius:99px;background:var(--ln2)}.lk .fb .t0 em{font-style:normal;font-size:10.5px;color:var(--mut);white-space:nowrap}.lk .fb .t1 i{display:block;height:12px;border-radius:99px}'
+    + '.lk .fv{text-align:right;display:flex;flex-direction:column;line-height:1.2}.lk .fv span{font-size:10.5px;font-weight:650}.lk .fv b{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}'
+    + '@media(max-width:560px){.lk .fr{grid-template-columns:minmax(0,108px) minmax(0,1fr) 50px;gap:8px}.lk .br{grid-template-columns:minmax(0,104px) minmax(0,1fr) 40px}}'
+    + '.lk .slot{display:flex;gap:6px;margin:2px 0 4px}.lk .slot i{flex:1;height:10px;border-radius:4px;background:var(--s2);border:1px dashed var(--ln2)}.lk .slot i.on{background:var(--f3);border:0}';
 
   o('<!doctype html><html lang="mn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Starshopping · Алдагдал</title><style>' + CSS + '</style></head><body><div class="w">');
-  o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Starshopping</div>');
-  o('<div class="bs">алдагдлын газрын зураг · ' + esc(mdhm(d.generated_at)) + ' УБ</div></div>');
-  o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
+  o('<header><div class="hd"><div class="bm">S</div><div><div class="bt">Алдагдал</div><div class="bs">захиалга хаана алдагдаж байна · ' + esc(mdhm(d.generated_at)) + ' УБ</div></div><div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
   o(typeof ssNav === 'function' ? ssNav('leak', themeQ) : '');
 
   if (!d.ok) {
-    o('<div class="rg"><div class="ban cr"><div class="tx"><b>Алдагдлын өгөгдөл ирсэнгүй.</b> Supabase-д <code>2026-11-11-GG-leak-map-PASTE.sql</code>-ийг ажиллуулаагүй байж магадгүй.</div></div></div></div></body></html>');
+    o('<div class="al crit"><span class="tag">алдаа</span><span>Алдагдлын өгөгдөл ирсэнгүй (leak_map).</span></div></div></body></html>');
     return out.join('');
   }
 
   const W = d.windows || {};
   const ST = A(d.stages);
+  const S = {}; ST.forEach((s) => { S[s.k] = s; });
   const worst = d.worst || null;
   const HJ = A(d.hijack);
   const P = d.pipeline || {};
   const rng = (a) => (A(a).length === 2 ? md(a[0]) + '–' + md(a[1]) : '—');
-  const lvlAll = worst ? worst.lvl : (HJ.length ? 'y' : 'ok');
-  const L = lv(lvlAll);
+  const pctD = (s) => (s && has(s.delta) ? Math.round(n(s.delta) * 100) : null);
+  const dTxt = (s) => { const v = pctD(s); return v === null ? '' : (v > 0 ? '+' : '') + v + '%'; };
+  const badDir = (s) => { const v = pctD(s); if (v === null || !s) return ''; const bad = s.kind === 'inv' ? v > 0 : v < 0; return bad ? 'dn' : 'up'; };
 
-  o('<div class="rg">');
+  o('<div class="lk">');
 
-  // ── 1. Дүгнэлт
-  o('<section class="ban ' + L[0] + '" aria-label="Дүгнэлт"><span class="pl ' + L[0] + '">' + L[2] + ' ' + (worst ? 'Алдаж байна' : HJ.length ? 'Анхаар' : 'Хэвийн') + '</span><div class="tx">');
-  if (worst) {
-    o('<div class="big">' + esc(worst.label) + ': ' + esc(fmt(worst.base, worst.fmt)) + ' → ' + esc(fmt(worst.cur, worst.fmt)) + '</div>'
-      + '<div style="margin-top:4px">Энэ шатнаас болж өдөрт ойролцоогоор <b>' + esc(num(worst.lost, 1)) + ' захиалга</b> алдаж байна. Доорх хүснэгтэд бусад шатыг харна уу.</div>');
-  } else {
-    o('<div class="big">Том уналт алга</div><div style="margin-top:4px">Сүүлийн ' + esc(W.cur_days) + ' өдөр өмнөх ' + esc(W.base_days) + ' өдөртэй харьцуулахад өдөрт 1 захиалгаас илүү алдаж буй шат байхгүй.</div>');
-  }
-  HJ.forEach((c) => o('<div style="margin-top:6px">⚠️ <b>' + esc(c.code) + '</b> бичлэг зардлын <b>' + Math.round(n(c.share) * 100) + '%</b>-ийг авсан ч сонирхол бусдынхаас бага (10,000₮ тутамд ' + esc(num(c.intent_10k, 2)) + ', бусад ' + esc(num(c.others_10k, 2)) + ').</div>'));
-  o('<div class="meta" style="margin-top:8px"><span>Одоо: <b>' + esc(rng(W.cur)) + '</b> (' + esc(W.cur_days) + ' өдөр)</span><span>Өмнө: <b>' + esc(rng(W.base)) + '</b> (' + esc(W.base_days) + ' өдөр)</span>'
-    + '<span>Өнөөдрийн дутуу өдөр ороогүй</span><span>Өглөөний Telegram тайланд «🕳 Алдагдал» мөрөөр гарна</span></div></div></section>');
+  // ── 1 · ДҮГНЭЛТ (нэг мөр)
+  const lvl = worst ? worst.lvl : HJ.length ? 'y' : 'ok';
+  const hc = LVC[lvl] || LVC.ok, ha = lvl === 'r' ? 'var(--crit-a)' : lvl === 'y' ? 'var(--warn-a)' : 'var(--good-a)';
+  o('<section class="hero" style="--hc:' + hc + ';--ha:' + ha + '"><div class="ic">' + (worst ? '!' : HJ.length ? '?' : '✓') + '</div><div class="tx">');
+  if (worst) o('<div class="t1">' + esc(worst.label) + ' ' + esc(fmt(worst.base, worst.fmt)) + ' → <span style="color:var(--crit)">' + esc(fmt(worst.cur, worst.fmt)) + '</span></div>'
+    + '<div class="t2">Энэ шатнаас өдөрт ≈<b>' + esc(num(worst.lost, 1)) + ' захиалга</b> алдаж байна' + (HJ.length ? ' · <b>' + esc(HJ[0].code) + '</b> бичлэг зардлын ' + Math.round(n(HJ[0].share) * 100) + '%-ийг авч сонирхол бага авчирч байна' : '') + '.</div>');
+  else o('<div class="t1">Том уналт алга</div><div class="t2">Өдөрт 1-ээс олон захиалга алдаж буй шат байхгүй' + (HJ.length ? ' · <b>' + esc(HJ[0].code) + '</b> бичлэгийг шалгах' : '') + '.</div>');
+  o('</div><div class="win">одоо ' + esc(rng(W.cur)) + '<br>өмнө ' + esc(rng(W.base)) + '</div></section>');
 
-  // ── 2. Юүлүүр
-  o('<section aria-label="Юүлүүр" style="display:flex;flex-direction:column;gap:12px"><div class="hr"><h2 class="h">Юүлүүр — шат бүрээр</h2><span class="sb">Улаан = 30%-иас их унасан · шар = 15%-иас их</span></div>');
-  o('<div class="cd" style="padding:6px 8px"><div class="scroll"><table class="tbl fn"><thead><tr><th>Шат</th><th class="r">Өмнө</th><th class="r">Одоо</th><th class="r">Өөрчлөлт</th><th class="r">Алдаж буй захиалга / өдөр</th><th>Төлөв</th></tr></thead><tbody>');
-  ST.forEach((s) => {
-    const l = lv(s.lvl);
-    const isW = worst && worst.k === s.k;
-    const dl = has(s.delta) ? Math.round(n(s.delta) * 100) : null;
-    const bad = s.kind === 'inv' ? dl > 0 : dl < 0;
-    o('<tr' + (isW ? ' class="w' + (s.lvl === 'y' ? ' y' : '') + '"' : '') + '><td class="lbl">' + esc(s.label) + (isW ? ' <span class="pl cr" style="margin-left:6px">хамгийн их алдагдал</span>' : '') + '</td>'
-      + '<td class="r nm">' + esc(fmt(s.base, s.fmt)) + '</td><td class="r nm"><b>' + esc(fmt(s.cur, s.fmt)) + '</b></td>'
-      + '<td class="r"><span class="dl ' + (dl === null || s.kind === 'info' ? '' : bad ? 'dn' : 'up') + '">' + (dl === null ? '—' : (dl > 0 ? '+' : '') + dl + '%') + '</span></td>'
-      + '<td class="r nm">' + (has(s.lost) ? '≈' + esc(num(s.lost, 1)) : '—') + '</td>'
-      + '<td>' + (s.lvl === 'na' ? '<span class="sb mu">' + (s.kind === 'info' ? 'мэдээлэл' : 'өгөгдөл цөөн') + '</span>' : '<span class="pl ' + l[0] + '">' + l[2] + ' ' + (s.kind === 'inv' && s.lvl !== 'ok' ? 'Өссөн' : l[1]) + '</span>') + '</td></tr>');
-  });
-  o('</tbody></table></div></div>');
-  o('<div class="sb mu">«Алдаж буй захиалга» = тухайн шат өмнөх түвшиндээ байсан бол өдөрт хэдэн захиалга нэмж орох байсан тооцоо (тухайн сувгийн бодит уналтаас хэтрүүлэхгүй). Чатын шатууд яриа эхэлсэн өдрөөр тоологдоно.</div></section>');
+  // ── 2 · KPI (4)
+  const kp = (lab, s, extra) => {
+    if (!s) return '';
+    const cls = s.lvl === 'r' ? 'crit' : s.lvl === 'y' ? 'warn' : s.lvl === 'ok' && s.kind !== 'info' ? '' : '';
+    return '<div class="k ' + cls + '"><div class="kl">' + esc(lab) + '</div><div class="kv">' + esc(fmt(s.cur, s.fmt)) + '</div>'
+      + '<div class="ks">өмнө ' + esc(fmt(s.base, s.fmt)) + ' · <b class="' + badDir(s) + '">' + esc(dTxt(s)) + '</b>' + (extra || '') + '</div></div>';
+  };
+  o('<div class="krow krow4">' + kp('Захиалга / өдөр', S.orders) + kp('«Таарна» → утас', S.close) + kp('Сайт → захиалга', S.site) + kp('1,000 үзэлтийн үнэ', S.cpm) + '</div>');
 
-  // ── 3. Бичлэг бүр
-  const CR = A(d.creatives);
-  o('<section aria-label="Бичлэг бүр" style="display:flex;flex-direction:column;gap:12px"><div class="hr"><h2 class="h">Бичлэг бүр</h2><span class="sb">' + esc(rng(W.creatives)) + ' · зардал хаашаа явж, юу авчирсан</span></div>');
-  if (!CR.length) o('<div class="cd"><div class="sb">Энэ хугацаанд зарын зардал бүртгэгдээгүй.</div></div>');
-  else {
-    o('<div class="cd" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Бичлэг</th><th class="r">Зардал</th><th>Зардлын хувь</th><th class="r">Клик</th><th class="r">Сайтад машин сонгосон</th><th class="r">Чат</th><th class="r">Захиалга</th><th class="r">Сонирхол / 10,000₮</th><th>Төлөв</th></tr></thead><tbody>');
-    CR.forEach((c) => {
-      const sh = Math.round(n(c.share) * 100);
-      o('<tr><td><b>' + esc(c.code) + '</b></td><td class="r nm">' + esc(num(c.spend)) + '₮</td>'
-        + '<td><div class="shb"><span class="nm">' + sh + '%</span><span class="bar"><i class="' + (c.hijack ? 'cr' : '') + '" style="width:' + Math.min(100, sh) + '%"></i></span></div></td>'
-        + '<td class="r nm">' + esc(num(c.clicks)) + '</td><td class="r nm">' + esc(num(c.site_intent)) + '</td><td class="r nm">' + esc(num(c.chats)) + '</td><td class="r nm">' + esc(num(c.orders)) + '</td>'
-        + '<td class="r nm"><b>' + esc(num(c.intent_10k, 2)) + '</b></td>'
-        + '<td>' + (c.hijack ? '<span class="pl cr">🔴 Шалгах</span>' : '<span class="sb mu">—</span>') + '</td></tr>');
+  // ── 3 · ГРАФИК: юүлүүр (өмнө vs одоо) ба 14 хоног
+  o('<div class="g2">');
+  {
+    const rows = ['offer', 'close', 'site', 'addr', 'deliv'].map((k) => S[k]).filter(Boolean);
+    const SHORT = { offer: 'Машин таарсан', close: '«Таарна» → утас', site: 'Сайт → захиалга', addr: 'Хаягаа өгсөн', deliv: 'Хүргэгдсэн' };
+    let s = '<div class="fn">';
+    rows.forEach((r) => {
+      const mx = Math.max(n(r.base), n(r.cur)) * 1.05 || 1, col = LVC[r.lvl] || 'var(--f3)', isW = worst && worst.k === r.k;
+      s += '<div class="fr' + (isW ? ' hl' : '') + '"><div class="fl"><b>' + esc(SHORT[r.k] || r.label) + '</b><span>' + (has(r.lost) && n(r.lost) > 0 ? '≈' + esc(num(r.lost, 1)) + ' захиалга/өдөр алдагдал' : 'n=' + esc(num(r.n_cur))) + '</span></div>'
+        + '<div class="fb"><div class="t0"><i style="width:' + Math.round(100 * n(r.base) / mx) + '%"></i><em>' + esc(fmt(r.base, r.fmt)) + '</em></div><div class="t1"><i style="width:' + Math.round(100 * n(r.cur) / mx) + '%;background:' + col + '"></i></div></div>'
+        + '<div class="fv"><span class="' + badDir(r) + '">' + esc(dTxt(r)) + '</span><b style="' + (r.lvl === 'r' ? 'color:var(--crit)' : '') + '">' + esc(fmt(r.cur, r.fmt)) + '</b></div></div>';
     });
-    o('</tbody></table></div></div>');
-    o('<div class="sb mu">Сонирхол = сайтад машинаа сонгосон эсвэл маягт нээсэн хүн + чат эхлүүлсэн хүн. Зардлын 40%-иас ихийг авсан бичлэгийн сонирхол бусдын хагаст хүрэхгүй, захиалга + чатын үр дүн нь бусдын 75%-иас бага бол «Шалгах» гэж тэмдэглэнэ. Захиалга баганад зөвхөн тухайн бичлэгтэй холбогдсон захиалга орно.</div>');
+    s += '</div>';
+    o('<section class="cd" aria-label="Юүлүүр"><div class="ch"><b>Юүлүүр — шат бүр</b><span>саарал = өмнө · өнгөт = одоо</span></div>' + s
+      + '<div class="lgd"><span><i style="background:var(--crit)"></i>30%+ унасан</span><span><i style="background:var(--warn)"></i>15%+ унасан</span><span><i style="background:var(--good)"></i>хэвийн</span></div></section>');
   }
-  o('</section>');
+  {
+    const DY = A(d.days);
+    const Wd = 460, H = 220, L0 = 26, R0 = 36, T0 = 12, B0 = 28, iw = Wd - L0 - R0, ih = H - T0 - B0;
+    const mxO = Math.max(4, ...DY.map((x) => n(x.chat) + n(x.web)));
+    const mxS = Math.max(1, ...DY.map((x) => n(x.spend)));
+    const step = DY.length ? iw / DY.length : iw, bwid = Math.min(22, step * 0.62);
+    const xc = (i) => L0 + step * i + step / 2;
+    const yO = (v) => T0 + ih - ih * v / (mxO * 1.1);
+    const yS = (v) => T0 + ih - ih * v / (mxS * 1.1);
+    let s = '<svg class="c" viewBox="0 0 ' + Wd + ' ' + H + '" role="img" aria-label="14 хоног: өдөр бүрийн захиалга ба зарын зардал">';
+    [0, 0.5, 1].forEach((g) => { const yy = T0 + ih - ih * g; s += '<line x1="' + L0 + '" x2="' + (Wd - R0) + '" y1="' + f1(yy) + '" y2="' + f1(yy) + '" stroke="var(--ln3)"/>'; s += '<text x="' + (L0 - 6) + '" y="' + f1(yy + 3.5) + '" text-anchor="end" font-size="11" fill="var(--mut)">' + Math.round(mxO * 1.1 * g) + '</text>'; s += '<text x="' + (Wd - R0 + 6) + '" y="' + f1(yy + 3.5) + '" font-size="11" fill="var(--mut)">' + Math.round(mxS * 1.1 * g / 1000) + 'k</text>'; });
+    const cw = A(W.cur);
+    DY.forEach((x, i) => {
+      const inCur = cw.length === 2 && x.d >= cw[0] && x.d <= cw[1];
+      if (inCur) s += '<rect x="' + f1(xc(i) - step / 2) + '" y="' + T0 + '" width="' + f1(step) + '" height="' + ih + '" fill="var(--crit-a)" opacity=".55"/>';
+      const hc = ih * n(x.chat) / (mxO * 1.1), hw = ih * n(x.web) / (mxO * 1.1);
+      s += '<rect x="' + f1(xc(i) - bwid / 2) + '" y="' + f1(T0 + ih - hc) + '" width="' + f1(bwid) + '" height="' + f1(hc) + '" rx="2" fill="var(--f3)"/>';
+      s += '<rect x="' + f1(xc(i) - bwid / 2) + '" y="' + f1(T0 + ih - hc - hw) + '" width="' + f1(bwid) + '" height="' + f1(hw) + '" rx="2" fill="var(--gold)"/>';
+      if (i % 2 === DY.length % 2 || i === DY.length - 1) s += '<text x="' + f1(xc(i)) + '" y="' + (H - 12) + '" text-anchor="middle" font-size="11" fill="var(--mut)">' + esc(md(x.d)) + '</text>';
+    });
+    if (DY.length > 1) s += '<polyline fill="none" stroke="var(--ink2)" stroke-width="1.8" stroke-linejoin="round" points="' + DY.map((x, i) => f1(xc(i)) + ',' + f1(yS(n(x.spend)))).join(' ') + '"/>';
+    DY.forEach((x, i) => { s += '<circle cx="' + f1(xc(i)) + '" cy="' + f1(yS(n(x.spend))) + '" r="2.4" fill="var(--ink2)"/>'; });
+    s += '</svg>';
+    o('<section class="cd" aria-label="14 хоног"><div class="ch"><b>14 хоног — захиалга ба зардал</b><span>улаан дэвсгэр = харьцуулж буй 3 өдөр</span></div>' + s
+      + '<div class="lgd"><span><i style="background:var(--f3)"></i>чатаар захиалга</span><span><i style="background:var(--gold)"></i>сайтаар захиалга</span><span><i class="ln" style="background:var(--ink2)"></i>зарын зардал (баруун тэнхлэг)</span></div></section>');
+  }
+  o('</div>');
 
-  // ── 4. Өдөр бүр
+  // ── 4 · ГРАФИК: бичлэг бүр + 2 карт
+  o('<div class="g2">');
+  {
+    const CR = A(d.creatives);
+    o('<section class="cd" aria-label="Бичлэг бүр"><div class="ch"><b>Бичлэг бүр — зардал хаашаа явж байна</b><span>' + esc(rng(W.creatives)) + '</span></div>');
+    if (!CR.length) o('<div class="note">Энэ хугацаанд зарын зардал бүртгэгдээгүй.</div>');
+    else {
+      o('<div class="bars"><div class="br" style="font-size:10.5px;color:var(--mut)"><span>бичлэг · зардал</span><span>зардлын хувь</span><em style="color:var(--mut)">сонирхол</em></div>');
+      CR.forEach((c) => {
+        const sh = Math.round(n(c.share) * 100), col = c.hijack ? 'var(--crit)' : 'var(--f3)';
+        o('<div class="br"><span><b style="color:var(--ink)">' + esc(c.code) + '</b> · ' + esc(num(c.spend)) + '₮</span>'
+          + '<div class="tr"><i style="width:' + Math.min(100, sh) + '%;background:' + col + '"></i></div>'
+          + '<em style="' + (c.hijack ? 'color:var(--crit);font-weight:700' : '') + '">' + esc(num(c.intent_10k, 1)) + '</em></div>');
+      });
+      o('</div><div class="note">Зураас = нийт зардлаас авсан хувь. Сонирхол = 10,000₮ тутамд сайтад машин сонгосон + чат эхлүүлсэн хүн. <b style="color:var(--crit)">Улаан</b> = мөнгийг их авч, сонирхол бага авчирч байна.</div>');
+    }
+    o('</section>');
+  }
+  {
+    const C = d.crm || {}, T = C.totals || {}, used = n(P.used), mx = n(P.max);
+    o('<div style="display:flex;flex-direction:column;gap:14px;min-width:0">');
+    o('<section class="cd" aria-label="Барааны дамжуурга"><div class="ch"><b>Шинэ бараа — тестийн слот</b><span>' + used + ' / ' + mx + '</span></div>'
+      + '<div class="slot">' + Array.from({ length: Math.max(1, mx) }, (_, i) => '<i class="' + (i < used ? 'on' : '') + '"></i>').join('') + '</div>'
+      + '<div class="note" style="margin:0">' + (used === 0 ? 'Хоосон — сүүлийн тест эхэлснээс <b style="color:var(--crit)">' + esc(num(P.idle_days)) + ' хоног</b>. Нэг бараа унахад дараагийнх бэлэн байх ёстой.' : 'Явж буй тест ' + used + ', нөөцтэй бараа ' + esc(num(P.live)) + '.') + '</div></section>');
+    if (C.ok) {
+      const M = A(C.models).slice(0, 5), mp = Math.max(1, ...M.map((m) => n(m.people)));
+      o('<section class="cd" aria-label="Машин эзэмшигчдийн сан"><div class="ch"><b>Машин эзэмшигчдийн сан</b><span>зөвхөн тоо</span></div>'
+        + '<div class="mm"><div><b>' + esc(num(T.people)) + '</b>машин нь мэдэгдсэн</div><div><b>' + esc(num(T.with_phone)) + '</b>утастай</div><div><b>' + esc(num(T.buyers)) + '</b>худалдан авсан</div><div><b>' + esc(num(T.unfit_people)) + '</b>таарах гэрэлгүй асуусан</div></div>'
+        + '<div class="bars">' + M.map((m) => '<div class="br"><span>' + esc(m.label) + '</span><div class="tr"><i style="width:' + Math.round(100 * n(m.buyers) / mp) + '%;background:var(--good)"></i><i style="width:' + Math.round(100 * (n(m.people) - n(m.buyers)) / mp) + '%;background:var(--ln2)"></i></div><em>' + esc(num(m.buyers)) + '/' + esc(num(m.people)) + '</em></div>').join('') + '</div>'
+        + '<div class="lgd"><span><i style="background:var(--good)"></i>авсан</span><span><i style="background:var(--ln2)"></i>асуусан, аваагүй</span></div></section>');
+    }
+    o('</div>');
+  }
+  o('</div>');
+
+  // ── 5 · ДЭЛГЭРЭНГҮЙ (хаалттай)
+  o('<details class="more"><summary>Дэлгэрэнгүй — бүх шат, өдөр бүр, машины загварууд</summary>');
+  o('<div class="sc"><table><thead><tr><th>Шат</th><th class="r">Өмнө</th><th class="r">Одоо</th><th class="r">Өөрчлөлт</th><th class="r">Алдагдал/өдөр</th></tr></thead><tbody>');
+  ST.forEach((s) => o('<tr><td>' + esc(s.label) + '</td><td class="r nm">' + esc(fmt(s.base, s.fmt)) + '</td><td class="r nm"><b>' + esc(fmt(s.cur, s.fmt)) + '</b></td><td class="r nm ' + (s.kind === 'info' ? '' : badDir(s)) + '">' + esc(dTxt(s) || '—') + '</td><td class="r nm">' + (has(s.lost) ? '≈' + esc(num(s.lost, 1)) : '—') + '</td></tr>'));
+  o('</tbody></table></div>');
   const DY = A(d.days);
   if (DY.length) {
-    o('<section aria-label="Өдөр бүр" style="display:flex;flex-direction:column;gap:12px"><div class="hr"><h2 class="h">Өдөр бүр</h2><span class="sb">Сүүлийн 14 хоног</span></div>');
-    o('<div class="cd" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Өдөр</th><th class="r">Зардал</th><th class="r">Сайтад орсон</th><th class="r">Шинэ чат</th><th class="r">«Таарна» санал</th><th class="r">Утсаа өгсөн</th><th class="r">Чатаар захиалга</th><th class="r">Сайтаар захиалга</th></tr></thead><tbody>');
-    DY.slice().reverse().forEach((x) => {
-      const cl = n(x.offer) > 0 ? Math.round(100 * n(x.phone) / n(x.offer)) + '%' : '—';
-      o('<tr><td class="nm">' + esc(md(x.d)) + '</td><td class="r nm">' + esc(num(x.spend)) + '₮</td><td class="r nm">' + esc(num(x.lpv)) + '</td><td class="r nm">' + esc(num(x.new)) + '</td>'
-        + '<td class="r nm">' + esc(num(x.offer)) + '</td><td class="r nm">' + esc(num(x.phone)) + ' <span class="mu">(' + cl + ')</span></td><td class="r nm"><b>' + esc(num(x.chat)) + '</b></td><td class="r nm"><b>' + esc(num(x.web)) + '</b></td></tr>');
-    });
-    o('</tbody></table></div></div></section>');
+    o('<div class="sc"><table><thead><tr><th>Өдөр</th><th class="r">Зардал</th><th class="r">Сайтад орсон</th><th class="r">Шинэ чат</th><th class="r">«Таарна»</th><th class="r">Утас</th><th class="r">Чат зах.</th><th class="r">Сайт зах.</th></tr></thead><tbody>');
+    DY.slice().reverse().forEach((x) => o('<tr><td class="nm">' + esc(md(x.d)) + '</td><td class="r nm">' + esc(num(x.spend)) + '₮</td><td class="r nm">' + esc(num(x.lpv)) + '</td><td class="r nm">' + esc(num(x.new)) + '</td><td class="r nm">' + esc(num(x.offer)) + '</td><td class="r nm">' + esc(num(x.phone)) + '</td><td class="r nm"><b>' + esc(num(x.chat)) + '</b></td><td class="r nm"><b>' + esc(num(x.web)) + '</b></td></tr>'));
+    o('</tbody></table></div>');
   }
-
-  // ── 5. Барааны дамжуурга
-  const used = n(P.used), mx = n(P.max);
-  o('<section aria-label="Барааны дамжуурга" style="display:flex;flex-direction:column;gap:12px"><div class="hr"><h2 class="h">Барааны дамжуурга</h2><span class="sb">Нэг бараа унахад дараагийнх нь бэлэн байх ёстой</span></div>');
-  o('<div class="cd"' + (used === 0 ? ' style="border-left:4px solid var(--warn)"' : '') + '><div class="kvg">'
-    + '<div><span class="kk">Явж буй тест</span><span class="kx nm">' + used + ' / ' + mx + '</span></div>'
-    + '<div><span class="kk">Сүүлийн тест эхэлснээс</span><span class="kx nm">' + (has(P.idle_days) ? esc(P.idle_days) + ' хоног' : '—') + '</span></div>'
-    + '<div><span class="kk">Нөөцтэй зарагдаж буй бараа</span><span class="kx nm">' + esc(num(P.live)) + '</span></div></div>'
-    + (used === 0 ? '<div class="sb">Тестийн слот хоосон байна. Шинэ барааг «Тест» хуудаснаас эхлүүлнэ. Хоосон хэвээр байвал Даваа гараг бүрийн өглөөний тайланд сануулна.</div>' : '') + '</div></section>');
-
-  // ── 6. Машин эзэмшигчдийн сан
-  const C = d.crm || {};
-  o('<section aria-label="Машин эзэмшигчдийн сан" style="display:flex;flex-direction:column;gap:12px"><div class="hr"><h2 class="h">Машин эзэмшигчдийн сан</h2><span class="sb">Зөвхөн тоо — утас, нэр энд гарахгүй</span></div>');
-  if (!C.ok) o('<div class="cd"><div class="sb">Сангийн өгөгдөл ирсэнгүй (car_owner_book).</div></div>');
-  else {
-    const T = C.totals || {};
-    o('<div class="cd"><div class="kvg">'
-      + '<div><span class="kk">Машин нь мэдэгдэж буй хүн</span><span class="kx nm">' + esc(num(T.people)) + '</span></div>'
-      + '<div><span class="kk">Үүнээс утастай</span><span class="kx nm">' + esc(num(T.with_phone)) + '</span></div>'
-      + '<div><span class="kk">Худалдан авсан</span><span class="kx nm">' + esc(num(T.buyers)) + '</span></div>'
-      + '<div><span class="kk">Манайд таарах гэрэлгүй машин асуусан</span><span class="kx nm">' + esc(num(T.unfit_people)) + ' <span class="sb mu">(' + esc(num(T.unfit_phones)) + ' утастай)</span></span></div></div>'
-      + '<div class="sb">Дараагийн авто барааг аль машинд тааруулахаа эндээс харна. Шинэ бараа гарахад тэр машинтай хүмүүсийн жагсаалтыг Claude гаргана.</div></div>');
-    const M = A(C.models);
-    if (M.length) {
-      o('<div class="cd" style="padding:6px 8px"><div class="scroll"><table class="tbl"><thead><tr><th>Загвар</th><th>Марк</th><th class="r">Хүн</th><th class="r">Утастай</th><th class="r">Худалдан авсан</th></tr></thead><tbody>');
-      M.slice(0, 20).forEach((m) => o('<tr><td><b>' + esc(m.label) + '</b></td><td class="sb">' + esc(m.make || '') + '</td><td class="r nm">' + esc(num(m.people)) + '</td><td class="r nm">' + esc(num(m.phones)) + '</td><td class="r nm">' + esc(num(m.buyers)) + '</td></tr>'));
-      o('</tbody></table></div></div>');
-    }
-    const RSN = { other_make: 'Өөр марк', unknown_car: 'Машин тодорхойгүй', unsupported_model: 'Манайд байхгүй загвар', lit_no: 'Хаалганы гэрэлгүй машин' };
-    const DM = A(C.demand), DR = A(C.demand_recent);
-    if (DM.length || DR.length) {
-      o('<details><summary>Таарах гэрэлгүй машин асуусан хүмүүс (' + esc(num(T.unfit_people)) + ')</summary>');
-      if (DM.length) o('<div class="meta" style="margin-top:10px">' + DM.map((x) => '<span>' + esc(RSN[x.reason] || x.reason) + ' <b>' + esc(num(x.people)) + '</b></span>').join('') + '</div>');
-      if (DR.length) o('<ul class="rc">' + DR.map((x) => '<li>' + esc(x.car) + ' <span class="mu">· ' + esc(RSN[x.reason] || x.reason || '') + ' · ' + esc(md(ub(x.seen))) + '</span></li>').join('') + '</ul>');
-      o('</details>');
-    }
+  const C2 = d.crm || {};
+  if (C2.ok && A(C2.models).length) {
+    o('<div class="sc"><table><thead><tr><th>Загвар</th><th>Марк</th><th class="r">Хүн</th><th class="r">Утастай</th><th class="r">Авсан</th></tr></thead><tbody>');
+    A(C2.models).slice(0, 20).forEach((m) => o('<tr><td>' + esc(m.label) + '</td><td>' + esc(m.make || '') + '</td><td class="r nm">' + esc(num(m.people)) + '</td><td class="r nm">' + esc(num(m.phones)) + '</td><td class="r nm">' + esc(num(m.buyers)) + '</td></tr>'));
+    o('</tbody></table></div>');
   }
-  o('</section>');
+  o('<p class="note">Сүүлийн 3 бүтэн өдрийг өмнөх 7 өдөртэй харьцуулна; хувь хэмжээнд ≥15–20 тохиолдол байж л төлөв тавина. «Алдагдал/өдөр» = тухайн шат өмнөх түвшиндээ байсан бол нэмж орох байсан захиалга (сувгийн бодит уналтаас хэтрүүлэхгүй). Өглөөний Telegram тайланд «🕳 Алдагдал» мөрөөр гарна.</p>');
+  o('</details>');
 
-  // ── 7. Хэрхэн ажилладаг
-  o('<section aria-label="Хэрхэн ажилладаг" style="display:flex;flex-direction:column;gap:12px"><h2 class="h">Хэрхэн ажилладаг</h2><div class="rules">');
-  o('<div class="cd"><div class="lb">Харьцуулалт</div><div class="sb">Сүүлийн 3 бүтэн өдрийг түүний өмнөх 7 өдөртэй шат бүрээр харьцуулна. Хувь хэмжээний шатанд дор хаяж 15–20 тохиолдол байж л төлөв тавина.</div></div>');
-  o('<div class="cd"><div class="lb">Сэрэмжлүүлэг</div><div class="sb">Шинэ мессеж нэмэхгүй. Өглөөний шийдвэрийн тайланд «🕳 Алдагдал» нэг мөр гарна; өдөрт 1-ээс олон захиалга алдаж буй улаан шат, «Шалгах» бичлэг байвал ГАЖИГ хэсэгт орно.</div></div>');
-  o('<div class="cd"><div class="lb">Хязгаар</div><div class="sb">Чатын захиалгын зөвхөн нэг хэсэг нь бичлэгтэй холбогддог. Retargeting жагсаалтын хэмжээг Meta-гаас уншдаггүй — түүнийг Claude долоо хоног бүр шалгана.</div></div>');
-  o('</div></section>');
-
-  o('</div><footer>leak_map · ' + (has(d.ms) ? (n(d.ms) / 1000).toFixed(1) + 'с' : '') + ' · ' + esc(d.as_of || '') + ' · зөвхөн уншина</footer></div></body></html>');
+  o('</div><footer><span>leak_map ' + (has(d.ms) ? (n(d.ms) / 1000).toFixed(1) + 'с' : '') + '</span><span>' + esc(d.as_of || '') + '</span><span>зөвхөн уншина</span></footer></div></body></html>');
   return out.join('');
 }
