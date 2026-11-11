@@ -1,5 +1,5 @@
 /* Самбар · ӨГЛӨӨНИЙ ТАЙЛАН (блок GM, 2026-11-11 — эзэн: «нэг товч дарахад бүх системийн тайланг богино, цэгцтэй хэлдэг, уншиж өгдөг»)
-   Өгөгдөл: ?view=brief → board_read 'brief' → morning_brief(p). Зөвхөн УНШИНА. Дуу: хөтчийн монгол хоолой байвал «Сонсох» ажиллана. */
+   Өгөгдөл: ?view=brief → board_read 'brief' → morning_brief(p). Зөвхөн УНШИНА. Дуу: [data-say] товч → app.js → Edge function brief-voice (блок GN). */
 function renderBrief(DATA, QUERY) {
   const d = DATA || {}, Q = QUERY || {};
   const themeQ = Q.theme === 'dark' || Q.theme === 'light' ? Q.theme : '';
@@ -27,18 +27,11 @@ function renderBrief(DATA, QUERY) {
   const AC = A(d.actions), SEC = A(d.sections);
   o('<div class="bf">');
   o('<section class="hero" style="border-left-color:' + (AC.length ? (AC[0].pri === 1 ? 'var(--crit)' : 'var(--warn)') : 'var(--good)') + '"><div class="tx"><div class="t0">Хамгийн чухал</div><div class="t1">' + esc(d.headline) + '</div></div>'
-    + '<div><button class="say" id="say" type="button">▶ Сонсох</button><div class="sayn" id="sayn"></div></div></section>');
+    + '<div><button class="say" type="button" data-say>🎤 Тайлан</button></div></section>');
   if (AC.length) { o('<div class="lb">Өнөөдөр хийх зүйл</div><section class="acts">'); AC.forEach((a, i) => o('<div class="ac p' + (a.pri === 1 ? 1 : 2) + '"><i>' + (i + 1) + '</i><span>' + esc(a.text) + '</span></div>')); o('</section>'); }
   o('<div class="lb">Тойм</div><div class="grid">');
   SEC.forEach((s) => o('<section class="cd" style="--lc:' + (LC[s.lvl] || 'var(--ln2)') + '"><b class="h">' + esc(s.title) + '</b>' + A(s.lines).map((l) => '<p>' + esc(l) + '</p>').join('') + '</section>'));
   o('</div></div><footer><span>morning_brief</span><span>' + esc(d.date || '') + '</span><span>зөвхөн уншина</span></footer></div>');
-  o('<script type="application/json" id="bfsp">' + JSON.stringify({ t: d.speech || '' }).replace(/</g, '\\u003c') + '</script>');
-  o('<script>(function(){var b=document.getElementById("say"),n=document.getElementById("sayn"),t="";try{t=JSON.parse(document.getElementById("bfsp").textContent).t}catch(e){}'
-    + 'var S=window.speechSynthesis;function mn(){return S?S.getVoices().filter(function(v){return /^mn/i.test(v.lang)})[0]:null}'
-    + 'function chk(){if(!S){b.disabled=true;n.textContent="Энэ хөтөч дуу уншихыг дэмжихгүй.";return}if(!mn()){n.textContent="Монгол хоолой энэ хөтөчид алга — Microsoft Edge-д «Bataa / Yesui» хоолойгоор уншина."}else{n.textContent=""}}'
-    + 'chk();if(S)S.onvoiceschanged=chk;'
-    + 'b.addEventListener("click",function(){if(!S)return;if(S.speaking){S.cancel();b.textContent="▶ Сонсох";return}var v=mn();if(!v){chk();return}'
-    + 't.split(/(?<=[.!?])\\s+/).forEach(function(p){if(!p.trim())return;var u=new SpeechSynthesisUtterance(p);u.voice=v;u.lang=v.lang;u.rate=1.05;u.onend=function(){if(!S.pending&&!S.speaking)b.textContent="▶ Сонсох"};S.speak(u)});b.textContent="■ Зогсоох"});})();</script>');
   o('</body></html>');
   return out.join('');
 }
