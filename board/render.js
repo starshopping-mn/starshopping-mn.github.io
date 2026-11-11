@@ -1005,8 +1005,6 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('</div>');
 
   cur = B.today;
-  // GQ (11-11): бараа тус бүрийн 7 хоногийн таамаг — товч (дэлгэрэнгүй нь Хүрээ хуудсанд)
-  if (typeof ssOutlook === 'function' && d.outlook && Array.isArray(d.outlook.products) && d.outlook.products.length) { P('<h2>Ирэх 7 хоног</h2>'); P(ssOutlook(d.outlook, 'compact', themeQ)); }
   P('<h2>Өнөөдөр юу хийх вэ</h2>');
   if (!NEXT.length) {
     P('<div class="em">Хийх яаралтай зүйл алга.</div>');
@@ -1198,6 +1196,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<div class="acts4">' + fl(ordersQ('&tab=dsp'), 'Маргаашийн түгээлт · Excel') + fl(ordersQ('&stage=confirmed'), 'Гацсан хүргэлт') + fl(BASE + '/form/delivery', 'Статус оруулах', true) + '</div></section>');
   // sat (EU): бараа бүрийн ханалт — үе шат, шалтгаан, зай, PO үржүүлэгч, өмнөх ↔ одоогийн цонх
   P('<section class="pane4" data-pane="sat">');
+  // GQ (11-11): 7 хоногийн таамаг (график + бичлэг солих цэг) — эзэн «Зах зээл · Ханалт цонхонд оруул, хянахад амар»
+  if (typeof ssOutlook === 'function') P(ssOutlook(d.outlook, 'full', themeQ));
   if (!SATP || !SATP.length) P('<div class="note4">Ханалтын өгөгдөл алга. EU PASTE суусны дараа өдөр бүр 20:10-д шинэчлэгдэнэ.</div>');
   else {
     const pc = (v) => (has(v) ? Math.round(n(v) * 100) + '%' : '—');
