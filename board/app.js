@@ -260,6 +260,47 @@ function ssNav(on, themeQ) {
       document.documentElement.setAttribute('data-theme', next);
       themeBtn();
     });
+    /* блок GN (11-11): 🎤 «Тайлан» — өглөөний тайланг монгол хоолойгоор уншина (Edge function brief-voice → Чимэгэ TTS, өдөрт 1 удаа үүсгэнэ).
+       Аль ч хуудсын [data-say] товч; хуудас солихгүй. Дахин дарвал зогсоно. */
+    var SAY = { a: null, busy: false };
+    function sayLabel(t) { document.querySelectorAll('[data-say]').forEach(function (b) { b.textContent = t; }); }
+    function sayNote(t) {
+      var el = document.getElementById('ssSay');
+      if (!t) { if (el) el.remove(); return; }
+      if (!el) { el = document.createElement('div'); el.id = 'ssSay';
+        el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9998;max-width:min(560px,calc(100vw - 32px));padding:12px 16px;border-radius:14px;background:#1f1a14;color:#fff;font:600 14px/1.45 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.3)';
+        document.body.appendChild(el); }
+      el.textContent = t;
+    }
+    function sayStop() { if (SAY.a) { SAY.a.pause(); SAY.a = null; } sayLabel('🎤 Тайлан'); sayNote(''); }
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-say]');
+      if (!b) return;
+      e.preventDefault();
+      if (SAY.a) return sayStop();
+      if (SAY.busy) return;
+      SAY.busy = true; sayLabel('⏳ Бэлдэж байна…');
+      var voice = ''; try { voice = localStorage.getItem('ss_voice') || ''; } catch (er) { /* private */ }
+      fetch(SB_RPC.replace('/rest/v1/rpc/board_read', '/functions/v1/brief-voice'), { method: 'POST',
+        headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ k: key, voice: voice }) })
+        .then(function (r) {
+          if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.err || ('http ' + r.status)); });
+          var h = ''; try { h = decodeURIComponent(r.headers.get('X-Headline') || ''); } catch (er) { h = ''; }
+          return r.blob().then(function (bl) {
+            var a = new Audio(URL.createObjectURL(bl)); SAY.a = a;
+            a.onended = sayStop; a.onerror = sayStop;
+            sayLabel('■ Зогсоох'); sayNote(h);
+            return a.play();
+          });
+        })
+        .catch(function (er) {
+          SAY.a = null; sayLabel('🎤 Тайлан');
+          var m = { no_voice_key: 'Дуу хоолойн токен тохируулаагүй байна.', month_cap: 'Энэ сарын дуудалтын хязгаарт хүрсэн — дараа сар хүртэл уншихгүй.', key: 'Самбарын түлхүүр буруу.' }[er.message] || ('Дуу гарсангүй (' + er.message + ').');
+          sayNote(m); setTimeout(function () { if (!SAY.a) sayNote(''); }, 6000);
+        })
+        .then(function () { SAY.busy = false; });
+    });
     window.ssRefresh = function () { refresh(true); };
     tick(); health();
     setInterval(tick, T); setInterval(health, 600000);
