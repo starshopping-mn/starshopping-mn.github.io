@@ -1494,6 +1494,7 @@ function mountCarPicker(p, root, onState) {
     if (!b) return;
     makeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
     S.make = b.dataset.make;
+    ckSlug = p.slug; ck("car_make", S.make);
     resetFrom(1);
     groupSel.innerHTML = `<option value="">— загвараа сонгоно уу —</option>` + groups().map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
     groupBox.hidden = false;
@@ -1501,6 +1502,7 @@ function mountCarPicker(p, root, onState) {
 
   groupSel.addEventListener("change", () => {
     S.group = groupSel.value || null;
+    if (S.group) { ckSlug = p.slug; ck("car_group", S.make + " " + S.group); }
     resetFrom(2);
     if (!S.group) return;
     const ms = inGroup();
@@ -1519,6 +1521,7 @@ function mountCarPicker(p, root, onState) {
 
   yearSel.addEventListener("change", () => {
     S.year = yearSel.value || "";
+    if (S.year) { ckSlug = p.slug; ck("car_year", S.year); }
     if (!S.year) { S.res = null; resBox.innerHTML = ""; clearLit(); emit(); return; }
     check();
   });
@@ -1538,6 +1541,16 @@ function mountCarPicker(p, root, onState) {
   });
 
   loadCarCatalog().then((c) => { S.catalog = c; showMakes(); }).catch(() => { makeBox.innerHTML = failHtml; });
+
+  /* GR3: машин шалгагч дэлгэцэнд харагдсан эсэх */
+  try {
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((es) => {
+        if (es.some((x) => x.isIntersecting)) { ckSlug = p.slug; ck("car_seen"); io.disconnect(); }
+      }, { threshold: 0.4 });
+      io.observe(box);
+    }
+  } catch (e) { /* telemetry */ }
 }
 
 let stickyWatch = null; // the observer behind the product page's bottom bar
@@ -1828,6 +1841,8 @@ function renderProduct(slug) {
            ${isPreorder(p) ? "" : `<p class="pdp4__alt pickline">📍 Өөрөө очиж үзэж, авч болно · <a class="callbuy" href="${PICKUP.map}" target="_blank" rel="noopener">${esc(PICKUP.place)}</a></p>`}`
     }
 
+    <a class="vidbtn" id="instVid" href="#" target="_blank" rel="noopener" hidden>▶ Угсрах бичлэг үзэх</a>
+
     ${F ? `<div class="pdp4__feat">${F.cards.map((c) => `<div class="pdp4__fcard"><i>${featIcon(c.t + " " + c.d)}</i><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div>`).join("")}</div>` : descBlock(p.desc)}
 
     <section class="pdp4__steps">
@@ -2077,12 +2092,39 @@ function renderProduct(slug) {
     return ph;
   };
 
+  /* GR (2026-11-11, эзэн): «Угсрах бичлэг үзэх». Холбоосыг app_text-ээс
+     (web_install_video) уншина — эзэн шинэ бичлэг тавихад сайт дахин build хийх
+     шаардлагагүй. Холбоос ирээгүй бол товч нуугдмал хэвээр. */
+  const instVid = right.querySelector("#instVid");
+  if (instVid) {
+    carRpc("web_install_video", { p_slug: p.slug }, 8000)
+      .then((u) => {
+        if (typeof u !== "string" || !/^https:\/\//.test(u)) return;
+        instVid.href = u;
+        instVid.hidden = false;
+        instVid.addEventListener("click", () => ck("install_video"));
+      })
+      .catch(() => {});
+  }
+
   right.querySelector("#buyBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     if (dl && !car) {
       /* машин баталгаажаагүй бол захиалга эхлэхгүй — шалгагч руу аваачна */
       const cb = right.querySelector("#carBox");
-      if (cb) cb.scrollIntoView({ block: "center", behavior: "smooth" });
+      ck("buy_nocar");
+      if (cb) {
+        cb.scrollIntoView({ block: "center", behavior: "smooth" });
+        /* GR3: чимээгүй гүйлгэхийн оронд юу хийхийг хэлнэ */
+        let nudge = cb.querySelector(".carbox__nudge");
+        if (!nudge) {
+          nudge = document.createElement("p");
+          nudge.className = "carbox__nudge";
+          cb.insertBefore(nudge, cb.firstChild);
+        }
+        nudge.textContent = "👇 Захиалахын өмнө машинаа сонгоно уу: марк → загвар → он (20 секунд). Олдохгүй бол 9550-5717 руу залгаарай.";
+        nudge.classList.remove("is-flash"); void nudge.offsetWidth; nudge.classList.add("is-flash");
+      }
       return;
     }
     /* M8: нөөцтэй барааны дууссан хувилбарыг захиалуулахгүй (сервер ч дахин шалгана) */
@@ -2182,6 +2224,9 @@ function renderProduct(slug) {
      ViewContent two seconds apart for one visitor. That inflates the top of
      the funnel and makes every step below it look worse than it is. `route()`
      clears the mark, so coming back to the product counts again. */
+  /* GR3 (2026-11-11): өөрсдийн юүлүүрийн дээд шат. Meta LPV ~300/өдөр байхад манай эхний
+     тэмдэглэл (машин шалгасан) ~15/өдөр — хаана гарч байгааг харахын тулд хуудас нээгдсэнийг тоолно. */
+  try { if (!ckSeen.has("view")) { ckSlug = p.slug; ck("view"); } } catch (e) { /* telemetry */ }
   if (window.fbq && viewReported !== p.slug) {
     viewReported = p.slug;
     fbq("track", "ViewContent", {
