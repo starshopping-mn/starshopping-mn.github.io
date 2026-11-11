@@ -323,6 +323,7 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('<div class="bt">Starshopping</div><div class="bs">самбар · ' + esc(gen) + ' UTC</div></div>');
   P(typeof ssNav === 'function' ? ssNav('home', themeQ) : '');
   P('<div class="sp"></div>');
+  P('<button type="button" class="chip gold" data-say style="font:inherit;font-weight:700;cursor:pointer">🎤 Тайлан</button>');   // блок GN: дарахад өглөөний тайланг уншина (app.js)
   P('<a class="chip gold" href="/board/?view=tests' + (themeQ ? '&theme=' + themeQ : '') + '">▶ Тест</a>');
   const alive = n(PU.msg_in) > 0 || n(PU.orders) > 0;
   P('<span class="chip"><span class="dot' + (alive ? '' : ' off') + '"></span>' + (alive ? 'LIVE' : 'ЧИМЭЭГҮЙ') + '</span>');
