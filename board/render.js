@@ -1005,6 +1005,8 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('</div>');
 
   cur = B.today;
+  // GQ (11-11): бараа тус бүрийн 7 хоногийн таамаг — товч (дэлгэрэнгүй нь Хүрээ хуудсанд)
+  if (typeof ssOutlook === 'function' && d.outlook && Array.isArray(d.outlook.products) && d.outlook.products.length) { P('<h2>Ирэх 7 хоног</h2>'); P(ssOutlook(d.outlook, 'compact', themeQ)); }
   P('<h2>Өнөөдөр юу хийх вэ</h2>');
   if (!NEXT.length) {
     P('<div class="em">Хийх яаралтай зүйл алга.</div>');
