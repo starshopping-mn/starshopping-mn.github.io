@@ -1423,8 +1423,9 @@ function mountCarPicker(p, root, onState) {
     </div>
     <div id="cbRes" aria-live="polite"></div>
     <div class="opt" id="cbLitBox" hidden>
-      <p class="carbox__ask">Урд хаалгаа онгойлгоход доод талд нь гэрэл асдаг уу?</p>
-      <div class="carq__yn">
+      <p class="carbox__ask" id="cbAsk">Урд хаалгаа онгойлгоход доод талд нь гэрэл асдаг уу?</p>
+      <p class="carq__done" id="cbDone" hidden>✓ Доод гэрэл асдаг гэж баталлаа · <button type="button" class="carq__undo" id="cbUndo">өөрчлөх</button></p>
+      <div class="carq__yn" id="cbYn">
         <button type="button" class="carq__yes" id="cbYes">✓ Тийм, асдаг</button>
         <button type="button" class="carq__no" id="cbUnsure">Мэдэхгүй</button>
       </div>
@@ -1443,6 +1444,10 @@ function mountCarPicker(p, root, onState) {
   const makeBox = $c("cbMake"), groupBox = $c("cbGroupBox"), groupSel = $c("cbGroup"), genBox = $c("cbGenBox"), genRow = $c("cbGen");
   const yearBox = $c("cbYearBox"), yearSel = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), legal = $c("cbLegal");
   const quickBox = $c("cbQuick"), moreBtn = $c("cbMore"), manual = $c("cbManual"), yesBtn = $c("cbYes"), unsureBtn = $c("cbUnsure"), help = $c("cbHelp");
+  const askEl = $c("cbAsk"), ynEl = $c("cbYn"), doneEl = $c("cbDone"), undoBtn = $c("cbUndo");
+  /* «Тийм» дарсны дараа асуулт, хоёр товч нэг мөр болж хураагдана: хуудас маягт руу гүйхэд товчнууд дээд цэсний
+     «Хүргэлтийн лавлах»-тай давхцаж харагддаг байсан, мөн маягт ойртоно. «өөрчлөх» → асуулт буцна, маягт түгжигдэнэ. */
+  const litDone = (on) => { askEl.hidden = on; ynEl.hidden = on; doneEl.hidden = !on; };
 
   const emit = () => {
     const r = S.res;
@@ -1450,7 +1455,7 @@ function mountCarPicker(p, root, onState) {
     legal.hidden = !ok;
     onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: r.design, sku_id: r.sku_id, lit: true, make: S.make, group: S.group, quick: S.quick, range: S.range } : { ok: false });
   };
-  const clearLit = () => { S.lit = false; yesBtn.classList.remove("is-on"); help.hidden = true; litBox.hidden = true; };
+  const clearLit = () => { S.lit = false; yesBtn.classList.remove("is-on"); help.hidden = true; litBox.hidden = true; litDone(false); };
   const resetFrom = (level) => {
     S.seq++;
     if (level <= 1) { S.group = null; groupBox.hidden = true; }
@@ -1569,13 +1574,14 @@ function mountCarPicker(p, root, onState) {
 
   yesBtn.addEventListener("click", () => {
     if (!S.res || S.res.verdict !== "sell") return;
-    S.lit = true; yesBtn.classList.add("is-on"); help.hidden = true;
+    S.lit = true; yesBtn.classList.add("is-on"); help.hidden = true; litDone(true);
     track("lit_yes", S.make, S.group, S.res.label);
     emit();
     /* маягт сая нээгдсэн — хүн дараагийн алхмаа хайхгүй байхаар тийш нь аваачна */
     const f = root.querySelector("#qform");
     if (f) setTimeout(() => { try { f.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { /* хуучин хөтөч */ } }, 80);
   });
+  undoBtn.addEventListener("click", () => { S.lit = false; yesBtn.classList.remove("is-on"); litDone(false); emit(); });
   unsureBtn.addEventListener("click", () => {
     S.lit = false; yesBtn.classList.remove("is-on"); help.hidden = false;
     track("lit_unsure", S.make, S.group, S.res && S.res.label);
