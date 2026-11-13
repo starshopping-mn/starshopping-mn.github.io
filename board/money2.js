@@ -8,7 +8,11 @@ function renderMoney2(DATA, QUERY) {
   const Q = QUERY || {};
   const themeQ = Q.theme === 'dark' || Q.theme === 'light' ? Q.theme : '';
   const tq = themeQ ? '&theme=' + themeQ : '';
-  const A = (v) => (Array.isArray(v) ? v : []);
+  /* GZ (2026-11-13): жагсаалтын хоосон (null) мөрийг алгасна. money_summary-ийн spend.accounts нь
+     `to_jsonb(acc)`-аас болж мөр биш дансны НЭР буцаадаг (багана нь CTE-тэйгээ ижил нэртэй); данс нь
+     тодорхойгүй гүйлгээ орж ирэхэд нэр нь null болж, `a['out_business']` дээр хуудас бүхэлдээ унаж байв.
+     Өгөгдөл, SQL хөндөөгүй — зөвхөн зурагч хоосон мөрөнд унахгүй болсон. */
+  const A = (v) => (Array.isArray(v) ? v.filter((x) => x !== null && x !== undefined) : []);
   const n = (v) => (v === null || v === undefined || v === '' || isNaN(Number(v)) ? 0 : Number(v));
   const has = (v) => v !== null && v !== undefined && v !== '' && !isNaN(Number(v));
   const esc = (s) => String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -80,6 +84,7 @@ function renderMoney2(DATA, QUERY) {
 
   const P = d.position || {}, PL = d.pnl || {}, RS = d.reserve || {}, FL = d.flow || {}, SP = d.spend || {}, TR = d.transfers || {};
   const ACC = A(P.accounts), PR = A(d.products), TODO = A(d.todo), ST = SP.totals || {};
+  const SACC = A(SP.accounts).filter((a) => typeof a === 'object');   // зөвхөн бодит мөр (нэр/тоо биш)
 
   // ── хугацаа
   const ub = new Date(Date.now() + 8 * 3600e3), iso = (t) => t.toISOString().slice(0, 10);
@@ -199,7 +204,7 @@ function renderMoney2(DATA, QUERY) {
   const tsum = KS.reduce((s, k) => s + n(ST[k[0]]), 0);
   const TOP = A(SP.top), SWK = A(SP.weeks);
   const topTxt = (kind) => TOP.filter((t) => t.kind === kind).slice(0, 3).map((t) => esc(String(t.label || t.category || '—').split(' (')[0]) + ' ' + bs(t.mnt)).join(' · ');
-  const accTop = (kind) => A(SP.accounts).filter((a) => n(a['out_' + kind])).sort((a, b) => n(b['out_' + kind]) - n(a['out_' + kind])).map((a) => esc(short(a.acc).replace(/ банк| данс/g, '').replace(/ \(.*\)/, '')) + ' ' + bs(a['out_' + kind])).join(' · ');
+  const accTop = (kind) => SACC.filter((a) => n(a['out_' + kind])).sort((a, b) => n(b['out_' + kind]) - n(a['out_' + kind])).map((a) => esc(short(a.acc).replace(/ банк| данс/g, '').replace(/ \(.*\)/, '')) + ' ' + bs(a['out_' + kind])).join(' · ');
   o('<section class="g2" aria-label="Зарлага хэнд"><div class="cd col" style="gap:14px"><div class="hr"><h2 class="h">5 · Зарлага хэнд явж байна</h2><span class="sb">сүүлийн ' + n(SP.days) + ' хоног · банкны SMS</span></div>');
   if (tsum > 0) {
     o('<div class="share" role="img" aria-label="' + esc(KS.filter((k) => n(ST[k[0]])).map((k) => k[1] + ' ' + pct(ST[k[0]], tsum) + ' хувь').join(', ')) + '">' + KS.filter((k) => n(ST[k[0]])).map((k) => '<i class="' + k[2] + '" style="width:' + (n(ST[k[0]]) / tsum * 100).toFixed(2) + '%" title="' + esc(k[1]) + ': ' + num(ST[k[0]]) + '₮ (' + pct(ST[k[0]], tsum) + '%)"></i>').join('') + '</div>');
@@ -219,7 +224,7 @@ function renderMoney2(DATA, QUERY) {
   const RT = A(TR.routes), OI = A(TR.owner_in);
   const byFrom = {};
   RT.forEach((r) => { const k = r.from_name || '?'; (byFrom[k] = byFrom[k] || []).push(r); });
-  const accIn = (name) => A(SP.accounts).find((a) => a.acc === name) || {};
+  const accIn = (name) => SACC.find((a) => a.acc === name) || {};
   o('<div class="cd col" style="gap:12px"><div class="hr"><h2 class="h">Данс хоорондын урсгал</h2><span class="sb">зардал биш — шилжүүлэг · ' + n(SP.days) + ' хоног</span></div>');
   if (!RT.length && !OI.length) o('<div class="sb mu">Энэ хугацаанд шилжүүлэг алга.</div>');
   Object.keys(byFrom).sort((a, b) => byFrom[b].reduce((s, r) => s + n(r.mnt), 0) - byFrom[a].reduce((s, r) => s + n(r.mnt), 0)).forEach((from) => {

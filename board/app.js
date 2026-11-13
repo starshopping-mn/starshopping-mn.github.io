@@ -39,11 +39,11 @@ function ssNav(on, themeQ) {
     board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all' }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: { waitlist: 'waitlist', reorder: 'reorder' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
-    money:    { data: 'money2',   extra: {}, render: 'renderMoney2', passQuery: true }, // блок DB (10-31): мөнгө v2 — money_summary нэг дуудлага
-    growth:   { data: 'growth',   extra: {}, render: 'renderGrowth' },   // блок EK (11-03): өсөлтийн шат — growth_plan, дохио
+    money:    { data: 'money2',   extra: {}, render: 'renderMoney2', passQuery: true, keep: true }, // блок DB (10-31): мөнгө v2 — money_summary нэг дуудлага
+    growth:   { data: 'growth',   extra: {}, render: 'renderGrowth', keep: true },   // блок EK (11-03): өсөлтийн шат — growth_plan, дохио
     reach:    { data: 'reach',    extra: { outlook: 'outlook' }, render: 'renderReach' },    // блок FL (11-07): хүрээний хамгаалалт — reach_board, засварын бүртгэл
     leak:     { data: 'leak',     extra: { crm: 'crm' }, render: 'renderLeak' },  // блок GG (11-11): алдагдлын газрын зураг — leak_map; машин эзэмшигчдийн сан — car_owner_book
-    brief:    { data: 'brief',    extra: {}, render: 'renderBrief' },   // блок GM (11-11): өглөөний тайлан — morning_brief, «Сонсох»
+    brief:    { data: 'brief',    extra: {}, render: 'renderBrief', keep: true },   // блок GM (11-11): өглөөний тайлан — morning_brief, «Сонсох»
     money_old: { data: 'money',   extra: {}, render: 'renderMoney', passQuery: true }  // блок C2: хуучин мөнгө — ангилал, дэвтэр, сан (v2-ийн «Дэлгэрэнгүй»)
   };
   // C3: хуучин хаягууд → шинэ хуудас (хуучин холбоос, Telegram мессеж ажилласаар)
@@ -138,9 +138,34 @@ function ssNav(on, themeQ) {
     return get(spec.view, '&from=' + from + '&to=' + to);
   }
   window.ssGet = get; window.ssToday = ubToday;   // самбарын жижиг хэсгүүд (Эцсийн тайлан) өөрсдөө өгөгдөл татна
-  // «Орох багц» өөр категорит: судалгааны өгөгдөл + тухайн категорийн багц
-  var extras = Object.keys(V.extra).map(function (name) { return { name: name, p: xget(V.extra[name]).catch(function () { return null; }) }; });
-  if (view === 'research' && q.tab === 'pack' && q.c) extras.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
+  /* ---- Унахгүй ачаалалт (блок GZ, 2026-11-13) ----
+     Эзэн: «?view=money — Cannot read properties of null (reading 'out_business')». Нэг жагсаалтад ганц хоосон
+     мөр ирэхэд зурагч унаж, хуудас бүхэлдээ алдааны дэлгэц болдог байв. Гурван давхар хамгаалалт:
+       1) scrub — өгөгдөл зурагчид очихоос өмнө мөрүүдийн жагсаалтаас null-ыг авна (бүх хуудас);
+       2) boot — сүлжээний түр алдаанд 2 удаа өөрөө дахин оролдоно;
+       3) keep — амжилттай зурсан сүүлийн хуудсыг энэ төхөөрөмжид хадгалж, ачаалж чадахгүй бол түүнийг
+          «хадгалсан хуулбар» гэсэн туузтай харуулаад цаанаа дахин оролдоно. Харилцагчийн утас/хаяг
+          гардаг хуудсыг (захиалга, алдагдал, тест, нөөц, нүүр) ХАДГАЛАХГҮЙ — зөвхөн keep:true. */
+  function scrub(v) {
+    if (Array.isArray(v)) {
+      var rows = v.some(function (x) { return x && typeof x === 'object'; });
+      var empty = v.length > 0 && v.every(function (x) { return x === null || x === undefined; });
+      var out = rows || empty ? v.filter(function (x) { return x !== null && x !== undefined; }) : v;   // тоон цуваан дахь null (хоосон өдөр) хэвээр
+      for (var i = 0; i < out.length; i++) out[i] = scrub(out[i]);
+      return out;
+    }
+    if (v && typeof v === 'object') Object.keys(v).forEach(function (k) { v[k] = scrub(v[k]); });
+    return v;
+  }
+  var KEEP = 'ss_board_last:' + view;
+  function remember(html) {
+    if (!V.keep) return;
+    try { if (html.length < 1500000) localStorage.setItem(KEEP, JSON.stringify({ t: Date.now(), pq: PQ, html: html })); } catch (e) { /* зай дүүрсэн / private window */ }
+  }
+  function recall() {
+    if (!V.keep) return null;
+    try { var c = JSON.parse(localStorage.getItem(KEEP) || 'null'); return c && c.html && c.pq === PQ ? c : null; } catch (e) { return null; }
+  }
 
   /* ---- Амьд шинэчлэл (2026-09-29, v2) ----
      v1 хуудсыг бүхэлд нь location.reload() хийдэг байсан: сайтын үзэгч бүр
@@ -164,10 +189,14 @@ function ssNav(on, themeQ) {
     var ex = Object.keys(V.extra).map(function (name) { return { name: name, p: xget(V.extra[name]).catch(function () { return null; }) }; });
     if (view === 'research' && q.tab === 'pack' && q.c) ex.push({ name: 'pack', p: get('pack', '&c=' + encodeURIComponent(q.c)) });
     return Promise.all([get(V.data, PQ)].concat(ex.map(function (x) { return x.p; }))).then(function (res) {
-      var d = res[0] || {};
-      ex.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
-      var html = window[V.render](d, q);
-      return stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?t=' + (Date.now() / 60000 | 0) + '"><style>'));
+      var d = scrub(res[0] || {});
+      ex.forEach(function (x, i) { if (res[i + 1]) d[x.name] = scrub(res[i + 1]); });
+      var html;
+      try { html = window[V.render](d, q); if (typeof html !== 'string' || !html) throw new Error('хоосон хуудас'); }
+      catch (er) { er.render = true; throw er; }   // өгөгдөл ирсэн ч зурж чадаагүй — дахин татаад нэмэргүй
+      html = stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?t=' + (Date.now() / 60000 | 0) + '"><style>'));
+      remember(html);
+      return html;
     });
   }
   // Дараагийн зурагт нээлттэй байсныг сэргээх түлхүүрүүд (data-keep="..." бүхий элементүүд)
@@ -309,17 +338,36 @@ function ssNav(on, themeQ) {
     setInterval(tick, T); setInterval(health, 600000);
   }
 
-  Promise.all([get(V.data, PQ)].concat(extras.map(function (x) { return x.p; })))
-    .then(function (res) {
-      var d = res[0] || {};
-      extras.forEach(function (x, i) { if (res[i + 1]) d[x.name] = res[i + 1]; });
-      var html = window[V.render](d, q);
-      html = stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?t=' + (Date.now() / 60000 | 0) + '"><style>'));
-      document.open(); document.write(html); document.close();
-      live(); themeBtn();
-    })
-    .catch(function (e) {
-      if (e.message === 'key') return ask('Түлхүүр буруу байна.');
-      gate.innerHTML = '<h1>Starshopping · Самбар</h1><p>Өгөгдөл ачаалж чадсангүй (' + e.message + '). Дахин ачаална уу.</p>';
+  function show(html) { document.open(); document.write(html); document.close(); live(); themeBtn(); }
+  function boot(attempt) {
+    fetchAll().then(show, function (e) {
+      var why = e && e.message ? String(e.message) : 'тодорхойгүй';
+      if (why === 'key') return ask('Түлхүүр буруу байна.');
+      // сүлжээ/серверийн түр алдаа: 2 удаа өөрөө дахин оролдоно (зурагчийн алдаанд дахин татахгүй)
+      if (!(e && e.render) && attempt < 2) {
+        gate.innerHTML = '<h1>Starshopping · Самбар</h1><p>Ачааллаж байна… (дахин оролдож байна ' + (attempt + 1) + '/2)</p>';
+        return setTimeout(function () { boot(attempt + 1); }, 1500 * (attempt + 1));
+      }
+      var c = recall();
+      if (c) {
+        // сүүлд амжилттай зурсан хуудас + тууз; цаанаа 20 сек тутам дахин оролдож, амжмагц тууз өөрөө алга болно
+        var at = new Date(c.t).toLocaleString('mn', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        var bar = '<div id="ssStale" role="status" style="position:fixed;left:0;right:0;top:0;z-index:9999;padding:8px 12px;background:#b45309;color:#fff;font:600 13px/1.4 system-ui,sans-serif;text-align:center">Шинэ өгөгдөл ачаалж чадсангүй — ' + at + '-д хадгалсан хуулбар. Өөрөө дахин оролдож байна…</div>';
+        show(c.html.replace(/<\/body>(?![\s\S]*<\/body>)/, bar + '</body>'));
+        var again = setInterval(function () {
+          if (!document.getElementById('ssStale')) return clearInterval(again);
+          if (window.ssRefresh) window.ssRefresh();
+        }, 20000);
+        return;
+      }
+      gate.innerHTML = '<h1>Starshopping · Самбар</h1><p>Өгөгдөл ачаалж чадсангүй. 20 секундын дараа өөрөө дахин оролдоно.</p>'
+        + '<form id="rf"><button>Одоо дахин оролдох</button></form><div class="err" style="font-size:12px">' + why.replace(/</g, '&lt;') + '</div>';
+      var t = setTimeout(function () { boot(0); }, 20000);
+      document.getElementById('rf').addEventListener('submit', function (ev) {
+        ev.preventDefault(); clearTimeout(t);
+        gate.innerHTML = '<h1>Starshopping · Самбар</h1><p>Ачааллаж байна…</p>'; boot(0);
+      });
     });
+  }
+  boot(0);
 })();
