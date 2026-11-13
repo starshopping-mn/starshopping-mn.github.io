@@ -516,13 +516,13 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
       let h = '<div class="money4 nx4" id="nxrow">';
       if (due) {
         h += cell('Nexpress-ээс авах · ' + dm(due.from) + '–' + dm(due.to), mnt(due.open_net),
-          n(due.open_n) + ' хүргэлт · ' + (lateD > 0 ? lateD + ' хоног хэтэрсэн (' + dm(due.pay_day) + ')' : dow(due.pay_day) + ' ' + dm(due.pay_day) + '-нд орох ёстой')
+          n(due.open_n) + ' хүргэлт · хүргэлтийн хөлс ' + mnt(due.open_fee) + ' хассан дүн · ' + (lateD > 0 ? lateD + ' хоног хэтэрсэн (' + dm(due.pay_day) + ')' : dow(due.pay_day) + ' ' + dm(due.pay_day) + '-нд орох ёстой')
             + (n(NX.due_n) > 1 ? ' · нийт хүлээгдэж буй ' + short(NX.due_net) : ''),
           lateD > 0 ? 'crit' : 'warn', 'COD ' + mnt(due.open_cod) + ' − хүргэлтийн хөлс ' + mnt(due.open_fee) + ' = ' + mnt(due.open_net) + (n(due.ret_n) ? ' · энэ үеийн буцаалт ' + n(due.ret_n) + ' (' + mnt(due.ret_cost) + ') — суутгавал хасагдана' : ''));
       } else {
         h += cell('Nexpress-ээс авах', '0₮', 'хаагдсан үеийн тооцоо бүгд орсон', 'good');
       }
-      h += opn ? cell('Хуримтлагдаж буй · ' + dm(opn.from) + '–' + dm(opn.to), mnt(opn.open_net), n(opn.open_n) + ' хүргэлт · ' + dow(opn.pay_day) + ' ' + dm(opn.pay_day) + '-нд', '',
+      h += opn ? cell('Хуримтлагдаж буй · ' + dm(opn.from) + '–' + dm(opn.to), mnt(opn.open_net), n(opn.open_n) + ' хүргэлт · хөлс ' + mnt(opn.open_fee) + ' хассан · ' + dow(opn.pay_day) + ' ' + dm(opn.pay_day) + '-нд', '',
         'COD ' + mnt(opn.open_cod) + ' − хүргэлтийн хөлс ' + mnt(opn.open_fee)) : cell('Хуримтлагдаж буй', '—', 'энэ үед хүргэлт алга');
       h += ls ? cell('Сүүлд орсон', mnt(ls.amount), new Date(ls.at).toLocaleDateString('en-US', { timeZone: 'Asia/Ulaanbaatar', month: '2-digit', day: '2-digit' }) + ' · ' + String(ls.utga || ''), 'good') : cell('Сүүлд орсон', '—', 'банкны бүртгэл алга');
       const retN = due ? n(due.ret_n) : 0, retC = due ? n(due.ret_cost) : 0;
