@@ -1322,6 +1322,17 @@ function renderPending() {
    `message_mn` өгвөл үгээр нь харуулна. Утасны маягт нь машин баталгаажиж,
    «доод гэрэл асдаг» гэж хариулах хүртэл НЭЭГДЭХГҮЙ. Жагсаалт/шалгалт ачаалагдахгүй
    бол хаалттай хэвээр (fail-closed) — залгаж захиалах л үлдэнэ.
+
+   HB (2026-11-13, эзэн «заа чи хий»): шалгагчийг харсан хүний 14% л хүрдэг, машин нь таарсан
+   хүний 53% нь «гэрэл асдаг» checkbox дээр зогсдог байв (11/12: харсан 195 → хүрсэн 28 → таарсан 19
+   → тэмдэглэсэн 9 → захиалга 4). Иймд:
+     · хамгийн их шалгагддаг үеүүд НЭГ ТОВШИЛТЫН товч (CAR_QUICK) — марк → загвар → үе → он гэсэн
+       4 алхмын оронд. Үеийн товч он жилээ өөрөө агуулдаг тул он асуухгүй; серверийн шалгалтад
+       тэр үеийн эхний оныг өгнө (fit_decide он шаарддаг), захиалгад car_text-ээр «үеийг товшсон» гэж үлдээнэ.
+     · бусад загвар «Өөр машин» дотор хуучин замаараа (жагсаалт серверээс хэвээр).
+     · checkbox-ийн оронд «Тийм, асдаг» / «Мэдэхгүй» хоёр товч; «Мэдэхгүй» → хаана харахыг хэлээд чат руу.
+     · `#/p/<slug>?car=<model_key>` — чатын «Захиалах» товчноос ирэхэд машин урьдчилан сонгогдоно.
+   Дүгнэлт серверийнх хэвээр: товч нь зөвхөн fitment_catalog-д verdict=sell байгаа загварт гарна.
    ========================================================================== */
 const DOORLIGHT_SLUG = "mashiny-haalganii-gerel";
 const isDoorLight = (p) => !!p && String(p.slug || "").toLowerCase() === DOORLIGHT_SLUG;
@@ -1361,6 +1372,8 @@ const loadCarCatalog = () => {
 /* Захиалга үүссэний дараа машиныг захиалгад бичнэ (сервер загварыг дахин тогтооно). Нэг дахин оролдоно. */
 async function saveOrderCar(orderId, car, tellFn) {
   const body = { p: { order_id: orderId, model_key: car.model_key, year: car.year, light_lit: car.lit === true, source: "web" } };
+  /* HB: үеийн товчоор сонгосон бол он нь тэр үеийн эхний он (хэрэглэгч он хэлээгүй) — захиалгад үгээр нь үлдээнэ */
+  if (car.quick && car.range) body.p.car_text = `${car.label} (${car.range}) — үеийг товшиж сонгосон, он асуугаагүй`;
   for (let i = 0; i < 2; i++) {
     try {
       const out = await carRpc("set_order_car", body, 15000);
@@ -1371,7 +1384,11 @@ async function saveOrderCar(orderId, car, tellFn) {
   return null;
 }
 
-const carText = (c) => (c ? `${c.label}, ${c.year}` : "");
+const carText = (c) => (c ? (c.quick && c.range ? `${c.label} (${c.range})` : `${c.label}, ${c.year}`) : "");
+
+/* HB: хамгийн их шалгагддаг үеүүд (checkout_events car_sell + чатын conv_car, 30 хоног, 2026-11-13) — эрэмбээр.
+   Жагсаалтад sell биш болсон загвар автоматаар гарахгүй. Сард нэг удаа өгөгдлөөс шинэчил. */
+const CAR_QUICK = ["crown-210", "prius-30", "prius-alpha", "hs", "rx-al10", "crown-200", "rx-al20", "prius-50"];
 
 const FB_PAGE_URL = `https://www.facebook.com/profile.php?id=${AUTO_PAGE}`;
 
@@ -1388,37 +1405,52 @@ function mountCarPicker(p, root, onState) {
     ck("car_" + result, label || group || make || "");
   };
 
-  const S = { catalog: null, make: null, group: null, key: null, year: "", res: null, lit: false, seq: 0 };
+  const S = { catalog: null, make: null, group: null, key: null, year: "", res: null, lit: false, seq: 0, quick: false, range: "" };
+  try { ckSlug = p.slug; ck("car_view"); } catch (e) { /* telemetry */ }   // HB: хуудсанд орсон хүн (step «view»-г серверийн CHECK хаядаг байсан)
   const failHtml = `<p class="carbox__msg carbox__msg--no">Машины жагсаалтыг одоогоор ачаалж чадсангүй. Утсаар захиална уу: <a href="tel:95505717">9550-5717</a></p>`;
 
   box.innerHTML = `
-    <div class="carbox__step">ЭХЛЭЭД МАШИНАА ШАЛГАНА УУ</div>
-    <p class="carbox__hint">Манай жагсаалтаас машиныхаа марк, загвар, оноо сонгоно уу. Таны машины марк, загвар жагсаалтад байхгүй бол <b>манайд энэ бараа байхгүй</b> гэсэн үг.</p>
-    <div class="opt"><span class="opt__label">1 · МАРК</span><div class="opt__row" id="cbMake"><span class="carbox__load">Ачаалж байна…</span></div></div>
-    <div class="opt" id="cbGroupBox" hidden><span class="opt__label">2 · ЗАГВАР</span><select class="input" id="cbGroup"></select></div>
-    <div class="opt" id="cbGenBox" hidden><span class="opt__label">3 · ҮЕ</span><div class="opt__row" id="cbGen"></div></div>
-    <div class="opt" id="cbYearBox" hidden><span class="opt__label">4 · ҮЙЛДВЭРЛЭСЭН ОН</span><select class="input" id="cbYear"></select></div>
+    <h3 class="carbox__head">Таны машинд таарах уу?</h3>
+    <p class="carbox__lead">Машинаа товшино уу — шууд шалгана.</p>
+    <div class="carq" id="cbQuick"><span class="carbox__load">Ачаалж байна…</span></div>
+    <button type="button" class="carq__more" id="cbMore" aria-expanded="false">Өөр машин (Toyota · Lexus) ▾</button>
+    <div id="cbManual" hidden>
+      <div class="opt"><span class="opt__label">1 · МАРК</span><div class="opt__row" id="cbMake"><span class="carbox__load">Ачаалж байна…</span></div></div>
+      <div class="opt" id="cbGroupBox" hidden><span class="opt__label">2 · ЗАГВАР</span><select class="input" id="cbGroup"></select></div>
+      <div class="opt" id="cbGenBox" hidden><span class="opt__label">3 · ҮЕ</span><div class="opt__row" id="cbGen"></div></div>
+      <div class="opt" id="cbYearBox" hidden><span class="opt__label">4 · ҮЙЛДВЭРЛЭСЭН ОН</span><select class="input" id="cbYear"></select></div>
+      <p class="carbox__hint">Жагсаалтад байгаа загварт л бид баталгаатай зарж байна. Таны машин байхгүй бол чатаар асуугаарай — шинэ загвар нэмэгдэхэд мэдэгдэнэ.</p>
+    </div>
     <div id="cbRes" aria-live="polite"></div>
     <div class="opt" id="cbLitBox" hidden>
-      <p class="carbox__tip">💡 Зөвлөмж: урд хаалганы <b>доод</b> гэрэл асдаг бол энэ гэрэл таарна.</p>
-      <label class="carbox__confirm"><input type="checkbox" id="cbLit"><span>Миний машины урд хаалганы доод хэсэгт гэрэл асдаг.</span></label>
+      <p class="carbox__ask">Урд хаалгаа онгойлгоход доод талд нь гэрэл асдаг уу?</p>
+      <div class="carq__yn">
+        <button type="button" class="carq__yes" id="cbYes">✓ Тийм, асдаг</button>
+        <button type="button" class="carq__no" id="cbUnsure">Мэдэхгүй</button>
+      </div>
+      <div class="carq__help" id="cbHelp" hidden>
+        <p>Шалгах нь амархан: урд хаалгаа онгойлгоод <b>хаалганы доод ирмэгийг</b> хараарай. Жижиг гэрэл асаж байвал таарна. Зөвхөн улаан тусгал (рефлектор) байвал таарахгүй.</p>
+        <p>Эргэлзэж байвал хаалганыхаа зургийг чатаар явуулаарай — бид хараад хэлж өгнө.</p>
+        ${chatButton(p.name, p.slug)}
+      </div>
       <div id="cbLegal" hidden>
-        <p class="carbox__legal">Та машины марк, загвар, он болон хаалганы доод гэрэл асдаг эсэхээ өөрөө баталж захиалж байна. Иймд буруу бараа захиалсан тохиолдолд манай дэлгүүр хариуцахгүй.</p>
+        <p class="carbox__legal">Та машины загвар болон хаалганы доод гэрэл асдаг эсэхээ өөрөө баталж захиалж байна. Иймд буруу бараа захиалсан тохиолдолд манай дэлгүүр хариуцахгүй.</p>
         <p class="carbox__legal">🔧 Угсрах зааврыг манай <a href="${FB_PAGE_URL}" target="_blank" rel="noopener">Starshopping Auto Tools page хуудаснаас</a> аваарай.</p>
       </div>
     </div>`;
 
   const $c = (id) => box.querySelector("#" + id);
   const makeBox = $c("cbMake"), groupBox = $c("cbGroupBox"), groupSel = $c("cbGroup"), genBox = $c("cbGenBox"), genRow = $c("cbGen");
-  const yearBox = $c("cbYearBox"), yearSel = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), litChk = $c("cbLit"), legal = $c("cbLegal");
+  const yearBox = $c("cbYearBox"), yearSel = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), legal = $c("cbLegal");
+  const quickBox = $c("cbQuick"), moreBtn = $c("cbMore"), manual = $c("cbManual"), yesBtn = $c("cbYes"), unsureBtn = $c("cbUnsure"), help = $c("cbHelp");
 
   const emit = () => {
     const r = S.res;
     const ok = !!(r && r.status === "resolved" && r.verdict === "sell" && S.lit === true);
     legal.hidden = !ok;
-    onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: r.design, sku_id: r.sku_id, lit: true, make: S.make, group: S.group } : { ok: false });
+    onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: r.design, sku_id: r.sku_id, lit: true, make: S.make, group: S.group, quick: S.quick, range: S.range } : { ok: false });
   };
-  const clearLit = () => { S.lit = false; litChk.checked = false; litBox.hidden = true; };
+  const clearLit = () => { S.lit = false; yesBtn.classList.remove("is-on"); help.hidden = true; litBox.hidden = true; };
   const resetFrom = (level) => {
     S.seq++;
     if (level <= 1) { S.group = null; groupBox.hidden = true; }
@@ -1445,7 +1477,9 @@ function mountCarPicker(p, root, onState) {
     S.res = r;
     const v = r.status === "resolved" ? r.verdict : r.status;
     const cls = v === "sell" ? "ok" : v === "ask_choice" || v === "ask_year" ? "ask" : v === "no" ? "no" : "hold";
-    let html = `<p class="carbox__msg carbox__msg--${cls}">${esc(r.message_mn || "")}</p>`;
+    let html = S.quick && v === "sell"
+      ? `<p class="carbox__msg carbox__msg--ok">✓ <b>${esc(r.label || label || "")}</b>-д таарна.${r.design ? " Загвар: " + esc(r.design) + "." : ""}${r.ask_trim ? " Анхаар: энэ загварын зарим комплектацид зөвхөн рефлектор байдаг тул доод гэрлээ заавал шалгаарай." : ""}</p>`
+      : `<p class="carbox__msg carbox__msg--${cls}">${esc(r.message_mn || "")}</p>`;
     if (r.status === "ask_choice" && Array.isArray(r.candidates)) {
       html += `<div class="opt__row carbox__cands">` + r.candidates.map((c) => `<button type="button" class="chip" data-cand="${esc(c.model_key)}">${esc(c.label)}${c.chassis ? " · " + esc(c.chassis) : ""} (${c.year_from || "…"}–${c.year_to || "одоо"})</button>`).join("") + `</div>`;
     }
@@ -1493,7 +1527,7 @@ function mountCarPicker(p, root, onState) {
     const b = e.target.closest("[data-make]");
     if (!b) return;
     makeBox.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === b));
-    S.make = b.dataset.make;
+    S.make = b.dataset.make; S.quick = false; S.range = "";
     ckSlug = p.slug; ck("car_make", S.make);
     resetFrom(1);
     groupSel.innerHTML = `<option value="">— загвараа сонгоно уу —</option>` + groups().map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
@@ -1533,14 +1567,67 @@ function mountCarPicker(p, root, onState) {
     check();
   });
 
-  litChk.addEventListener("change", () => {
-    if (!S.res || S.res.verdict !== "sell") { litChk.checked = false; return; }
-    S.lit = litChk.checked;
-    if (S.lit) track("lit_yes", S.make, S.group, S.res.label);
+  yesBtn.addEventListener("click", () => {
+    if (!S.res || S.res.verdict !== "sell") return;
+    S.lit = true; yesBtn.classList.add("is-on"); help.hidden = true;
+    track("lit_yes", S.make, S.group, S.res.label);
+    emit();
+    /* маягт сая нээгдсэн — хүн дараагийн алхмаа хайхгүй байхаар тийш нь аваачна */
+    const f = root.querySelector("#qform");
+    if (f) setTimeout(() => { try { f.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { /* хуучин хөтөч */ } }, 80);
+  });
+  unsureBtn.addEventListener("click", () => {
+    S.lit = false; yesBtn.classList.remove("is-on"); help.hidden = false;
+    track("lit_unsure", S.make, S.group, S.res && S.res.label);
     emit();
   });
 
-  loadCarCatalog().then((c) => { S.catalog = c; showMakes(); }).catch(() => { makeBox.innerHTML = failHtml; });
+  /* HB: нэг товшилтын үеүүд */
+  const allSell = () => { const out = []; (S.catalog.makes || []).forEach((mk) => (mk.models || []).filter(sellable).forEach((m) => out.push(Object.assign({ make: mk.make }, m)))); return out; };
+  const span = (m) => `${m.year_from || "…"}–${m.year_to || "одоо"}`;
+  const pre = (() => { try { return String(new URLSearchParams(location.hash.split("?")[1] || "").get("car") || "").toLowerCase(); } catch (e) { return ""; } })();
+  const showQuick = () => {
+    const by = {}; allSell().forEach((m) => { by[m.model_key] = m; });
+    const keys = CAR_QUICK.slice();
+    if (pre && by[pre] && keys.indexOf(pre) < 0) keys.unshift(pre);   // чатаас ирсэн машин жагсаалтад байхгүй бол эхэнд нь
+    const list = keys.map((k) => by[k]).filter(Boolean);
+    if (!list.length) { quickBox.hidden = true; moreBtn.hidden = true; manual.hidden = false; return; }
+    quickBox.innerHTML = list.map((m) => `<button type="button" class="carq__car" data-quick="${esc(m.model_key)}">${esc((m.make === "Toyota" ? "" : m.make + " ") + String(m.label || "").replace(/\s*\([^)]*\)\s*$/, ""))}<small>${esc(span(m))}</small></button>`).join("");
+  };
+  const unpick = () => {
+    S.quick = false; S.range = ""; S.make = null;
+    quickBox.classList.remove("is-picked");
+    quickBox.querySelectorAll("[data-quick]").forEach((b) => b.classList.remove("is-active"));
+    moreBtn.hidden = false;
+    resetFrom(1);
+  };
+  const pickQuick = (key, how) => {
+    const m = allSell().find((x) => x.model_key === key);
+    if (!m) return;
+    resetFrom(1);
+    S.make = m.make; S.group = m.group; S.key = key; S.quick = true; S.range = span(m);
+    S.year = String(m.year_from || m.year_to || "");
+    quickBox.classList.add("is-picked");
+    quickBox.querySelectorAll("[data-quick]").forEach((b) => b.classList.toggle("is-active", b.dataset.quick === key));
+    manual.hidden = true; moreBtn.hidden = true; moreBtn.setAttribute("aria-expanded", "false");
+    track("quick", m.make, m.group, (how ? how + ":" : "") + m.label);
+    check();
+  };
+  quickBox.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-quick]");
+    if (!b) return;
+    if (S.quick && b.classList.contains("is-active")) { unpick(); return; }   // сонгосноо дахин товшвол солино
+    pickQuick(b.dataset.quick, "");
+  });
+  moreBtn.addEventListener("click", () => {
+    const open = manual.hidden;
+    manual.hidden = !open;
+    moreBtn.setAttribute("aria-expanded", String(open));
+    if (open) track("more", "", "", "");
+  });
+
+  loadCarCatalog().then((c) => { S.catalog = c; showMakes(); showQuick(); if (pre) pickQuick(pre, "link"); })
+    .catch(() => { quickBox.innerHTML = failHtml; moreBtn.hidden = true; });
 
   /* GR3: машин шалгагч дэлгэцэнд харагдсан эсэх */
   try {
@@ -2112,7 +2199,7 @@ function renderProduct(slug) {
     if (dl && !car) {
       /* машин баталгаажаагүй бол захиалга эхлэхгүй — шалгагч руу аваачна */
       const cb = right.querySelector("#carBox");
-      ck("buy_nocar");
+      ck("car_buy_nocar");
       if (cb) {
         cb.scrollIntoView({ block: "center", behavior: "smooth" });
         /* GR3: чимээгүй гүйлгэхийн оронд юу хийхийг хэлнэ */
@@ -2122,7 +2209,7 @@ function renderProduct(slug) {
           nudge.className = "carbox__nudge";
           cb.insertBefore(nudge, cb.firstChild);
         }
-        nudge.textContent = "👇 Захиалахын өмнө машинаа сонгоно уу: марк → загвар → он (20 секунд). Олдохгүй бол 9550-5717 руу залгаарай.";
+        nudge.textContent = "👇 Захиалахын өмнө машинаа товшоод сонгоно уу (1 товшилт). Олдохгүй бол 9550-5717 руу залгаарай.";
         nudge.classList.remove("is-flash"); void nudge.offsetWidth; nudge.classList.add("is-flash");
       }
       return;
@@ -2179,7 +2266,7 @@ function renderProduct(slug) {
       size,
       /* the SKU those two picks add up to — the intake books stock by it */
       skuId: dl && car ? car.sku_id : skuFor(p, color, size),
-      car: dl && car ? { model_key: car.model_key, year: car.year, label: car.label, lit: true, make: car.make, group: car.group } : null,
+      car: dl && car ? { model_key: car.model_key, year: car.year, label: car.label, lit: true, make: car.make, group: car.group, quick: !!car.quick, range: car.range || "" } : null,
       leadTime,
       leadNote,
       preorder: isPreorder(p),
