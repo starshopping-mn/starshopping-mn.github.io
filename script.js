@@ -1578,8 +1578,14 @@ function mountCarPicker(p, root, onState) {
     track("lit_yes", S.make, S.group, S.res.label);
     emit();
     /* маягт сая нээгдсэн — хүн дараагийн алхмаа хайхгүй байхаар тийш нь аваачна */
+    /* Зөөлөн гүйлгэлтээр биш: туршилтад scrollIntoView(smooth) заримдаа огт хөдлөөгүй, маягт наалдсан товчны ард үлдсэн.
+       jumpTo (файлын эхэнд) агшин зуур, найдвартай. Маягт аль хэдийн бүтэн харагдаж байвал хөдөлгөхгүй. */
     const f = root.querySelector("#qform");
-    if (f) setTimeout(() => { try { f.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { /* хуучин хөтөч */ } }, 80);
+    if (f) setTimeout(() => {
+      const b = f.getBoundingClientRect();
+      if (b.top >= 70 && b.bottom <= innerHeight - 80) return;
+      jumpTo(Math.max(0, window.scrollY + b.top - Math.max(90, (innerHeight - b.height) / 2)));
+    }, 60);
   });
   undoBtn.addEventListener("click", () => { S.lit = false; yesBtn.classList.remove("is-on"); litDone(false); emit(); });
   unsureBtn.addEventListener("click", () => {
