@@ -140,6 +140,21 @@ function ssNav(on, themeQ) {
     return get(spec.view, '&from=' + from + '&to=' + to + (spec.lite ? '&noengine=1' : ''));
   }
   window.ssGet = get; window.ssToday = ubToday;   // самбарын жижиг хэсгүүд (Эцсийн тайлан) өөрсдөө өгөгдөл татна
+  /* HG (11-13): самбарын жижиг БИЧИХ дуудлага шууд Supabase RPC-ээр (n8n ажиллагаа зарцуулахгүй). Функц нь түлхүүрийг өөрөө
+     шалгадаг байх ёстой (board_read шиг). Одоогоор: web_callback_mark — сайтын «залгуулах хүсэлт»-ийг хаах. */
+  window.ssRpc = function (fn, body) {
+    if (!/^[a-z_]{3,40}$/.test(fn)) return Promise.reject(new Error('rpc'));
+    var p = { k: key };
+    Object.keys(body || {}).forEach(function (name) { if (name !== 'k') p[name] = body[name]; });
+    return fetch(SB_RPC.replace(/board_read$/, fn), { method: 'POST', cache: 'no-store',
+      headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p: p }) })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 403) throw new Error('түлхүүр таарсангүй — хуудсаа дахин ачаална уу');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      });
+  };
   /* ---- Унахгүй ачаалалт (блок GZ, 2026-11-13) ----
      Эзэн: «?view=money — Cannot read properties of null (reading 'out_business')». Нэг жагсаалтад ганц хоосон
      мөр ирэхэд зурагч унаж, хуудас бүхэлдээ алдааны дэлгэц болдог байв. Гурван давхар хамгаалалт:

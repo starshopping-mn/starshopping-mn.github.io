@@ -23,6 +23,8 @@ function renderOrders(DATA, QUERY) {
   const DIST = A(Array.isArray(d.districts) ? d.districts : d.districts && (d.districts.districts || d.districts.body) || []); // C1b: district_list() → {districts:[…]}
   const addressed = O.filter((r) => ['order', 'confirmed', 'delivered', 'paid'].indexOf(r.stage) >= 0);
   const leads = O.filter((r) => r.stage === 'lead');
+  // HG (11-13): сайтын машин шалгагчаас «утсаа үлдээсэн» хүмүүс (web_callbacks, status new). Захиалга БИШ — SMS/зарын тоонд орохгүй.
+  const CBK = A(d.callbacks).filter((c) => c && typeof c === 'object' && has(c.phone));
   // 10/25 (эзэн): сонирхлыг багцаар «архивлах» = цуцлалт (түгжсэн бараа нөөцөд буцна), бүртгэл устахгүй → 🗄 Архив хэсэгт, «Сэргээх» боломжтой.
   const isArch = (r) => r.stage === 'cancelled' && /цуцлав: архив/.test(String(r.confirm_note || '')); // CG: хаягтай боловч SMS/төлбөрт хариугүй (автомат) мөр мөн энд
   const archived = O.filter(isArch).sort((a, b) => new Date(b.cancelled_at || b.placed_at) - new Date(a.cancelled_at || a.placed_at));
@@ -89,6 +91,7 @@ function renderOrders(DATA, QUERY) {
     + '.out{display:none;margin:6px 0;font-size:12.5px}.out.on{display:block}.mut{color:var(--mut)}.sm{font-size:11.5px}'
     + 'h2{font-size:15px;margin:22px 0 8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}h2 .cnt{font-size:12px;color:var(--mut);font-weight:500}'
     + 'details.more{margin-top:4px}details.more summary{cursor:pointer;font-size:11.5px;color:var(--mut)}details.more div{font-size:11.5px;color:var(--ink2);margin-top:3px}'
+    + '.wcr{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;margin:0 0 8px;background:var(--s1);border:1px solid var(--ln);border-radius:12px}.wcm{flex:1 1 190px;min-width:0;font-size:13.5px;line-height:1.45}.wcm b{font-size:15px;letter-spacing:.02em}.wca{display:flex;flex-wrap:wrap;gap:6px}'
     + '.callbox{background:rgba(31,95,176,.08);border:1px solid rgba(31,95,176,.35);border-radius:12px;padding:10px 12px;margin:8px 0 12px;font-size:13px}.callbox b{display:block;margin-bottom:4px}'
     + 'footer{margin:26px 0 10px;font-size:12px;color:var(--mut)}'
     /* v3 (2026-10-22): тоо = холбоос, шүүлт хураангуй, табууд, нэг гол товч + ⋯ цэс, хаяг 2 мөр */
@@ -530,6 +533,18 @@ function renderOrders(DATA, QUERY) {
   // ── 2 · Сонирхол (хаяггүй). WIN/амьд бараа руу залгах жагсаалт дээр нь
   cur = T.lead;
   o(cutBanner());
+  if (CBK.length) {
+    o('<h2>📞 Залгуулах хүсэлт — сайтаас утсаа үлдээсэн <span class="cnt">' + CBK.length + '</span></h2>');
+    o('<p class="sm mut">Сайтын машин шалгагч дээр «Мэдэхгүй» дараад утсаа үлдээсэн хүмүүс. <b>Захиалга биш</b> — автомат SMS явахгүй, зарын тоонд орохгүй. Залгаад хаалганы доод гэрлийг нь хамт шалгаарай; авъя гэвэл захиалгыг нь ердийн замаар авна. Залгасны дараа «✓ Залгасан» дарвал жагсаалтаас гарна.</p>');
+    CBK.forEach((c) => {
+      const tel = String(c.phone);
+      o('<div class="wcr"><div class="wcm"><b>' + esc(tel.length === 8 ? tel.slice(0, 4) + ' ' + tel.slice(4) : tel) + '</b> · ' + esc(ago(c.at)) + ' өмнө'
+        + (c.has_order ? ' <span class="pill ok">дараа нь захиалсан</span>' : '')
+        + '<div class="sm mut">' + esc(c.car || 'машин сонгоогүй') + (has(c.product) || has(c.slug) ? ' · ' + esc(c.product || c.slug) : '') + '</div></div>'
+        + '<div class="wca">' + callBtn(c) + '<button class="btn go wcb" data-id="' + esc(c.id) + '" data-st="called">✓ Залгасан</button>'
+        + '<button class="btn stop wcb" data-id="' + esc(c.id) + '" data-st="dead" title="Авахгүй / холбогдохгүй — жагсаалтаас хасна">Авахгүй</button></div></div>');
+    });
+  }
   o('<h2>Сонирхол — утас/нэр үлдээсэн, хаяггүй <span class="cnt">' + leads.length + '</span></h2>');
   if (CALL.length) o('<div class="callbox"><b>📞 Залгах жагсаалт · ' + CALL.length + ' хүн (WIN эсвэл амьд бараа)</b>Залгаад хаягаа өгвөл «Хаяг оруулах» → захиалга болж баталгаажна. Авахгүй гэвэл «Цуцлах». Мөр бүрийн «📞 Залгах» товч дугаарыг хуулж, залгана. SMS автоматаар явахгүй — эзэн өөрөө залгана.</div>');
   else o('<p class="sm mut">Залгах жагсаалт хоосон: эдгээр бараа WIN болоогүй / бараа ирээгүй. LOSS барааны сонирхогчид юу ч илгээхгүй.</p>');
@@ -599,7 +614,7 @@ function renderOrders(DATA, QUERY) {
     ['nx', 'Nexpress', nxReg.length, (nxOpenQ.length + nxAutoN) ? (nxOpenQ.length + nxAutoN) + ' дараагийн бүртгэлд' : '', true],
     ['rural', 'Орон нутаг', ruralAct.length, nUrg ? nUrg + ' яаралтай' : '', ruralAct.length > 0],
     ['wait', 'Хүлээлэг SMS', addrWait.length, '', addrWait.length > 0],
-    ['lead', 'Сонирхол', leads.length, CALL.length ? CALL.length + ' залгах' : '', leads.length > 0],
+    ['lead', 'Сонирхол', leads.length, [CBK.length ? CBK.length + ' залгуулах хүсэлт' : '', CALL.length ? CALL.length + ' залгах' : ''].filter(Boolean).join(' · '), leads.length > 0 || CBK.length > 0],
     ['other', 'Бусад', others.length, 'цуцлагдсан · тест', others.length > 0]
   ].filter((t) => t[4]);
   const defTab = Q.tab && TABS.some((t) => t[0] === Q.tab) ? Q.tab : (nUrg ? 'rural' : (anyFilter ? 'main' : ''));
@@ -646,6 +661,10 @@ function renderOrders(DATA, QUERY) {
     + 'post({action:"order",order_id:id,do:"address",district_full:dv,address_detail:av,note:nv||undefined,by:"самбар"},b,"out-o").then(function(){var w=document.getElementById("w-"+id),wv=w&&w.value||"";if(wv&&w.min&&wv>w.min){return post({action:"order",order_id:id,do:"deliver_on",date:wv,by:"самбар"},null,"out-o").then(function(){say("out-o","Баталгаажлаа ✓ · хүргэх өдөр "+wv.slice(5).replace("-","/"));reload()})}say("out-o","Баталгаажлаа ✓ · хүргэх өдөр "+(w?w.min.slice(5).replace("-","/"):"дараагийн бүртгэл"));reload()})'
     + '.catch(function(x){var sg=x.j&&x.j.suggest;if(sg&&sg.length){var box=document.getElementById("s-"+id);box.innerHTML="Ойролцоо: "+sg.slice(0,12).map(function(s){return "<button class=\\"btn\\" data-v=\\""+e(s)+"\\">"+e(s)+"</button>"}).join("");box.querySelectorAll("button").forEach(function(sb){sb.addEventListener("click",function(){var s=document.getElementById("d-"+id);s.value=sb.dataset.v;box.innerHTML=""})})}})})});'
     + 'function cp(t){try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t)}catch(x){}return new Promise(function(res){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy")}catch(x){}a.remove();res()})}'
+    + 'document.querySelectorAll(".wcb").forEach(function(b){b.addEventListener("click",function(){var st=b.dataset.st;if(st==="dead"&&!confirm("Энэ хүсэлтийг жагсаалтаас хасах уу?"))return;'
+    + 'if(!window.ssRpc){say("out-o","Хуудсаа дахин ачаална уу",true);return}b.disabled=true;var tx=b.textContent;b.textContent="…";'
+    + 'window.ssRpc("web_callback_mark",{id:b.dataset.id,status:st}).then(function(j){if(!j||j.ok===false)throw new Error((j&&j.error)||"алдаа");say("out-o",st==="called"?"Залгасан гэж тэмдэглэв ✓":"Жагсаалтаас хаслаа");reload()})'
+    + '.catch(function(x){b.disabled=false;b.textContent=tx;say("out-o",x.message,true)})})});'
     + 'document.querySelectorAll(".cb").forEach(function(b){b.addEventListener("click",function(){var t=b.dataset.tel;cp(t).then(function(){say("out-o","Дугаар хуулагдлаа: "+t+" — залгаж байна…")});setTimeout(function(){location.href="tel:"+t.replace(/[^0-9+]/g,"")},150)})});'
     + 'document.querySelectorAll(".cp").forEach(function(b){b.addEventListener("click",function(){cp(b.dataset.tsv).then(function(){say("out-o","Жагсаалт хуулагдлаа ("+b.dataset.n+" мөр)")})})});'
     + '(function(){var bs=function(){return [].slice.call(document.querySelectorAll(".lsel"))};var upd=function(){var n=bs().filter(function(x){return x.checked}).length,c=document.getElementById("lsel-n"),b=document.getElementById("lsel-arch");if(c)c.textContent=n;if(b)b.disabled=!n};document.addEventListener("change",function(ev){if(ev.target&&ev.target.classList&&ev.target.classList.contains("lsel"))upd()});var all=document.getElementById("lsel-all");if(all)all.addEventListener("change",function(){bs().forEach(function(x){x.checked=all.checked});upd()});var h48=document.getElementById("lsel-48");if(h48)h48.addEventListener("click",function(){var lim=Date.now()-48*3600e3;bs().forEach(function(x){var t=Date.parse(x.dataset.t||"");x.checked=!isNaN(t)&&t<lim});upd()});var ab=document.getElementById("lsel-arch");if(ab)ab.addEventListener("click",function(){var ids=bs().filter(function(x){return x.checked}).map(function(x){return x.dataset.id});if(!ids.length)return;if(!confirm(ids.length+" сонирхлыг архивлах уу?\\n\\nТэдний түгжсэн бараа нөөцөд буцаж сайт дээр нээгдэнэ. Бүртгэл устахгүй — «Архив»-аас сэргээж болно."))return;ab.disabled=true;var ok=0,fail=0;ids.reduce(function(p,id){return p.then(function(){return post({action:"order",order_id:id,do:"cancel",note:"архив: сонирхол (залгасан, авахгүй/хариугүй)",by:"самбар · архив"},null,null).then(function(){ok++}).catch(function(){fail++})})},Promise.resolve()).then(function(){say("out-o",ok+" сонирхол архивлагдлаа — бараа нөөцөд буцлаа ✓"+(fail?" · "+fail+" алдаа":""),fail>0);reload(900)})});document.querySelectorAll(".orst").forEach(function(b){b.addEventListener("click",function(){if(!confirm("Энэ хүнийг Сонирхол руу сэргээх үү? Размер нөөцөд байвал дахин түгжинэ."))return;post({action:"order",order_id:b.dataset.id,do:"restore",by:"самбар"},b,"out-o").then(function(j){say("out-o",j&&j.error==="unknown_do"?"Сэргээх SQL хараахан суугаагүй байна (main/sql/2026-10-25-CF файлыг paste хий)":"Сэргээгдлээ — Сонирхол руу буцлаа ✓");reload(900);try{sessionStorage.setItem("ss_orders_keep","lead")}catch(x){}}).catch(function(){})})})})();'
