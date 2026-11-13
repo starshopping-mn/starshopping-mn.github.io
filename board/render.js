@@ -501,6 +501,48 @@ root.addEventListener('change',function(e){if(!e.target.classList.contains('adck
   P('</div>');
   cur = B.moneybar;
   P('</div>');
+  // HA (2026-11-13, эзэн: «тооцоо таслагдах өдрөөр би хэдэн төгрөг авах ёстой вэ»): Nexpress-ийн 7 хоногийн тооцоо.
+  // Эх: nx_settle() (board_read 'nxsettle'). Үе = Пүрэв–Лхагва, мөнгө Бямбад; авах = COD − хүргэлтийн хөлс; хүргэгдсэн өдөр = Nexpress-ийн
+  // «Амжилттай» цаг. Мөнгөний мөртэй ижил хэв (money4) — доор нь хоёр дахь мөр. SQL суугаагүй бол мөр гарахгүй.
+  {
+    const NX = d.nx && d.nx.ok ? d.nx : null;
+    if (NX) {
+      const dm = (x) => String(x || '').slice(5, 10).replace('-', '/');
+      const DOW = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
+      const dow = (x) => { const t = new Date(String(x || '').slice(0, 10) + 'T12:00:00+08:00'); return isNaN(t.getTime()) ? '' : DOW[t.getUTCDay()]; };
+      const due = NX.due || null, opn = NX.open || null, cr = NX.carry || {}, ls = NX.last_settle || null;
+      const lateD = due ? Math.round((new Date(String(NX.today).slice(0, 10)) - new Date(String(due.pay_day).slice(0, 10))) / 864e5) : 0;
+      const cell = (l, v, s, cls, tip) => '<div class="mb"' + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="l">' + esc(l) + '</div><div class="kv ' + (cls || '') + '">' + esc(v) + '</div><div class="ks">' + esc(s) + '</div></div>';
+      let h = '<div class="money4 nx4" id="nxrow">';
+      if (due) {
+        h += cell('Nexpress-ээс авах · ' + dm(due.from) + '–' + dm(due.to), mnt(due.open_net),
+          n(due.open_n) + ' хүргэлт · ' + (lateD > 0 ? lateD + ' хоног хэтэрсэн (' + dm(due.pay_day) + ')' : dow(due.pay_day) + ' ' + dm(due.pay_day) + '-нд орох ёстой')
+            + (n(NX.due_n) > 1 ? ' · нийт хүлээгдэж буй ' + short(NX.due_net) : ''),
+          lateD > 0 ? 'crit' : 'warn', 'COD ' + mnt(due.open_cod) + ' − хүргэлтийн хөлс ' + mnt(due.open_fee) + ' = ' + mnt(due.open_net) + (n(due.ret_n) ? ' · энэ үеийн буцаалт ' + n(due.ret_n) + ' (' + mnt(due.ret_cost) + ') — суутгавал хасагдана' : ''));
+      } else {
+        h += cell('Nexpress-ээс авах', '0₮', 'хаагдсан үеийн тооцоо бүгд орсон', 'good');
+      }
+      h += opn ? cell('Хуримтлагдаж буй · ' + dm(opn.from) + '–' + dm(opn.to), mnt(opn.open_net), n(opn.open_n) + ' хүргэлт · ' + dow(opn.pay_day) + ' ' + dm(opn.pay_day) + '-нд', '',
+        'COD ' + mnt(opn.open_cod) + ' − хүргэлтийн хөлс ' + mnt(opn.open_fee)) : cell('Хуримтлагдаж буй', '—', 'энэ үед хүргэлт алга');
+      h += ls ? cell('Сүүлд орсон', mnt(ls.amount), new Date(ls.at).toLocaleDateString('en-US', { timeZone: 'Asia/Ulaanbaatar', month: '2-digit', day: '2-digit' }) + ' · ' + String(ls.utga || ''), 'good') : cell('Сүүлд орсон', '—', 'банкны бүртгэл алга');
+      const retN = due ? n(due.ret_n) : 0, retC = due ? n(due.ret_cost) : 0;
+      h += n(cr.n) ? cell('Өмнөх тооцоонд ороогүй', mnt(cr.net), n(cr.n) + ' хүргэлт · Nexpress-ээс асуух', 'crit',
+          dm(NX.anchor) + ' хүртэл хүргэгдсэн ч мөнгө нь ирээгүй ' + n(cr.n) + ' хүргэлт' + (retN ? ' · энэ үеийн буцаалт ' + retN + ' (' + mnt(retC) + ') — Nexpress суутгавал авах дүнгээс хасагдана' : ''))
+        : cell('Буцаалтын хөлс · энэ үе', retN ? '−' + mnt(retC) : '0₮', retN ? retN + ' буцаалт — суутгавал авах дүнгээс хасагдана' : 'буцаалт алга', retN ? 'warn' : 'good');
+      h += '</div>';
+      P(h);
+      // дэлгэрэнгүй: үе бүрийн мөр (Мөнгө хэсэгт)
+      cur = B.money;
+      const SN = { due: ['хүлээгдэж буй', 'warn'], open: ['явж байна', ''], settled: ['нийлсэн', 'good'], empty: ['хүргэлтгүй', ''] };
+      P('<div class="sec"><b>Nexpress тооцоо</b><span class="sd">7 хоног бүр (Пүрэв–Лхагва), мөнгө Бямбад · авах = COD − хүргэлтийн хөлс · хүргэгдсэн өдөр = Nexpress-ийн «Амжилттай»</span></div>');
+      P('<div class="sc"><table class="nxw"><thead><tr><th>Үе</th><th class="r">Хүргэлт</th><th class="r">COD</th><th class="r">Хөлс</th><th class="r">Авах</th><th class="r">Орсон</th><th class="r">Үлдсэн</th><th>Мөнгө орох</th><th>Төлөв</th></tr></thead><tbody>'
+        + (Array.isArray(NX.weeks) ? NX.weeks : []).filter((w) => n(w.n) > 0 || w.state === 'open').map((w) => {
+          const st = SN[w.state] || [w.state, ''];
+          return '<tr><td>' + dm(w.from) + '–' + dm(w.to) + '</td><td class="r">' + n(w.n) + '</td><td class="r">' + mnt(w.cod) + '</td><td class="r">−' + mnt(w.fee) + '</td><td class="r"><b>' + mnt(w.net) + '</b></td><td class="r">' + (n(w.paid_n) ? mnt(w.paid_net) : '—') + '</td><td class="r ' + (n(w.open_n) && w.state !== 'open' ? 'crit' : '') + '">' + (n(w.open_n) ? mnt(w.open_net) + ' (' + n(w.open_n) + ')' : '—') + '</td><td>' + dow(w.pay_day) + ' ' + dm(w.pay_day) + '</td><td class="' + st[1] + '">' + st[0] + '</td></tr>';
+        }).join('') + '</tbody></table></div>');
+      cur = B.moneybar;
+    }
+  }
   P('<script>(function(){var K="ss_home_per";var rs=document.querySelectorAll("[data-per]");if(!rs.length)return;'
     + 'function set(p){rs.forEach(function(r){r.setAttribute("data-per",p)});document.querySelectorAll(".perseg button").forEach(function(b){b.className="pt"+(b.getAttribute("data-p")===p?" on":"")})}'
     + 'var p="m";try{p=localStorage.getItem(K)==="a"?"a":"m"}catch(e){}set(p);'

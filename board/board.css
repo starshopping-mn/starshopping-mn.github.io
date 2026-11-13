@@ -84,6 +84,11 @@ button.pc:focus-visible,button.pc.sel{outline:2px solid var(--gold);outline-offs
 .money4 .ks{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .money4 .per{display:block}
 .money4 .kv.good{color:var(--good)}.money4 .kv.crit{color:var(--crit)}.money4 .kv.warn{color:var(--warn)}
+/* HA (2026-11-13): Nexpress-ийн 7 хоногийн тооцоо — мөнгөний мөрийн доорх хоёр дахь мөр, ижил нүд */
+.money4.nx4{grid-template-columns:minmax(0,1.3fr) repeat(3,minmax(0,1fr));border-top:0}
+.money4.nx4 .kv{font-size:20px}.money4.nx4 .mb:first-child .kv{font-size:24px}
+table.nxw{width:100%;border-collapse:collapse;font-size:13px}table.nxw th,table.nxw td{padding:7px 8px;border-bottom:1px solid var(--ln3);text-align:left}
+table.nxw .r{text-align:right;font-variant-numeric:tabular-nums}table.nxw td.good{color:var(--good)}table.nxw td.warn{color:var(--warn)}table.nxw td.crit{color:var(--crit)}
 .more4{padding:26px 16px 40px;max-width:1440px;margin:0 auto}
 .more4 .mh{font-size:13px;letter-spacing:.02em;color:var(--mut);margin:0 0 10px;font-weight:700;text-transform:none}.more4 .mh:after{display:none}
 .acc4{display:grid;grid-template-columns:1fr;gap:10px}
@@ -100,11 +105,14 @@ body.v4 footer{padding:0 16px}
   .rail4,.drw4{border:0;border-bottom:1px solid var(--ln);display:flex}.st4.closed .drw4{display:none}
   .map4 .legend{position:static;display:inline-flex;margin:8px 16px}
   .money4{grid-template-columns:repeat(3,1fr)}.money4 .mini{display:none}
+  .money4.nx4{grid-template-columns:repeat(4,minmax(0,1fr))}
   .ph{position:static}
 }
 @media(max-width:620px){
   .map4 .sbox,.hint4,.reopen{display:none}.map4 .stack{display:block;padding:10px 12px}button.sp2{width:100%;font:inherit;text-align:left;cursor:pointer}
   .money4{grid-template-columns:1fr 1fr}.money4 .mb:nth-child(3){grid-column:1/-1}
+  .money4.nx4{grid-template-columns:1fr 1fr}.money4.nx4 .mb:nth-child(3){grid-column:auto}.money4.nx4 .mb:nth-child(2){border-right:0}.money4.nx4 .mb:nth-child(-n+2){border-bottom:1px solid var(--ln3)}
+  .money4.nx4 .ks{white-space:normal}
 }
 /* Зар удирдах */
 .adc{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:10px 12px 8px;margin-bottom:12px}
