@@ -204,7 +204,7 @@ function renderMoney2(DATA, QUERY) {
   const tsum = KS.reduce((s, k) => s + n(ST[k[0]]), 0);
   const TOP = A(SP.top), SWK = A(SP.weeks);
   const topTxt = (kind) => TOP.filter((t) => t.kind === kind).slice(0, 3).map((t) => esc(String(t.label || t.category || '—').split(' (')[0]) + ' ' + bs(t.mnt)).join(' · ');
-  const accTop = (kind) => SACC.filter((a) => n(a['out_' + kind])).sort((a, b) => n(b['out_' + kind]) - n(a['out_' + kind])).map((a) => esc(short(a.acc).replace(/ банк| данс/g, '').replace(/ \(.*\)/, '')) + ' ' + bs(a['out_' + kind])).join(' · ');
+  const accTop = (kind) => SACC.filter((a) => n(a['out_' + kind])).sort((a, b) => n(b['out_' + kind]) - n(a['out_' + kind])).map((a) => esc(short(a.acc).replace(/ банк| данс/g, '').replace(/ \(.*\)/, '') || 'тодорхойгүй данс') + ' ' + bs(a['out_' + kind])).join(' · ');
   o('<section class="g2" aria-label="Зарлага хэнд"><div class="cd col" style="gap:14px"><div class="hr"><h2 class="h">5 · Зарлага хэнд явж байна</h2><span class="sb">сүүлийн ' + n(SP.days) + ' хоног · банкны SMS</span></div>');
   if (tsum > 0) {
     o('<div class="share" role="img" aria-label="' + esc(KS.filter((k) => n(ST[k[0]])).map((k) => k[1] + ' ' + pct(ST[k[0]], tsum) + ' хувь').join(', ')) + '">' + KS.filter((k) => n(ST[k[0]])).map((k) => '<i class="' + k[2] + '" style="width:' + (n(ST[k[0]]) / tsum * 100).toFixed(2) + '%" title="' + esc(k[1]) + ': ' + num(ST[k[0]]) + '₮ (' + pct(ST[k[0]], tsum) + '%)"></i>').join('') + '</div>');

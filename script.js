@@ -1433,6 +1433,15 @@ function mountCarPicker(p, root, onState) {
         <p>Шалгах нь амархан: урд хаалгаа онгойлгоод <b>хаалганы доод ирмэгийг</b> хараарай. Жижиг гэрэл асаж байвал таарна. Зөвхөн улаан тусгал (рефлектор) байвал таарахгүй.</p>
         <p>Эргэлзэж байвал хаалганыхаа зургийг чатаар явуулаарай — бид хараад хэлж өгнө.</p>
         ${chatButton(p.name, p.slug)}
+        <div class="carq__call" id="cbCall">
+          <p>Эсвэл утсаа үлдээгээрэй — бид залгаад хамт шалгаж өгнө.</p>
+          <div class="carq__callrow">
+            <input class="input" id="cbTel" type="tel" inputmode="numeric" maxlength="14" placeholder="Утасны дугаар" autocomplete="tel" aria-label="Утасны дугаар">
+            <button type="button" class="carq__callbtn" id="cbCallBtn">Залгуулах</button>
+          </div>
+          <p class="err" id="cbCallErr"></p>
+        </div>
+        <p class="carq__callok" id="cbCallOk" hidden>✓ Хүлээн авлаа. Бид тан руу залгана.</p>
       </div>
       <div id="cbLegal" hidden>
         <p class="carbox__legal">Та машины загвар болон хаалганы доод гэрэл асдаг эсэхээ өөрөө баталж захиалж байна. Иймд буруу бараа захиалсан тохиолдолд манай дэлгүүр хариуцахгүй.</p>
@@ -1593,6 +1602,31 @@ function mountCarPicker(p, root, onState) {
     track("lit_unsure", S.make, S.group, S.res && S.res.label);
     emit();
   });
+
+  /* HF: «Мэдэхгүй» дарсан хүн утсаа үлдээнэ → web_callback (Supabase) → эзэнд Telegram. Захиалга үүсгэхгүй —
+     эзэн залгаад хамт шалгана. Сервер хариу өгөхгүй бол (функц суугаагүй, сүлжээ) утас/чат руу чиглүүлнэ. */
+  const callBox = $c("cbCall"), callOk = $c("cbCallOk"), telEl = $c("cbTel"), callBtn = $c("cbCallBtn"), callErr = $c("cbCallErr");
+  const sendCall = async () => {
+    if (callBtn.disabled) return;
+    const digits = String(telEl.value || "").replace(/\D/g, "").replace(/^976(?=\d{8}$)/, "");
+    if (!/^[5-9]\d{7}$/.test(digits)) { callErr.textContent = "8 оронтой утасны дугаараа оруулна уу."; telEl.focus(); return; }
+    callErr.textContent = ""; callBtn.disabled = true; callBtn.textContent = "Илгээж байна…";
+    let cr = null;
+    try { cr = creativeId(); } catch (e) { /* no ad in the address */ }
+    const car = ((S.res && S.res.label) || [S.make, S.group].filter(Boolean).join(" ")) + (S.quick && S.range ? " (" + S.range + ")" : "");
+    try {
+      const r = await carRpc("web_callback", { p: { phone: digits, sid: CK_SID, slug: p.slug, car, creative: cr, src: entrySrc() } });
+      if (!r || !r.ok) throw new Error((r && r.error) || "fail");
+      callBox.hidden = true; callOk.hidden = false;
+      track("call_req", S.make, S.group, S.res && S.res.label);
+    } catch (e) {
+      callBtn.disabled = false; callBtn.textContent = "Залгуулах";
+      if (e && e.message === "phone") callErr.textContent = "Дугаараа шалгаад дахин оруулна уу.";
+      else callErr.innerHTML = 'Илгээж чадсангүй. <a href="tel:95505717">9550-5717</a> руу залгах эсвэл чатаар бичээрэй.';
+    }
+  };
+  callBtn.addEventListener("click", sendCall);
+  telEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendCall(); } });
 
   /* HB: нэг товшилтын үеүүд */
   const allSell = () => { const out = []; (S.catalog.makes || []).forEach((mk) => (mk.models || []).filter(sellable).forEach((m) => out.push(Object.assign({ make: mk.make }, m)))); return out; };
