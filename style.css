@@ -1693,5 +1693,15 @@ body { letter-spacing: -0.01em; }
 .carq__help { margin: 0 0 0.9rem; padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-size: 0.86rem; line-height: 1.5; }
 .carq__help p { margin: 0 0 0.6rem; }
 .carq__help .chatbuy { margin: 0; }
+/* HF: «Мэдэхгүй» → утсаа үлдээх. 16px — iPhone талбар дээр дарахад хуудсыг томруулдаггүй хэмжээ. */
+.carq__call { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px dashed var(--line); }
+.carq__call > p:first-child { margin: 0 0 0.5rem; font-weight: 600; }
+.carq__callrow { display: flex; gap: 8px; }
+.carq__callrow .input { flex: 1 1 auto; min-width: 0; width: auto; font-size: 16px; padding: 0.7rem 0.85rem; }
+.carq__callbtn { flex: 0 0 auto; min-height: 44px; padding: 0 1.1rem; border: 1px solid var(--fg); border-radius: 12px; background: var(--fg); color: var(--on-fg); font: 700 0.9rem var(--font-body); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.carq__callbtn:disabled { opacity: 0.6; cursor: default; }
+.carq__call .err { margin: 0.45rem 0 0; }
+.carq__call .err:empty { display: none; }
+.carq__help .carq__callok { margin: 0.8rem 0 0; font-weight: 600; color: #1f7a3a; }
 
 @keyframes nudgeflash { 0% { background: rgba(191, 120, 0, 0.35); } 100% { background: rgba(191, 120, 0, 0.09); } }

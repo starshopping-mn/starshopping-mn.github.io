@@ -33,10 +33,10 @@ function ssNav(on, themeQ) {
   new URLSearchParams(location.search).forEach(function (v, k) { q[k] = v; });
 
   var VIEWS = {
-    home:     { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all' }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // НҮҮР: системийн зураглал (3D, бүх мэдээлэл нэг дор) — эзний шийдвэр 10-03
+    home:     { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all', lite: 1 }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // НҮҮР: системийн зураглал (3D, бүх мэдээлэл нэг дор) — эзний шийдвэр 10-03
     tests:    { data: 'tests',    extra: { gaps: 'linkgaps' }, render: 'renderTests' },                           // тестийн урсгал (блок AR)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
-    board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all' }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
+    board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all', lite: 1 }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: { waitlist: 'waitlist', reorder: 'reorder' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
     orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
     money:    { data: 'money2',   extra: {}, render: 'renderMoney2', passQuery: true, keep: true }, // блок DB (10-31): мөнгө v2 — money_summary нэг дуудлага
@@ -135,7 +135,9 @@ function ssNav(on, themeQ) {
   function xget(spec) {
     if (typeof spec === 'string') return get(spec);
     var to = ubToday(), from = spec.range === 'month' ? to.slice(0, 8) + '01' : '2026-01-01';
-    return get(spec.view, '&from=' + from + '&to=' + to);
+    // HD (11-13): lite — нүүр «нийт» дуудлагаас мөнгөний хөдөлгүүрийг (engine) уншдаггүй (зөвхөн «сар»-аас) → сервер давхар бодохгүй.
+    //   Серверт HD суугаагүй үед параметрийг зүгээр л үл тооно (хуучин шигээ ажиллана).
+    return get(spec.view, '&from=' + from + '&to=' + to + (spec.lite ? '&noengine=1' : ''));
   }
   window.ssGet = get; window.ssToday = ubToday;   // самбарын жижиг хэсгүүд (Эцсийн тайлан) өөрсдөө өгөгдөл татна
   /* ---- Унахгүй ачаалалт (блок GZ, 2026-11-13) ----
