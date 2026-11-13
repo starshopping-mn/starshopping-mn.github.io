@@ -166,6 +166,40 @@ function ssNav(on, themeQ) {
     if (!V.keep) return null;
     try { var c = JSON.parse(localStorage.getItem(KEEP) || 'null'); return c && c.html && c.pq === PQ ? c : null; } catch (e) { return null; }
   }
+  /* ---- Дахин ачаалахад хүлээлгэхгүй (блок HC, 2026-11-13) ----
+     Эзэн: «refresh хийхэд удаад байдаг болсон». Хэмжсэн: нүүрний dashboard() 8.6–13.9 сек (category_report нэг ачаалалд
+     2 удаа ≈5.8 сек, next_actions 1.3 сек), money_page 5 сек × 2, money_summary 3.1 сек. Сервер талыг хурдлуулах нь тусдаа ажил;
+     энд: амжилттай зурсан хуудсыг ЭНЭ ТАБ-ын sessionStorage-д үлдээж (таб хаагдахад арилна, төхөөрөмжид үлдэхгүй), дахин
+     ачаалахад түүнийг шууд зураад цаанаа шинэ өгөгдлөөр солино. Хуучин өгөгдөл дээр үйлдэл хийлгэхгүй: шинэчлэгдтэл
+     товчнууд түгжээтэй (хугацаа/горим солих, цэс, дэлгэх нь чөлөөтэй), зүүн доод буланд «Шинэчилж байна…» гэж харуулна. */
+  var WARM = 'ss_board_view:' + view + ':' + PQ, stale = false;
+  function stash(html) { try { if (html.length < 2500000) sessionStorage.setItem(WARM, JSON.stringify({ t: Date.now(), html: html })); } catch (e) { /* зай дүүрсэн */ } }
+  function unstash() { try { var c = JSON.parse(sessionStorage.getItem(WARM) || 'null'); return c && c.html ? c : null; } catch (e) { return null; } }
+  function hhmm(t) { return new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+  function warmChip(text, bad) {
+    var el = document.getElementById('ssWarm');
+    if (!el) { el = document.createElement('div'); el.id = 'ssWarm'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.style.cssText = 'position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;max-width:calc(100vw - 24px);padding:8px 12px;border-radius:999px;color:#fff;font:600 12px/1.3 system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.25);background:' + (bad ? '#b45309' : '#1f1a14');
+    el.textContent = text;
+  }
+  function warmGuard() {   // document.write-ийн ДАРАА бүртгэнэ (өмнөх listener-үүд арилдаг)
+    var block = function (e) {
+      if (!stale) return;
+      var b = e.type === 'submit' ? e.target : (e.target.closest && e.target.closest('button, input[type="submit"], input[type="button"]'));
+      if (!b || (b.closest && b.closest('.perseg')) || b.id === 'tb' || (b.hasAttribute && b.hasAttribute('data-say'))) return;
+      e.preventDefault(); e.stopPropagation();
+      var el = document.getElementById('ssWarm'); if (el) { el.style.outline = '2px solid #fff'; setTimeout(function () { el.style.outline = ''; }, 500); }
+    };
+    document.addEventListener('click', block, true);
+    document.addEventListener('submit', block, true);
+  }
+  function warmRefresh(at, attempt) {
+    fetchAll().then(function (html) { stale = false; paint(html); }, function (e) {
+      if (e && e.message === 'key') { stale = false; try { sessionStorage.removeItem(WARM); } catch (er) { /* private */ } return location.reload(); }
+      warmChip('Шинэ өгөгдөл ирсэнгүй — ' + hhmm(at) + '-ийн хуулбар. Дахин оролдож байна…', true);
+      setTimeout(function () { warmRefresh(at, attempt + 1); }, attempt < 2 ? 2500 : 20000);
+    });
+  }
 
   /* ---- Амьд шинэчлэл (2026-09-29, v2) ----
      v1 хуудсыг бүхэлд нь location.reload() хийдэг байсан: сайтын үзэгч бүр
@@ -195,7 +229,7 @@ function ssNav(on, themeQ) {
       try { html = window[V.render](d, q); if (typeof html !== 'string' || !html) throw new Error('хоосон хуудас'); }
       catch (er) { er.render = true; throw er; }   // өгөгдөл ирсэн ч зурж чадаагүй — дахин татаад нэмэргүй
       html = stamp(html.replace('<style>', '<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="board.css?t=' + (Date.now() / 60000 | 0) + '"><style>'));
-      remember(html);
+      remember(html); stash(html);
       return html;
     });
   }
@@ -340,6 +374,14 @@ function ssNav(on, themeQ) {
 
   function show(html) { document.open(); document.write(html); document.close(); live(); themeBtn(); }
   function boot(attempt) {
+    var warm = attempt === 0 ? unstash() : null;
+    if (warm) {   // энэ табд өмнө нь зурсан хуудас: шууд харуулаад цаанаа шинэчилнэ
+      stale = true;
+      show(warm.html);
+      warmGuard();
+      warmChip('⟳ Шинэчилж байна… · ' + hhmm(warm.t) + '-ийн өгөгдөл', false);
+      return warmRefresh(warm.t, 0);
+    }
     fetchAll().then(show, function (e) {
       var why = e && e.message ? String(e.message) : 'тодорхойгүй';
       if (why === 'key') return ask('Түлхүүр буруу байна.');
