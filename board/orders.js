@@ -25,6 +25,8 @@ function renderOrders(DATA, QUERY) {
   const leads = O.filter((r) => r.stage === 'lead');
   // HG (11-13): сайтын машин шалгагчаас «утсаа үлдээсэн» хүмүүс (web_callbacks, status new). Захиалга БИШ — SMS/зарын тоонд орохгүй.
   const CBK = A(d.callbacks).filter((c) => c && typeof c === 'object' && has(c.phone));
+  // HW (11-16, эзэн): өнгө/размер сонгосон ч утсаа үлдээгээгүй чат — чатаар нь бичиж утас авна (захиалга БИШ)
+  const NOPH = A(d.nophone).filter((c) => c && typeof c === 'object');
   // 10/25 (эзэн): сонирхлыг багцаар «архивлах» = цуцлалт (түгжсэн бараа нөөцөд буцна), бүртгэл устахгүй → 🗄 Архив хэсэгт, «Сэргээх» боломжтой.
   const isArch = (r) => r.stage === 'cancelled' && /цуцлав: архив/.test(String(r.confirm_note || '')); // CG: хаягтай боловч SMS/төлбөрт хариугүй (автомат) мөр мөн энд
   const archived = O.filter(isArch).sort((a, b) => new Date(b.cancelled_at || b.placed_at) - new Date(a.cancelled_at || a.placed_at));
@@ -545,6 +547,15 @@ function renderOrders(DATA, QUERY) {
         + '<button class="btn stop wcb" data-id="' + esc(c.id) + '" data-st="dead" title="Авахгүй / холбогдохгүй — жагсаалтаас хасна">Авахгүй</button></div></div>');
     });
   }
+  if (NOPH.length) {
+    o('<h2>💬 Утас үлдээгээгүй — өнгө/размер сонгосон <span class="cnt">' + NOPH.length + '</span></h2>');
+    o('<p class="sm mut">Бот утас асуусан ч бичээгүй хүмүүс (48 цагт). <b>Захиалга биш</b> — чатаар нь бичиж утсыг нь аваарай. Утсаа бичмэгц бот захиалгыг бүртгэж, эндээс гарна.</p>');
+    NOPH.forEach((c) => {
+      o('<div class="wcr"><div class="wcm"><b>' + esc(c.name || 'Нэргүй') + '</b> · ' + esc(ago(c.at)) + ' өмнө'
+        + '<div class="sm mut">' + esc(c.product || '') + (has(c.item) ? ' · ' + esc(c.item) : '') + '</div></div>'
+        + '<div class="wca">' + (has(c.chat_url) ? '<a class="btn go" target="_blank" rel="noopener" href="' + esc(c.chat_url) + '">💬 Чат нээх</a>' : '') + '</div></div>');
+    });
+  }
   o('<h2>Сонирхол — утас/нэр үлдээсэн, хаяггүй <span class="cnt">' + leads.length + '</span></h2>');
   if (CALL.length) o('<div class="callbox"><b>📞 Залгах жагсаалт · ' + CALL.length + ' хүн (WIN эсвэл амьд бараа)</b>Залгаад хаягаа өгвөл «Хаяг оруулах» → захиалга болж баталгаажна. Авахгүй гэвэл «Цуцлах». Мөр бүрийн «📞 Залгах» товч дугаарыг хуулж, залгана. SMS автоматаар явахгүй — эзэн өөрөө залгана.</div>');
   else o('<p class="sm mut">Залгах жагсаалт хоосон: эдгээр бараа WIN болоогүй / бараа ирээгүй. LOSS барааны сонирхогчид юу ч илгээхгүй.</p>');
@@ -614,7 +625,7 @@ function renderOrders(DATA, QUERY) {
     ['nx', 'Nexpress', nxReg.length, (nxOpenQ.length + nxAutoN) ? (nxOpenQ.length + nxAutoN) + ' дараагийн бүртгэлд' : '', true],
     ['rural', 'Орон нутаг', ruralAct.length, nUrg ? nUrg + ' яаралтай' : '', ruralAct.length > 0],
     ['wait', 'Хүлээлэг SMS', addrWait.length, '', addrWait.length > 0],
-    ['lead', 'Сонирхол', leads.length, [CBK.length ? CBK.length + ' залгуулах хүсэлт' : '', CALL.length ? CALL.length + ' залгах' : ''].filter(Boolean).join(' · '), leads.length > 0 || CBK.length > 0],
+    ['lead', 'Сонирхол', leads.length, [CBK.length ? CBK.length + ' залгуулах хүсэлт' : '', NOPH.length ? NOPH.length + ' утасгүй' : '', CALL.length ? CALL.length + ' залгах' : ''].filter(Boolean).join(' · '), leads.length > 0 || CBK.length > 0 || NOPH.length > 0],
     ['other', 'Бусад', others.length, 'цуцлагдсан · тест', others.length > 0]
   ].filter((t) => t[4]);
   const defTab = Q.tab && TABS.some((t) => t[0] === Q.tab) ? Q.tab : (nUrg ? 'rural' : (anyFilter ? 'main' : ''));
@@ -740,7 +751,12 @@ function ssStockUI(post, say, reload, e) {
           var L = lab(k); return '<option value="' + i + '"' + (L === cur ? ' disabled' : '') + '>' + e(L) + ' · ' + (num(k.available) > 0 ? 'сул ' + num(k.available) : 'дууссан') + (L === cur ? ' (одоогийн)' : '') + '</option>';
         }).join('') + '</select><button class="btn go">Солих</button><div class="sm mut">Мэдэгдэл явахгүй. Хуучин хувилбар оноогдсон байсан бол чөлөөлөгдөж хүлээж буй өөр захиалгад шилжинэ.</div>'
           // CZ4 (2026-10-30, эзэн): захиалгын тоо засах — order_action do=qty
-          + '<div class="sm" style="margin-top:10px;border-top:1px dashed var(--bd,#ddd);padding-top:8px">Тоо: <input class="qin" type="number" min="1" max="20" step="1" value="' + (Number(b.dataset.qty) || 1) + '" style="width:60px"> <button class="btn qgo">Тоо хадгалах</button></div>';
+          + '<div class="sm" style="margin-top:10px;border-top:1px dashed var(--bd,#ddd);padding-top:8px">Тоо: <input class="qin" type="number" min="1" max="20" step="1" value="' + (Number(b.dataset.qty) || 1) + '" style="width:60px"> <button class="btn qgo">Тоо хадгалах</button></div>'
+          // HQ (2026-11-15, эзэн): нэг захиалгад ӨӨР хэмжээ/өнгө НЭМЭХ — order_action do=add_line → ижил хүн/хаяг/төлөвтэй шинэ мөр, Nexpress-д нэг хүргэлт
+          + '<div class="sm" style="margin-top:10px;border-top:1px dashed var(--bd,#ddd);padding-top:8px">➕ Өөр хэмжээ нэмэх: <select class="asel">' + K.map(function (k, i) {
+            return '<option value="' + i + '">' + e(lab(k)) + ' · ' + (num(k.available) > 0 ? 'сул ' + num(k.available) : 'дууссан') + '</option>';
+          }).join('') + '</select> × <input class="ain" type="number" min="1" max="20" step="1" value="1" style="width:50px"> <button class="btn ago">Нэмэх</button>'
+          + '<div class="mut">Ижил хүн, хаяг, төлөвтэй шинэ мөр үүсч нөөц оноогдоно · Nexpress-д нэг хүргэлтээр нэгтгэгдэнэ · SMS явахгүй</div></div>';
         var sel = f.querySelector('select'), go = f.querySelector('button.go');
         var qin = f.querySelector('.qin'), qgo = f.querySelector('.qgo'), q0 = Number(b.dataset.qty) || 1;
         qgo.addEventListener('click', function () {
@@ -754,6 +770,18 @@ function ssStockUI(post, say, reload, e) {
           }).catch(function () {});
         });
         for (var i = 0; i < sel.options.length; i++) if (!sel.options[i].disabled) { sel.selectedIndex = i; break; }
+        var asel = f.querySelector('.asel'), ain = f.querySelector('.ain'), agoBtn = f.querySelector('.ago');
+        for (var j = 0; j < asel.options.length; j++) if (lab(K[j]) !== cur) { asel.selectedIndex = j; break; }
+        agoBtn.addEventListener('click', function () {
+          var k = K[Number(asel.value)], q = Math.round(Number(ain.value));
+          if (!k) return;
+          if (!(q >= 1 && q <= 20)) { say('out-o', 'Тоо 1–20 байх ёстой', true); return; }
+          if (!confirm('Энэ хүний захиалгад ' + lab(k) + ' ×' + q + ' нэмэх үү? (ижил хаягаар, SMS явахгүй)')) return;
+          post({ action: 'order', order_id: id, do: 'add_line', color: k.color || '', size: k.size || '', qty: q, by: 'самбар' }, agoBtn, 'out-o').then(function (j) {
+            say('out-o', 'Нэмэгдлээ → ' + lab(k) + ' ×' + q + (j.ref ? ' (' + j.ref + ')' : '') + (j.allocated ? ' · бараа оноогдлоо ✓' : ' · нөөц алга — хүлээлгэнд'));
+            reload(900);
+          }).catch(function () {});
+        });
         f.classList.add('on');
         go.addEventListener('click', function () {
           var k = K[Number(sel.value)]; if (!k || lab(k) === cur) return;
