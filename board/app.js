@@ -12,6 +12,7 @@ function ssNav(on, themeQ) {
     ['growth', '/board/?view=growth' + tq, 'Өсөлт'],
     ['reach', '/board/?view=reach' + tq, 'Хүрээ'],
     ['leak', '/board/?view=leak' + tq, 'Алдагдал'],
+    ['chat', '/board/?view=chat' + tq, 'Чат'],
     ['research', '/board/?view=research&tab=rank' + tq, 'Судалгаа']
   ];
   return '<nav class="nav">' + items.map(function (it) {
@@ -44,6 +45,7 @@ function ssNav(on, themeQ) {
     reach:    { data: 'reach',    extra: { outlook: 'outlook' }, render: 'renderReach' },    // блок FL (11-07): хүрээний хамгаалалт — reach_board, засварын бүртгэл
     leak:     { data: 'leak',     extra: { crm: 'crm' }, render: 'renderLeak' },  // блок GG (11-11): алдагдлын газрын зураг — leak_map; машин эзэмшигчдийн сан — car_owner_book
     brief:    { data: 'brief',    extra: {}, render: 'renderBrief', keep: true },   // блок GM (11-11): өглөөний тайлан — morning_brief, «Сонсох»
+    chat:     { data: 'chat',     extra: {}, render: 'renderChat' },   // блок ID (11-16): чатботын менежер — cm_board (олдвор, хариуны хурд, юүлүүр)
     money_old: { data: 'money',   extra: {}, render: 'renderMoney', passQuery: true }  // блок C2: хуучин мөнгө — ангилал, дэвтэр, сан (v2-ийн «Дэлгэрэнгүй»)
   };
   // C3: хуучин хаягууд → шинэ хуудас (хуучин холбоос, Telegram мессеж ажилласаар)
