@@ -112,6 +112,26 @@ function renderOrders(DATA, QUERY) {
   o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
   o(ssNav('orders', themeQ));
 
+  // IL (11-16, аудит Е): «Шалгах» мөр — чатын менежерийн «хүн хэрэгтэй» (зэрэг 3) олдворыг эзний өдөр тутмын хуудсанд харуулна.
+  //   Өгөгдөл: d.chat = cm_board (app.js extra). Олдвор байхгүй / өгөгдөл ирээгүй бол юу ч зурахгүй. Зөвхөн унших — үйлдэл хийхгүй.
+  (function () {
+    const CH = d.chat && typeof d.chat === 'object' && d.chat.ok ? d.chat : null;
+    if (!CH) return;
+    const KN = { unanswered: 'хариугүй үлдсэн', open_turn: 'ээлж хаагдаагүй', order_guard: 'захиалга ≠ чат', reg_fail: 'бүртгэл/хаяг хадгалагдаагүй', phone_no_lead: 'утас өгсөн — захиалгагүй' };
+    const seen = {}, rows = [];
+    A(CH.todo).forEach((x) => { if (!x || n(x.sev) < 3) return; const key = String(x.phone || x.conv || x.order_id || rows.length); if (seen[key]) return; seen[key] = 1; rows.push(x); });
+    if (!rows.length) return;
+    const cq = themeQ ? '&theme=' + themeQ : '';
+    const one = (x) => {
+      const nm = esc(x.who || x.phone || 'нэр бүртгэгдээгүй') + (x.who && x.phone ? ' · ' + esc(x.phone) : '');
+      const kn = KN[x.k] ? ' <span style="color:var(--mut)">(' + KN[x.k] + ')</span>' : '';
+      return (x.phone ? '<a href="/board/?view=orders&q=' + encodeURIComponent(x.phone) + cq + '"><b>' + nm + '</b></a>' : '<b>' + nm + '</b>') + kn;
+    };
+    o('<div class="al crit" style="margin:10px 0 4px;flex-wrap:wrap"><span class="tag">Шалгах</span><span style="flex:1;min-width:220px">Чат: <b>' + rows.length + ' яриа</b> хүн хүлээж байна — '
+      + rows.slice(0, 4).map(one).join(' · ') + (rows.length > 4 ? ' · +' + (rows.length - 4) : '')
+      + '</span><a href="/board/?view=chat' + cq + '" style="flex:none;font-weight:700">Чат хуудас →</a></div>');
+  })();
+
   // ── тоонууд (шүүсэн олонлог)
   // v3: тоо бүр шүүлтүүр — дарвал тэр захиалгууд (URL дээр үлдэнэ). Идэвхтэй нь тодорно.
   const kpLink = (stage, tab) => { const ps = new URLSearchParams(); Object.keys(Q).forEach((k) => { if (k !== 'stage' && k !== 'tab' && k !== 'view' && Q[k] !== '') ps.set(k, Q[k]); }); ps.set('view', 'orders'); if (stage) ps.set('stage', stage); if (tab) ps.set('tab', tab); return '/board/?' + ps.toString().replace(/&/g, '&amp;'); };
