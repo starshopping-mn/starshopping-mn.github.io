@@ -35,7 +35,7 @@ function ssNav(on, themeQ) {
 
   var VIEWS = {
     home:     { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all', lite: 1 }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // НҮҮР: системийн зураглал (3D, бүх мэдээлэл нэг дор) — эзний шийдвэр 10-03
-    tests:    { data: 'tests',    extra: { gaps: 'linkgaps' }, render: 'renderTests' },                           // тестийн урсгал (блок AR)
+    tests:    { data: 'tests',    extra: { gaps: 'linkgaps', v4: 'v4cards' }, render: 'renderTests' },                           // тестийн урсгал (блок AR)
     research: { data: 'research', extra: {}, render: 'renderResearch' },
     board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all', lite: 1 }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: { waitlist: 'waitlist', reorder: 'reorder' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
