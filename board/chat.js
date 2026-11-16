@@ -1,4 +1,4 @@
-/* Самбар · ЧАТ (блок ID, 2026-11-16; ID3: нэр + утас + Захиалга хуудасны холбоос) — чатботын менежерийн нүүр: хэн хүлээж байна, хариу хэр хурдан, юүлүүр хаана нарийсч байна.
+/* Самбар · ЧАТ (блок ID, 2026-11-16; ID3: нэр + утас + Захиалга хуудасны холбоос; ID4: эх үүсвэрээр салгасан, z-шалгуур) — чатботын менежерийн нүүр: хэн хүлээж байна, хариу хэр хурдан, юүлүүр хаана нарийсч байна.
    Өгөгдөл: ?view=chat → cm_board(p) (cm_finding + cm_funnel + turn_health). Зөвхөн УНШИНА, n8n нэмэхгүй, LLM дуудахгүй.
    Бүтэц: 1 мөр дүгнэлт → 4 KPI → «Одоо шийдэх» + 14 хоногийн хариу → 2 барааны юүлүүр → дэлгэрэнгүй (нээгддэг). */
 function renderChat(DATA, QUERY) {
@@ -70,10 +70,20 @@ function renderChat(DATA, QUERY) {
   const hot = TODO.filter((x) => n(x.sev) >= 3);
   const hotBy = {}; hot.forEach((x) => { hotBy[x.k] = (hotBy[x.k] || 0) + 1; });
   const sum = (k, w) => A(FU).reduce((a, p) => a + n(((p || {})[w] || {})[k]), 0);
-  const phNow = pct(sum('phone_given', 'now'), sum('conv', 'now')), phPrev = pct(sum('phone_given', 'prev'), sum('conv', 'prev'));
+  const hasSeg = A(FU).some((p) => p && (p.now_d || p.now_f));   // ID4: cm_funnel эх үүсвэрээр салгасан эсэх (хуучин өгөгдөлтэй нийцтэй)
+  const sN = hasSeg ? 'now_d' : 'now', sP = hasSeg ? 'prev_d' : 'prev';
+  // харьцуулалтыг зөвхөн өмнөх 7 хоногт 20+ яриатай бараагаар хийнэ (шинэ бараа нэмэгдэхэд дундаж хуурамчаар хөдөлдөг)
+  const CMP = A(FU).filter((p) => p && p[sN] && p[sP] && n(p[sP].conv) >= 20);
+  const sumC = (k, w) => (CMP.length ? CMP : A(FU)).reduce((a, p) => a + n(((p || {})[w] || {})[k]), 0);
+  const phX = sumC('phone_given', sN), phC = sumC('conv', sN), phXp = CMP.length ? sumC('phone_given', sP) : 0, phCp = CMP.length ? sumC('conv', sP) : 0;
+  const phNow = pct(phX, phC), phPrev = pct(phXp, phCp);
+  const flNow = pct(sumC('phone_given', 'now_f'), sumC('conv', 'now_f')), flPrev = pct(sumC('phone_given', 'prev_f'), sumC('conv', 'prev_f'));
   const adNow = sum('order_addr', 'now'), adPrev = sum('order_addr', 'prev');
   const f24 = pct((SP.h24 || {}).fast, (SP.h24 || {}).n), f7 = pct((SP.d7 || {}).fast, (SP.d7 || {}).n);
   const rel = (a, b) => (a === null || b === null || !b ? null : (a - b) / b);
+  // ID4 (11-16): уналтыг зөвхөн тоо нь хангалттай үед улаанаар тэмдэглэнэ (2 хувийн z-шалгуур) — нэг өдрийн урсгалын хольц хуурамч дохио өгдөг байсан
+  const zt = (x1, n1, x2, n2) => { if (!(n1 > 0) || !(n2 > 0)) return null; const pp = (x1 + x2) / (n1 + n2), se = Math.sqrt(pp * (1 - pp) * (1 / n1 + 1 / n2)); return se > 0 ? (x1 / n1 - x2 / n2) / se : null; };
+  const lev = (r, z) => (r === null || z === null ? '' : z <= -1.96 && r <= -0.3 ? 'crit' : z <= -1.64 && r <= -0.15 ? 'warn' : z >= 1.64 ? 'good' : '');
   const dl = (v) => (v === null ? '' : (v > 0 ? '+' : '') + Math.round(v * 100) + '%');
 
   o('<div class="cm">');
@@ -94,7 +104,8 @@ function renderChat(DATA, QUERY) {
   o('<div class="krow krow4">'
     + k('2 минутад хариулсан', pc(f24), 'өмнөх 7 хоног ' + pc(f7) + ' · ' + n((SP.h24 || {}).n) + ' мессеж', f24 !== null && f24 < 0.9 ? 'crit' : f24 !== null && f24 < 0.95 ? 'warn' : '')
     + k('Хүн хэрэгтэй яриа', String(nHot), 'нийт нээлттэй олдвор ' + n(OP.total), nHot > 0 ? 'crit' : '')
-    + k('Утсаа өгсөн яриа', pc(phNow), 'өмнө ' + pc(phPrev) + ' · <b class="' + (rPh !== null && rPh < 0 ? 'dn' : 'up') + '">' + dl(rPh) + '</b>', rPh !== null && rPh <= -0.3 ? 'crit' : rPh !== null && rPh <= -0.15 ? 'warn' : '')
+    + k(hasSeg ? 'Утсаа өгсөн · өөрөө бичсэн' : 'Утсаа өгсөн яриа', pc(phNow), (phPrev === null ? phC + ' яриа' : 'өмнө ' + pc(phPrev) + ' · <b style="' + (lev(rPh, zt(phX, phC, phXp, phCp)) ? '' : 'color:var(--mut)') + '" class="' + (rPh !== null && rPh < 0 ? 'dn' : 'up') + '">' + dl(rPh) + '</b>')
+        + (hasSeg && flNow !== null ? '<br>комментоос ' + pc(flNow) + (flPrev !== null ? ' (өмнө ' + pc(flPrev) + ')' : '') : ''), (function (l) { return l === 'good' ? '' : l; })(lev(rPh, zt(phX, phC, phXp, phCp))))
     + k('Хаягтай захиалга · 7 хоног', String(adNow), 'өмнө ' + adPrev + ' · <b class="' + (rAd !== null && rAd < 0 ? 'dn' : 'up') + '">' + dl(rAd) + '</b>', rAd !== null && rAd <= -0.3 ? 'crit' : '')
     + '</div>');
 
@@ -137,25 +148,31 @@ function renderChat(DATA, QUERY) {
   o('</div>');
 
   // ── 4 · ЮҮЛҮҮР — хамгийн их яриатай 2 бараа
+  const srcLine = (p) => { const d = p.now_d, f = p.now_f; if (!d || !f || !n(f.conv)) return '';
+    const one = (lab, a, b) => lab + ' <b>' + n(a.conv) + '</b> яриа → утас ' + n(a.phone_given) + ' (' + pc(pct(a.phone_given, a.conv)) + ')' + (b && n(b.conv) >= 20 ? ', өмнө ' + pc(pct(b.phone_given, b.conv)) : '');
+    return '<p class="note" style="margin:2px 0 0">' + one('Автомат DM-ээр эхэлсэн (коммент) тусдаа:', f, p.prev_f) + ' · бүгд нийлээд ' + n(p.now.conv) + ' яриа → утас ' + n(p.now.phone_given) + '</p>'; };
   const STEPS = [['engaged', 'Асуулт бичсэн'], ['phone_asked', 'Утас асуусан'], ['phone_given', 'Утсаа өгсөн'], ['order_any', 'Захиалга'], ['order_addr', 'Хаягтай захиалга']];
   const top = A(FU).filter((p) => p && p.now && n(p.now.conv) >= 5).slice(0, 2);
   if (top.length) {
     o('<div class="g2 eq">');
     top.forEach((p) => {
-      const cN = n(p.now.conv), cP = n((p.prev || {}).conv), cmp = cP >= 20;
+      const useD = !!(p.now_d && p.now_f && n(p.now_d.conv) >= 20);   // ID4: автомат DM-ээр эхэлсэн яриа ихтэй бол юүлүүрийг өөрөө бичсэн яриагаар зурна
+      const PN = useD ? p.now_d : p.now, PP = (useD ? p.prev_d : p.prev) || {};
+      const cN = n(PN.conv), cP = n(PP.conv), cmp = cP >= 20;
       let s = '<div class="fn">', worstK = null, worstR = 0;
-      const rs = STEPS.map((st) => { const a = pct(p.now[st[0]], cN), b = cmp ? pct(p.prev[st[0]], cP) : null, r = rel(a, b); if (r !== null && r < worstR && r <= -0.3) { worstR = r; worstK = st[0]; } return { k: st[0], lab: st[1], a: a, b: b, r: r, cnt: n(p.now[st[0]]) }; });
+      const rs = STEPS.map((st) => { const a = pct(PN[st[0]], cN), b = cmp ? pct(PP[st[0]], cP) : null, r = rel(a, b), lv = cmp ? lev(r, zt(n(PN[st[0]]), cN, n(PP[st[0]]), cP)) : ''; if (lv === 'crit' && r < worstR) { worstR = r; worstK = st[0]; } return { k: st[0], lab: st[1], a: a, b: b, r: r, lv: lv, cnt: n(PN[st[0]]) }; });
       const mxv = Math.max(0.01, ...rs.map((r) => Math.max(r.a || 0, r.b || 0))) * 1.05;
       rs.forEach((r) => {
-        const col = r.r === null ? 'var(--f3)' : r.r <= -0.3 ? 'var(--crit)' : r.r <= -0.15 ? 'var(--warn)' : 'var(--good)';
+        const col = r.lv === 'crit' ? 'var(--crit)' : r.lv === 'warn' ? 'var(--warn)' : r.lv === 'good' ? 'var(--good)' : 'var(--f3)';
         s += '<div class="fr' + (r.k === worstK ? ' hl' : '') + '"><div class="fl2"><b>' + esc(r.lab) + '</b><span>' + r.cnt + ' яриа</span></div>'
           + '<div class="fb">' + (r.b !== null ? '<div class="t0"><i style="width:' + Math.round((100 * r.b) / mxv) + '%"></i><em>' + pc(r.b) + '</em></div>' : '')
           + '<div class="t1"><i style="width:' + Math.round((100 * (r.a || 0)) / mxv) + '%;background:' + col + '"></i></div></div>'
-          + '<div class="fv"><span class="' + (r.r !== null && r.r < 0 ? 'dn' : 'up') + '">' + dl(r.r) + '</span><b style="' + (r.r !== null && r.r <= -0.3 ? 'color:var(--crit)' : '') + '">' + pc(r.a) + '</b></div></div>';
+          + '<div class="fv"><span class="' + (r.lv === 'crit' || r.lv === 'warn' ? 'dn' : r.lv === 'good' ? 'up' : '') + '" style="' + (r.lv ? '' : 'color:var(--mut)') + '">' + dl(r.r) + '</span><b style="' + (r.lv === 'crit' ? 'color:var(--crit)' : '') + '">' + pc(r.a) + '</b></div></div>';
       });
       s += '</div>';
-      o('<section class="cd" aria-label="Юүлүүр"><div class="ch"><b>' + esc(String(p.product || p.page_id).split(' · ')[0]) + '</b><span>' + cN + ' яриа' + (cmp ? ' · өмнө ' + cP : ' · өмнөх 7 хоногт өгөгдөл бага') + '</span></div>' + s
-        + '<div class="lgd"><span>яриа бүрийн хэдэн хувь тэр шатанд хүрсэн</span>' + (cmp ? '<span><i style="background:var(--ln2)"></i>өмнө</span><span><i style="background:var(--crit)"></i>30%+ унасан</span>' : '') + '</div></section>');
+      o('<section class="cd" aria-label="Юүлүүр"><div class="ch"><b>' + esc(String(p.product || p.page_id).split(' · ')[0]) + '</b><span>' + (useD ? 'өөрөө бичсэн ' : '') + cN + ' яриа' + (cmp ? ' · өмнө ' + cP : ' · өмнөх 7 хоногт өгөгдөл бага') + '</span></div>' + s
+        + '<div class="lgd"><span>яриа бүрийн хэдэн хувь тэр шатанд хүрсэн</span>' + (cmp ? '<span><i style="background:var(--ln2)"></i>өмнө</span><span><i style="background:var(--crit)"></i>30%+ унасан (тоо хангалттай)</span><span><i style="background:var(--f3)"></i>ялгаа батлагдаагүй</span>' : '') + '</div>'
+        + srcLine(p) + '</section>');
     });
     o('</div>');
   }
@@ -172,7 +189,7 @@ function renderChat(DATA, QUERY) {
     : 'Дэвтэрт мөр алга — ботын шинэ хувилбар (IC) ажиллаж эхлээгүй, эсвэл түүнээс хойш мессеж ирээгүй.') + '</p>');
   const FX = A(d.fixes), CS = d.cases || {};
   o('<h4>Засварын санал</h4><p class="note">' + (FX.length ? FX.map((f) => '[' + esc(f.tier) + '] ' + esc(f.title)).join(' · ') : 'Хүлээгдэж буй санал алга.') + ' Регрессийн кейс ' + n(CS.n) + (n(CS.n) ? ' (давсан ' + n(CS.ok) + ', унасан ' + n(CS.fail) + ')' : '') + '.</p>');
-  o('<p class="note">Арга: олдворыг 5 минут тутам SQL илрүүлэгч (cm_detect_tick) бичнэ — AI дуудахгүй. «Хариугүй» = сүүлийн мессежид 10+ минут жинхэнэ хариу яваагүй (ok, баярлалаа зэргийг тооцохгүй). «Удсан хариу» = мессеж бүрийн дараагийн жинхэнэ хариу хүртэлх хугацаа. Юүлүүрт хүргэлтийг оруулаагүй (сүүлийн 7 хоногийн захиалга хүргэгдэж дуусаагүй).</p>');
+  o('<p class="note">Арга: олдворыг 5 минут тутам SQL илрүүлэгч (cm_detect_tick) бичнэ — AI дуудахгүй. «Хариугүй» = сүүлийн мессежид 10+ минут жинхэнэ хариу яваагүй (ok, баярлалаа зэргийг тооцохгүй). «Удсан хариу» = мессеж бүрийн дараагийн жинхэнэ хариу хүртэлх хугацаа. Юүлүүрт хүргэлтийг оруулаагүй (сүүлийн 7 хоногийн захиалга хүргэгдэж дуусаагүй). Уналтыг улаан/шараар зөвхөн тоо нь хангалттай (z-шалгуур) үед тэмдэглэнэ; «Утсаа өгсөн» үзүүлэлт нь өөрөө бичиж эхэлсэн яриагаар тооцно — комментоос автомат DM-ээр эхэлсэн яриа тусдаа (нэг тархсан бичлэг хувийг хуурамчаар унагадаг).</p>');
   o('</details>');
 
   o('</div></div></body></html>');
