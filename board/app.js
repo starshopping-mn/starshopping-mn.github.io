@@ -39,7 +39,7 @@ function ssNav(on, themeQ) {
     research: { data: 'research', extra: {}, render: 'renderResearch' },
     board:    { data: 'board',    extra: { funnel_ads: 'funnel', meta: 'meta', adsctl: 'adsctl', budget: 'budget', money_m: { view: 'money', range: 'month' }, money_a: { view: 'money', range: 'all', lite: 1 }, rep_m: { view: 'report', range: 'month' }, sat: 'sat', output: 'output', outlook: 'outlook', nx: 'nxsettle' }, render: 'renderBoard' },  // блок BC: бараа × зар маягт
     ops:      { data: 'stock',    extra: { waitlist: 'waitlist', reorder: 'reorder' }, render: 'renderOps' }, // блок BF→C3: зөвхөн нөөц · PO (захиалга→orders, мөнгө→money)
-    orders:   { data: 'orders2',  extra: { districts: 'districts' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
+    orders:   { data: 'orders2',  extra: { districts: 'districts', chat: 'chat' }, render: 'renderOrders', passQuery: true }, // блок C1: захиалга (хаягтай / сонирхол), шүүлт = URL query
     money:    { data: 'money2',   extra: {}, render: 'renderMoney2', passQuery: true, keep: true }, // блок DB (10-31): мөнгө v2 — money_summary нэг дуудлага
     growth:   { data: 'growth',   extra: {}, render: 'renderGrowth', keep: true },   // блок EK (11-03): өсөлтийн шат — growth_plan, дохио
     reach:    { data: 'reach',    extra: { outlook: 'outlook' }, render: 'renderReach' },    // блок FL (11-07): хүрээний хамгаалалт — reach_board, засварын бүртгэл
