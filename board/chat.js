@@ -1,4 +1,4 @@
-/* Самбар · ЧАТ (блок ID, 2026-11-16) — чатботын менежерийн нүүр: хэн хүлээж байна, хариу хэр хурдан, юүлүүр хаана нарийсч байна.
+/* Самбар · ЧАТ (блок ID, 2026-11-16; ID3: нэр + утас + Захиалга хуудасны холбоос) — чатботын менежерийн нүүр: хэн хүлээж байна, хариу хэр хурдан, юүлүүр хаана нарийсч байна.
    Өгөгдөл: ?view=chat → cm_board(p) (cm_finding + cm_funnel + turn_health). Зөвхөн УНШИНА, n8n нэмэхгүй, LLM дуудахгүй.
    Бүтэц: 1 мөр дүгнэлт → 4 KPI → «Одоо шийдэх» + 14 хоногийн хариу → 2 барааны юүлүүр → дэлгэрэнгүй (нээгддэг). */
 function renderChat(DATA, QUERY) {
@@ -21,6 +21,11 @@ function renderChat(DATA, QUERY) {
     guard_swap: ['Хамгаалалт хариуг сольсон', ''], handoff: ['AI унаж, бэлэн хариу явсан', '']
   };
   const kl = (k) => (KIND[k] ? KIND[k][0] : k);
+  // ID3 (11-16, эзэн: «ямар нэртэй чатаас ирснийг мэдэх боломжгүй, захиалга хуудастай холбогдоогүй»): нэр + утас, захиалгатай бол Захиалга хуудасны хайлт руу холбоно
+  const who = (x) => (x.who ? '<b>' + esc(x.who) + '</b>' : '<span>нэр бүртгэгдээгүй</span>') + (x.phone ? ' · <a href="tel:' + esc(x.phone) + '">' + esc(x.phone) + '</a>' : '');
+  const ordersUrl = (ph) => '/board/?view=orders&q=' + encodeURIComponent(ph) + (themeQ ? '&theme=' + themeQ : '');
+  const act = (x) => (x.has_order && x.phone ? '<a class="ta go" href="' + esc(ordersUrl(x.phone)) + '">Захиалга хуудас →</a>'
+    : KIND[x.k] && KIND[x.k][1] ? '<div class="ta">' + esc(x.who ? 'Чатаас «' + String(x.who).split(' ')[0] + '» гэж хайх' : KIND[x.k][1]) + '</div>' : '<div></div>');
 
   const out = [];
   const o = (s) => out.push(s);
@@ -40,7 +45,8 @@ function renderChat(DATA, QUERY) {
     + '.cm .ti>i{display:block;align-self:stretch;border-radius:2px;background:var(--crit)}.cm .ti>i.s2{background:var(--warn)}'
     + '.cm .tb1{font-size:13px;font-weight:650;line-height:1.3}.cm .tb1 span{font-weight:400;color:var(--mut);font-size:11.5px;margin-left:6px;white-space:nowrap}'
     + '.cm .tb2{font-size:12px;color:var(--ink2);line-height:1.45;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}'
-    + '.cm .ta{font-size:11px;font-weight:650;color:var(--gold);border:1px solid var(--ln2);border-radius:7px;padding:4px 8px;white-space:nowrap;margin-top:1px}'
+    + '.cm .ta{font-size:11px;font-weight:650;color:var(--ink2);border:1px solid var(--ln2);border-radius:7px;padding:4px 8px;white-space:nowrap;margin-top:1px}.cm a.ta.go{color:var(--gold);border-color:var(--gold-ln)}.cm a.ta.go:hover{background:var(--gold-a)}'
+    + '.cm .tw{font-size:12.5px;margin-top:2px;line-height:1.4}.cm .tw b{font-weight:650}.cm .tw span{color:var(--mut)}.cm .tw a{color:var(--f3);font-variant-numeric:tabular-nums}'
     + '.cm .emp{font-size:12.5px;color:var(--mut);padding:10px 0}'
     + '.cm .bars{display:flex;flex-direction:column;gap:6px}.cm .br{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 28px;gap:8px;align-items:center;font-size:12px}.cm .br span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}'
     + '.cm .tr{height:8px;background:var(--s2);border-radius:999px;overflow:hidden;display:flex}.cm .tr i{display:block;height:100%;border-radius:999px}.cm .br em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}@media(max-width:560px){.cm .br{grid-template-columns:minmax(0,140px) minmax(0,1fr) 24px}}'
@@ -48,7 +54,7 @@ function renderChat(DATA, QUERY) {
     + '.cm .fl2 b{display:block;font-size:13px;font-weight:650;line-height:1.25}.cm .fl2 span{font-size:10.5px;color:var(--mut)}'
     + '.cm .fb{display:flex;flex-direction:column;gap:4px}.cm .fb .t0{display:flex;align-items:center;gap:6px}.cm .fb .t0 i{display:block;height:7px;border-radius:99px;background:var(--ln2)}.cm .fb .t0 em{font-style:normal;font-size:10.5px;color:var(--mut);white-space:nowrap}.cm .fb .t1 i{display:block;height:12px;border-radius:99px;min-width:3px}'
     + '.cm .fv{text-align:right;display:flex;flex-direction:column;line-height:1.2}.cm .fv span{font-size:10.5px;font-weight:650}.cm .fv b{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}'
-    + '@media(max-width:560px){.cm .fr{grid-template-columns:minmax(0,100px) minmax(0,1fr) 50px;gap:8px}.cm .ta{display:none}}'
+    + '@media(max-width:560px){.cm .fr{grid-template-columns:minmax(0,100px) minmax(0,1fr) 50px;gap:8px}.cm .ti{grid-template-columns:4px minmax(0,1fr)}.cm .ta{grid-column:2;justify-self:start;margin:0 0 2px}}'
     + '.cm details.more{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:12px 16px}.cm details.more>summary{cursor:pointer;font-weight:650;font-size:13px;color:var(--ink2)}.cm details.more[open]>summary{margin-bottom:10px}'
     + '.cm .sc{border-radius:10px;margin-top:8px}.cm .sc td.r,.cm .sc th.r{text-align:right}.cm .note{font-size:11.5px;color:var(--mut);line-height:1.5;margin:6px 0 0}.cm h4{font-size:12px;margin:14px 0 4px;color:var(--ink2)}';
 
@@ -98,8 +104,8 @@ function renderChat(DATA, QUERY) {
     const rows = hot.slice(0, 6);
     let s = '<div class="tdl">';
     rows.forEach((x) => {
-      s += '<div class="ti"><i></i><div><div class="tb1">' + esc(kl(x.k)) + '<span>' + esc(mdhm(x.at)) + (x.who ? ' · ' + esc(x.who) : '') + '</span></div><div class="tb2">' + esc(x.ev) + '</div></div>'
-        + (KIND[x.k] && KIND[x.k][1] ? '<div class="ta">' + esc(KIND[x.k][1]) + '</div>' : '<div></div>') + '</div>';
+      s += '<div class="ti"><i></i><div><div class="tb1">' + esc(kl(x.k)) + '<span>' + esc(mdhm(x.at)) + '</span></div>'
+        + '<div class="tw">' + who(x) + '</div><div class="tb2">' + esc(x.ev) + '</div></div>' + act(x) + '</div>';
     });
     s += '</div>';
     o('<section class="cd" aria-label="Одоо шийдэх"><div class="ch"><b>Одоо шийдэх</b><span>' + (hot.length > 6 ? 'эхний 6 · нийт ' + hot.length : 'захиалга алдагдаж болзошгүй') + '</span></div>'
@@ -159,8 +165,8 @@ function renderChat(DATA, QUERY) {
   o('<h4>Нээлттэй олдвор төрлөөр</h4><div class="sc"><table><thead><tr><th>Төрөл</th><th class="r">Тоо</th><th>Зэрэг</th></tr></thead><tbody>'
     + A(OP.by_kind).map((b) => '<tr><td>' + esc(kl(b.k)) + '</td><td class="r">' + n(b.n) + '</td><td>' + (n(b.sev) >= 3 ? '<span class="ds crit">захиалга алдаж болзошгүй</span>' : '<span class="ds warn">анхаарах</span>') + '</td></tr>').join('') + '</tbody></table></div>');
   const rest = TODO.filter((x) => hot.slice(0, 6).indexOf(x) < 0);
-  if (rest.length) o('<h4>Бусад олдвор</h4><div class="sc"><table><thead><tr><th>Цаг</th><th>Төрөл</th><th>Баримт</th></tr></thead><tbody>'
-    + rest.map((x) => '<tr><td style="white-space:nowrap">' + esc(mdhm(x.at)) + '</td><td style="white-space:nowrap">' + esc(kl(x.k)) + '</td><td style="white-space:normal;overflow-wrap:anywhere">' + esc(x.ev) + '</td></tr>').join('') + '</tbody></table></div>');
+  if (rest.length) o('<h4>Бусад олдвор</h4><div class="sc"><table><thead><tr><th>Цаг</th><th>Төрөл</th><th>Хэн</th><th>Баримт</th></tr></thead><tbody>'
+    + rest.map((x) => '<tr><td style="white-space:nowrap">' + esc(mdhm(x.at)) + '</td><td style="white-space:nowrap">' + esc(kl(x.k)) + '</td><td style="white-space:nowrap">' + (x.has_order && x.phone ? '<a href="' + esc(ordersUrl(x.phone)) + '" style="color:var(--gold)">' + esc(x.who || x.phone) + ' →</a>' : esc(x.who || '—')) + '</td><td style="white-space:normal;overflow-wrap:anywhere">' + esc(x.ev) + '</td></tr>').join('') + '</tbody></table></div>');
   const bt = TU.by_terminal_24h || {};
   o('<h4>Ээлжийн дэвтэр · 24 цаг</h4><p class="note">' + (n(TU.rows_24h) ? 'Ээлж ' + n(TU.rows_24h) + ' · нээлттэй ' + n(TU.open_now) + ' · ' + Object.keys(bt).map((t) => esc(t) + ' ' + n(bt[t])).join(' · ')
     : 'Дэвтэрт мөр алга — ботын шинэ хувилбар (IC) ажиллаж эхлээгүй, эсвэл түүнээс хойш мессеж ирээгүй.') + '</p>');
