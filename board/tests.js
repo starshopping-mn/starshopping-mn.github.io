@@ -251,6 +251,10 @@ function renderTests(DATA, QUERY) {
   o('<div class="bs">тест · бараа сонголт · ' + esc(String(d.generated_at || '').replace('T', ' ').slice(0, 16)) + ' UTC</div></div>');
   o('<div class="sp"></div><a class="rf" href="">Шинэчлэх</a></div></header>');
   o(ssNav('tests', themeQ));
+  // ── v4 (блок JL, 11-16): 4 хаалга + нотолгооны карт дээр нь (tests_v4.js); хуучин эрэмбэ (0–2 хэсэг) лавлах болж хаагдана.
+  //    d.v4 ирээгүй бол (view унасан) хуудас хуучнаараа зурагдана.
+  const V4 = typeof testsV4Block === 'function' && d.v4 && d.v4.ok ? d.v4 : null;
+  if (V4) { o(testsV4Block(V4)); o('<details class="v4old"><summary>Хуучин эрэмбэ (v3 оноо) — лавлах</summary>'); }
 
   // ── 0 · ДҮГНЭЛТ — одоо юу хийх вэ + анхаарах зүйлс
   let head;
@@ -408,6 +412,7 @@ function renderTests(DATA, QUERY) {
       + '<input type="text" class="rj-n" placeholder="Тэмдэглэл (заавал биш)"><div class="out" id="out-rj' + id + '"></div></div></div>');
     o('</div></section>');
   });
+  if (V4) o('</details>');
   // ── 2. ТЕСТ БЭЛТГЭЛ
   o('<div class="sec"><b>3 · Тест бэлтгэл</b><span class="st">1–6 алхам · систем 1, 3, 5-ыг өөрөө таньж хаана · бүгд бэлэн бол «AD явуулсан»</span></div>');
   if (!ACT.length) o('<div class="em">Идэвхтэй тест алга. Дээрээс нэг бараа сонго' + (free ? '' : ' (зэрэг тестийн хязгаар дүүрсэн)') + '.</div>');
@@ -537,6 +542,7 @@ function renderTests(DATA, QUERY) {
   if (DM.length) o('<p style="font-size:12px;color:var(--ink2);margin:8px 0"><b>Хүмүүс асуусан (манайд алга):</b> ' + DM.map((x) => esc(x.guess || x.text)).join(' · ') + '</p>');
   o('<div class="out" id="out-pm"></div>');
 
+  if (V4) o('<details class="v4old"><summary>Хуучин эрэмбийн өгөгдлийн шалгалт ба тайлбар — лавлах</summary>');
   // ── 6 · ӨГӨГДЛИЙН ШАЛГАЛТ (хуудас өөрөө бодно)
   o('<section class="t2-s"><div class="t2-sh"><h2>6 · Өгөгдлийн шалгалт</h2><p class="t2-why">Ранкийн нотолгоог хуудас бүрт дахин шалгана. Засагдах хүртэл энд харагдана.</p></div><div class="t2-cd t2-dq">'
     + DQ.map((x) => '<div>' + pl(x[0], x[0] === 'ok' ? 'хэвийн' : 'засах') + '<span>' + x[1] + (x[2] ? '<br><em>' + x[2] + '</em>' : '') + '</span><em>' + esc(x[3]) + '</em></div>').join('') + '</div></section>');
@@ -548,7 +554,8 @@ function renderTests(DATA, QUERY) {
     + '<div class="t2-core"><b>Ранк</b><p>Шат бүрт хугацаа, эх сурвалж, итгэлийн түвшин</p><div class="eq">оноо v2 = татах хүч 30 + МН 10 + үнэ цэнэ 20 + эрэлт 15 + ялах 25</div><div class="eq">хатуу хаалга: ≥2.5х өртөг · ≥20k ашиг · ≤30k өртөг</div><div class="eq">бэлэн = 9 нягтлалт · v2 ≥ ' + n((C[0] || {}).v2_min || 55) + '</div></div>'
     + '<div class="t2-col"><div class="t2-lb">Гарц</div><div class="t2-nd"><b>Таны шийдвэр</b>сонгох · дахин судлуулах · татгалзах</div><div class="t2-nd"><b>Тест</b>сайтад ТЕСТ горим, зар, 24 цагийн шалгалт</div>'
     + '<div class="t2-nd"><b>WIN / LOSS</b>ангилал, эх сурвалж, ижил барааны жин өөрчлөгдөнө</div></div></div></section>');
-  o('<footer>' + esc(d.rule || '') + '</footer></div>');
+  if (V4) o('</details>');
+  o('<footer>' + (V4 ? 'Тест v4: 4 хаалга + нотолгооны карт + микро-тест · хуучин оноо зөвхөн лавлах' : esc(d.rule || '')) + '</footer></div>');
 
   // ── өгөгдөл + үйлдэл: товч бүр = SQL-ийн нэг шилжилт (10b POST action=…)
   o('<script type="application/json" id="TB">' + JSON.stringify({ c: C, free: free, g: GAPS }).replace(/</g, '\\u003c') + '</script>');
