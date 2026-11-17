@@ -1609,6 +1609,31 @@ body { letter-spacing: -0.01em; }
 .pdp4__info .opt__label { text-transform: none; letter-spacing: -0.01em; font-size: 0.8rem; font-weight: 400; color: var(--fg-dim); display: flex; justify-content: space-between; align-items: baseline; }
 .pdp4__info .opt__label b { color: var(--fg); font-weight: 600; margin-left: 0.3rem; }
 .opt__link { font-size: 0.78rem; font-weight: 500; color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+/* Хэмжээ сонгогч — өндөр + жин (2026-11-17). 16px оролт: iPhone томруулахгүй. */
+.szg { margin: 8px 0 0; padding: 0.75rem 0.8rem 0.65rem; border-radius: 14px; background: var(--frame); border: 1px solid var(--line); }
+.szg__q { margin: 0 0 0.5rem; font-size: 0.82rem; font-weight: 600; color: var(--fg); letter-spacing: -0.01em; }
+.szg__in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.szg__in label { display: flex; align-items: center; gap: 6px; min-width: 0; width: auto; margin: 0; min-height: 46px; padding: 0 0.7rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: text; }
+.szg__in label:focus-within { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+.szg__in span, .szg__in i { font-size: 0.75rem; font-style: normal; color: var(--fg-dim); }
+.szg__in input { flex: 1 1 0; width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; font-weight: 600; color: var(--fg); text-align: right; }
+.szg__in input::placeholder { color: var(--fg-dim); opacity: 0.45; font-weight: 500; }
+.szg__out { margin: 0.65rem 0 0; display: grid; gap: 3px; font-size: 0.8rem; line-height: 1.45; color: var(--fg-dim); }
+.szg__out[hidden] { display: none; }
+.szg__out b { color: var(--fg); }
+.szg__res { font-size: 0.95rem; color: var(--fg); }
+.szg__res b { font-size: 1.15rem; }
+.szg__res em { font-style: normal; font-size: 0.78rem; color: #2e7d4f; font-weight: 600; }
+.szg__warn { color: var(--sale); }
+.szg__t { margin-top: 0.55rem; }
+.szg__t summary { display: inline-block; cursor: pointer; list-style: none; font-size: 0.78rem; font-weight: 500; color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+.szg__t summary::-webkit-details-marker { display: none; }
+.szg__t table { width: 100%; margin-top: 0.5rem; border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.szg__t th, .szg__t td { padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+.szg__t thead th { font-size: 0.68rem; font-weight: 500; color: var(--fg-dim); white-space: normal; }
+.szg__t tbody th { font-weight: 700; }
+.szg__t tr.is-me th, .szg__t tr.is-me td { background: rgba(46, 125, 79, 0.1); }
+.szg__note { margin: 0.55rem 0 0.1rem; font-size: 0.74rem; line-height: 1.45; color: var(--fg-dim); }
 .chip--sw { width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 0; color: transparent; background: var(--sw); border: 2px solid transparent; box-shadow: inset 0 0 0 2px var(--bg), 0 0 0 1px var(--line); }
 .chip--sw.is-active { border-color: var(--fg); background: var(--sw); }
 .opt__row--sz { display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 6px; }
