@@ -354,6 +354,87 @@ function paintSizeStock(p, color) {
   });
 }
 
+/* ===== Хэмжээ сонгогч — өндөр + жин (2026-11-17, эзэн: «өндөр, жингээр нь нарийн; манайх жижигдүү») =====
+   Жингийн хил = чатын `bot_size_rules` (JI, 2026-11-16): нийлүүлэгчийн хүснэгтээс НЭГ размер том, учир нь
+   загвар жижигдүү — 10/23–11/13-ны 7 солилт бүгд томруу (L→2XL ×3, S→2XL, M→L, 2XL→3XL). ЧАТ, САЙТ ИЖИЛ байх ёстой:
+   нэгийг өөрчилбөл нөгөөг нь зэрэг. Өндөр: хантаазны урт (нийлүүлэгч 青亦 10/28: S63 … 2XL71 см) хүрэлцэх эсэх —
+   урт ≈ 0.39×өндөр (хятад 号型 хантааз), 2 см богино байхыг зөвшөөрнө. Өндөр нь жингийн размерыг ДЭЭД ТАЛ НЬ 1-ээр өсгөнө.
+   Мөр: [размер, жин < кг, өндөр ≤ см, урт, цээж, ойролцоо хэмжээ эсэх]. 3XL-ийн урт/цээжийг нийлүүлэгч өгөөгүй (+2/+4 таамаг). */
+const SIZE_GUIDE = {
+  "Halaaguurtai-hantaaz": {
+    rows: [
+      ["S", 50, 167, 63, 102],
+      ["M", 60, 172, 65, 106],
+      ["L", 70, 177, 67, 110],
+      ["XL", 80, 182, 69, 114],
+      ["2XL", 90, 187, 71, 118],
+      ["3XL", 105, 999, 73, 122, true],
+    ],
+  },
+};
+function sizeAdvice(G, cm, kg) {
+  const R = G.rows, last = R.length - 1;
+  let wi = R.findIndex((r) => kg < r[1]); if (wi < 0) wi = last;
+  let hi = -1;
+  if (cm) { hi = R.findIndex((r) => cm <= r[2]); if (hi < 0) hi = last; }
+  /* өндөр размерыг жингийнхээс ДЭЭД ТАЛ НЬ 1-ээр өсгөнө: 65 кг, 190 см хүнд 3XL хэт өргөн — L→XL, урт нь арай богино гэж хэлнэ */
+  const i = Math.max(wi, Math.min(hi, wi + 1));
+  return { i, wi, hi, size: R[i][0], short: hi > i, over: kg >= R[last][1], edge: wi === i && i < last && kg >= R[i][1] - 2 };
+}
+function sizeGuideHtml(G) {
+  const R = G.rows, n = R.length - 1;
+  const rows = R.map((r, i) => {
+    const kg = i === 0 ? `${r[1]} хүртэл` : i === n ? `${R[i - 1][1]}–${r[1]}` : `${R[i - 1][1]}–${r[1] - 1}`;
+    const cm = i === 0 ? `${r[2]} хүртэл` : i === n ? `${R[i - 1][2] + 1}+` : `${R[i - 1][2] + 1}–${r[2]}`;
+    const a = r[5] ? "≈" : "";
+    return `<tr data-s="${esc(r[0])}"><th>${esc(r[0])}</th><td>${kg}</td><td>${cm}</td><td>${a}${r[3]} / ${a}${r[4]}</td></tr>`;
+  }).join("");
+  return `<div class="szg" id="szg">
+      <p class="szg__q">Размераа мэдэхгүй бол өндөр, жингээ бичээрэй</p>
+      <div class="szg__in">
+        <label><span>Өндөр</span><input id="szgCm" type="text" inputmode="numeric" maxlength="3" placeholder="175" autocomplete="off"><i>см</i></label>
+        <label><span>Жин</span><input id="szgKg" type="text" inputmode="decimal" maxlength="5" placeholder="75" autocomplete="off"><i>кг</i></label>
+      </div>
+      <p class="szg__out" id="szgOut" aria-live="polite" hidden></p>
+      <details class="szg__t"><summary>Хэмжээний хүснэгт</summary>
+        <table><thead><tr><th>Размер</th><th>Жин, кг</th><th>Өндөр, см</th><th>Урт / цээж, см</th></tr></thead><tbody>${rows}</tbody></table>
+        <p class="szg__note">Размерыг голчлон <b>жингээр</b> сонгоно. Өндрийн багана таны жингийн размераас том гарвал <b>нэг</b> размер том авна. Манай хантааз жижигдүү загвартай — хүснэгт үүнийг аль хэдийн тооцсон тул ердийн өмсдөг размераасаа нэг том гарвал хэвийн. Хантааз хувцасны дээгүүр өмсөхөд зориулагдсан.</p>
+      </details>
+    </div>`;
+}
+function bindSizeGuide(root, G) {
+  const cmI = root.querySelector("#szgCm"), kgI = root.querySelector("#szgKg"), out = root.querySelector("#szgOut");
+  if (!cmI || !kgI || !out) return;
+  const num = (el) => Number(String(el.value).replace(",", ".").replace(/[^\d.]/g, ""));
+  const say = (html) => { out.innerHTML = html; out.hidden = !html; };
+  let t = 0;
+  const run = () => {
+    const cm = num(cmI), kg = num(kgI);
+    const okCm = cm >= 120 && cm <= 230, okKg = kg >= 25 && kg <= 200;
+    root.querySelectorAll(".szg__t tr.is-me").forEach((r) => r.classList.remove("is-me"));
+    if (!kgI.value && !cmI.value) return say("");
+    if ((cmI.value && !okCm) || (kgI.value && !okKg)) return say(`<span class="szg__warn">Өндрийг см-ээр (жишээ нь 175), жинг кг-аар (жишээ нь 75) бичнэ үү.</span>`);
+    if (!okKg) return say(`<span>Жингээ бичээрэй — размер голчлон жингээс хамаарна.</span>`);
+    const a = sizeAdvice(G, okCm ? cm : 0, kg);
+    const R = G.rows, S = (i) => R[i][0], k = String(kg).replace(".", ",");
+    const chips = [...root.querySelectorAll('.opt__row[data-opt="size"] .chip')];
+    const chip = chips.find((c) => c.textContent.trim() === a.size);
+    const why = a.i > a.wi
+      ? `${k} кг-д ${S(a.wi)} хүрэлцэх ч ${cm} см өндөрт урт нь богино байж магадгүй тул <b>${a.size}</b>.`
+      : `${k} кг${okCm ? ` · ${cm} см` : ""} → <b>${a.size}</b>. Манай хантааз жижигдүү тул энэ нь таны ердийн размераас нэг том байж болно — хэвийн.`;
+    say(`<span class="szg__res">Танд <b>${a.size}</b> тохирно${chip ? ` <em>· сонгогдлоо ✓</em>` : ""}</span>
+         <span>${why}</span>
+         ${a.short ? `<span>Өндөр тул хантааз бага зэрэг богино санагдаж болно — өргөн нь тань дээр том болох тул үүнээс томыг санал болгохгүй.</span>` : ""}
+         ${a.edge ? `<span>Зузаан ноосон цамц дээгүүр өмсөх бол ${S(a.i + 1)}.</span>` : ""}
+         ${a.over ? `<span class="szg__warn">${R[R.length - 1][1]} кг-аас дээш бол ${a.size} ч арай бариу байж магадгүй.</span>` : ""}
+         ${okCm ? "" : `<span>Өндрөө бичвэл урт нь хүрэлцэх эсэхийг шалгана.</span>`}`);
+    const tr = root.querySelector(`.szg__t tr[data-s="${a.size}"]`);
+    if (tr) tr.classList.add("is-me");
+    if (chip && !chip.classList.contains("is-active")) chip.click();
+  };
+  [cmI, kgI].forEach((el) => el.addEventListener("input", () => { clearTimeout(t); t = setTimeout(run, 400); }));
+}
+
 const messengerLink = (productName, slug) => {
   const PAGE = pageFor(slug);
   const ref = creativeId();
@@ -1888,6 +1969,9 @@ function renderProduct(slug) {
 
   /* v4: нэр, амлалт, үнэ зургийн ДЭЭР (hero). tagline талбар байвал тэр нь том гарчиг, нэр нь жижиг дээр нь. */
   const F = splitFeatures(p.desc);
+  /* Хэмжээ сонгогчтой бараа: «Дэлгэрэнгүй»-ийн хэмжээ/цээж/урт/«жижигдүү» мөрүүдийг сонгогч өөрөө харуулна. */
+  const G = sizes.length && SIZE_GUIDE[p.slug] ? SIZE_GUIDE[p.slug] : null;
+  if (G && F) F.rest = F.rest.filter((x) => !/тойрог|жижигдүү|^урт$|^хэмжээ$/i.test(String(x.t).trim()));
   const tagline = String(p.tagline || p.headline || "").trim();
   left.classList.add("pdp4__hero");
   const over = document.createElement("div");
@@ -1914,10 +1998,10 @@ function renderProduct(slug) {
         ${colors.map((c, i) => { const sw = swatchOf(c); return `<button class="chip${sw ? " chip--sw" : ""}${i === 0 ? " is-active" : ""}" data-i="${i}" title="${esc(c)}"${sw ? ` style="--sw:${sw}"` : ""}>${esc(c)}</button>`; }).join("")}
       </div></div>` : ""}
 
-    ${sizes.length ? `<div class="opt"><span class="opt__label">Хэмжээ${F && F.rest.some((x) => /тойрог|урт|см/i.test(x.t + x.d)) ? ` <a class="opt__link" href="#pdpMore">Аль хэмжээ надад?</a>` : ""}</span>
+    ${sizes.length ? `<div class="opt"><span class="opt__label">Хэмжээ${!G && F && F.rest.some((x) => /тойрог|урт|см/i.test(x.t + x.d)) ? ` <a class="opt__link" href="#pdpMore">Аль хэмжээ надад?</a>` : ""}</span>
       <div class="opt__row opt__row--sz" data-opt="size">
         ${sizes.map((s, i) => `<button class="chip chip--sz${i === 0 ? " is-active" : ""}" data-i="${i}">${esc(s)}</button>`).join("")}
-      </div></div>` : ""}
+      </div>${G ? sizeGuideHtml(G) : ""}</div>` : ""}
     <p class="skuwait" id="skuWait" hidden></p>
 
     ${
@@ -2189,6 +2273,7 @@ function renderProduct(slug) {
       paintSkuWait();
     })
   );
+  if (G) bindSizeGuide(right, G);
 
   right.querySelectorAll(".qty__btn").forEach((b) =>
     b.addEventListener("click", () => {
