@@ -1,6 +1,6 @@
 /* Тест хуудас v2 (блок EB, 2026-11-02; өмнө нь AR). Ранк → нотолгоо → шийдвэр → тест бэлтгэл → үнэлгээ → үр дүн.
    Өгөгдөл: /webhook/board-data?view=tests → test_board() — нэг дуудлага; нэр дэвшигч бүрт rv = find_rv() (шат бүрийн нотолгоо, хугацаа, зөрчил, эзний шалгалт).
-   Товч бүр = SQL-ийн нэг шилжилт: POST action=select | step | launch | result | drop | mode | price | cost | mncommon | findact (verify / rerun / reject).
+   Товч бүр = SQL-ийн нэг шилжилт: POST action=select | step | launch | result | drop | mode | price | cost | mncommon | findact (verify / rerun / reject / unreject / broad).
    Зарчим: нэг харцаар «одоо юу хийх вэ», шат бүрийн нотолгоо хэр шинэ, ямар эх сурвалжаас; чимэглэл биш, төлөв. */
 function renderTests(DATA, QUERY) {
   const d = DATA || {};
@@ -632,6 +632,41 @@ function testsClient() {
       if (!confirm('«' + b.dataset.n + '»-ийг тестэд сонгох уу?')) return;
       post({ action: 'select', find_id: +b.dataset.f, by: 'owner' }, b, document.getElementById('out-sel' + b.dataset.f))
         .then(function () { b.textContent = '✓ сонгогдлоо'; reload(); });
+    });
+  });
+  // JS (2026-11-17) — v4 карт: шалтгаантай татгалзах · «өргөн хэрэглээ» ✓ · татгалзлыг буцаах (find_owner_action do=reject|broad|unreject)
+  q('.rj4-b').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = document.getElementById('rjp' + b.dataset.f); if (!p) return;
+      p.classList.toggle('open'); if (p.classList.contains('open')) p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
+  q('.rj4-x').forEach(function (b) {
+    b.addEventListener('click', function () { var p = document.getElementById('rjp' + b.dataset.f); if (p) p.classList.remove('open'); });
+  });
+  q('.rjp input[type=radio]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var p = r.closest('.rjp'), c = p.querySelector('input:checked');
+      p.querySelectorAll('label').forEach(function (l) { l.classList.toggle('on', !!c && l.contains(c)); });
+    });
+  });
+  q('.rj4-ok').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = b.closest('.rjp'), c = p.querySelector('input:checked'), out = document.getElementById('out-rj4' + b.dataset.f);
+      post({ action: 'findact', do: 'reject', find_id: +b.dataset.f, reason: c ? c.value : 'other', note: p.querySelector('.rn').value || '', by: 'эзэн' }, b, out)
+        .then(function () { show(out, '✓ Татгалзлаа — картаас хасагдана.'); b.textContent = '✓'; reload(1200); });
+    });
+  });
+  q('.bk-b').forEach(function (b) {
+    b.addEventListener('click', function () {
+      post({ action: 'findact', do: 'broad', find_id: +b.dataset.f, ok: b.dataset.ok === '1', by: 'эзэн' }, b, document.getElementById('out-bk' + b.dataset.f))
+        .then(function () { b.textContent = '✓'; reload(); });
+    });
+  });
+  q('.ur-b').forEach(function (b) {
+    b.addEventListener('click', function () {
+      post({ action: 'findact', do: 'unreject', find_id: +b.dataset.f, by: 'эзэн' }, b, document.getElementById('out-ur'))
+        .then(function () { b.textContent = '✓ буцаалаа'; reload(1200); });
     });
   });
   // Үнэ тогтоох
