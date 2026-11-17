@@ -254,7 +254,10 @@ function renderTests(DATA, QUERY) {
   // ── v4 (блок JL, 11-16): 4 хаалга + нотолгооны карт дээр нь (tests_v4.js); хуучин эрэмбэ (0–2 хэсэг) лавлах болж хаагдана.
   //    d.v4 ирээгүй бол (view унасан) хуудас хуучнаараа зурагдана.
   const V4 = typeof testsV4Block === 'function' && d.v4 && d.v4.ok ? d.v4 : null;
-  if (V4) { o(testsV4Block(V4)); o('<details class="v4old"><summary>Хуучин эрэмбэ (v3 оноо) — лавлах</summary>'); }
+  // ── v5 (блок JX, 11-17): 8 шүүлтүүр давсан нэр дэвшигч дээр нь (tests_v5.js); v4 карт ба v3 эрэмбэ лавлах болж хаагдана.
+  const V5 = typeof testsV5Block === 'function' && V4 && V4.v5 && V4.v5.ok ? V4.v5 : null;
+  if (V5) { o(testsV5Block(V5, V4)); o('<details class="v4old"><summary>Хуучин v4 карт ба v3 эрэмбэ — лавлах</summary>'); o(testsV4Block(V4)); }
+  else if (V4) { o(testsV4Block(V4)); o('<details class="v4old"><summary>Хуучин эрэмбэ (v3 оноо) — лавлах</summary>'); }
 
   // ── 0 · ДҮГНЭЛТ — одоо юу хийх вэ + анхаарах зүйлс
   let head;
@@ -582,6 +585,7 @@ function testsClient() {
   function reload(ms) { setTimeout(function () { if (window.ssRefresh) window.ssRefresh(); else location.reload(); }, ms || 400); }
   function cand(id) { var L = (D.c || []).concat(D.g || []); for (var i = 0; i < L.length; i++) if (+L[i].find_id === +id) return L[i]; return {}; }
   function q(s) { return root.querySelectorAll(s); }
+  if (typeof testsV5Client === 'function') testsV5Client(root, post, show, reload); // блок JX: v5 хуудасны товчнууд
 
   // ранкийн мөр → нотолгооны самбар
   var rows = q('tr.t2-r');
