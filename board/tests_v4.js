@@ -1,4 +1,5 @@
-/* Тест хуудас v4 хэсэг (блок JJ/JL, 2026-11-16) — «тестийн үйлдвэр»: 4 хаалга + нотолгооны карт + микро-тест.
+/* Тест хуудас v4 хэсэг (блок JJ/JL 11/16; JS 11/17: 5 дахь хаалга «Өргөн хэрэглээ», карт дээрх «Татгалзах», «Татгалзсан» жагсаалт)
+   — «тестийн үйлдвэр»: хаалга + нотолгооны карт + микро-тест.
    tests.js-ээс дуудагдана: testsV4Block(d.v4). Өгөгдөл: board_read view 'v4cards' → v4_cards(). Нийлмэл оноо БАЙХГҮЙ.
    Бүтэц (starshopping-board-page-design): дүгнэлт → KPI → карт (≤6) → идэвхтэй тест → бусад нь <details>.
    «Тестэд сонгох» = хуучин урсгал (.sel-b → action=select). Загвар: main/board-push/2026-11-16-JJ-tests-v4-mockup/. */
@@ -8,13 +9,17 @@ function testsV4Block(D) {
   var n = function (x) { return x == null ? '—' : Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
   var mnt = function (x) { return x == null ? '—' : n(x) + '₮'; };
   var R = D.rule || {}, W = D.week || {}, C = (D.cards || []).slice(), T = D.tests || [];
-  var failN = function (c) { var g = c.gates || {}; return ['price', 'cost', 'demo', 'temu'].filter(function (k) { return g[k] === 'fail'; }).length; };
+  var KS = D.gates_n === 5 ? ['price', 'cost', 'demo', 'temu', 'broad'] : ['price', 'cost', 'demo', 'temu'], GN = KS.length;
+  var failN = function (c) { var g = c.gates || {}; return KS.filter(function (k) { return g[k] === 'fail'; }).length; };
   C.sort(function (a, b) { return (b.ready ? 1 : 0) - (a.ready ? 1 : 0) || b.pass_n - a.pass_n || failN(a) - failN(b) || b.profit - a.profit; });
   var shown = C.filter(function (c) { return failN(c) <= 1; }).slice(0, 6);
   var out = C.filter(function (c) { return shown.indexOf(c) < 0; });
   var ready = C.filter(function (c) { return c.ready; }).length;
   var needs = shown.length - ready;
-  var GL = { price: 'Үнэ · ашиг', cost: 'Өртөг · жин', demo: 'Бичлэг', temu: 'Temu' };
+  var GL = { price: 'Үнэ · ашиг', cost: 'Өртөг · жин', demo: 'Бичлэг', temu: 'Temu', broad: 'Өргөн хэрэглээ' };
+  var RJ = [['narrow', 'Зорилтот хүрээ нарийн'], ['mn_common', 'МН-д түгээмэл'], ['mn_fit', 'Монголд тохирохгүй'], ['demo', 'Бичлэгээр харуулахад хэцүү'], ['quality', 'Чанар · эрсдэл'], ['other', 'Бусад']];
+  var RJL = { econ: 'Ашиг бага', wrong: 'Буруу бараа', season: 'Улирал өнгөрсөн' }; RJ.forEach(function (r) { RJL[r[0]] = r[1]; });
+  var dm = function (d) { return String(d || '').slice(5).replace('-', '/'); };
   var GI = { pass: '✓', fail: '✕', check: '?' };
   var MN = { absent: ['МН-д алга', 'good'], emerging: ['МН-д 1–5 зарагч', 'good'], saturated: ['МН-д түгээмэл', 'warn'] };
   var CSS = ''
@@ -31,7 +36,18 @@ function testsV4Block(D) {
     + '.v4 .cd.rdy{border-color:var(--good)}'
     + '.v4 .ct{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}.v4 .ct .nm4{font-size:15px;font-weight:700;line-height:1.3;min-width:0}.v4 .ct .cat{font-size:11px;color:var(--mut);margin-top:2px}'
     + '.v4 .bdg{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:4px 10px;border-radius:999px;white-space:nowrap;background:var(--s2);color:var(--ink2)}.v4 .bdg.rdy{background:var(--good-a);color:var(--good)}'
-    + '.v4 .gt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}'
+    + '.v4 .gt{display:grid;grid-template-columns:repeat(' + GN + ',minmax(0,1fr));gap:6px}' + (GN === 5 ? '@media(max-width:560px){.v4 .gt{grid-template-columns:repeat(3,minmax(0,1fr))}}' : '')
+    + '.v4 .who{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink2);line-height:1.5;background:var(--s2);border-radius:10px;padding:8px 10px}.v4 .who .wt{flex:1 1 220px;min-width:0}.v4 .who .wt b{font-weight:700;color:var(--ink)}.v4 .who .ok{color:var(--good);font-weight:700;white-space:nowrap}.v4 .who .out{flex:1 1 100%}'
+    + '.v4 .bk-b{font:inherit;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:8px;border:1px solid var(--good);background:transparent;color:var(--good);cursor:pointer;white-space:nowrap}'
+    + '.v4 .lk4{font:inherit;font-size:11px;color:var(--mut);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}'
+    + '.v4 .ft .rj4-b{font:inherit;font-size:11.5px;font-weight:650;padding:5px 10px;border-radius:7px;border:1px solid var(--ln2);background:transparent;color:var(--crit);cursor:pointer;white-space:nowrap}'
+    + '.v4 .rjp{display:none;flex-direction:column;gap:9px;border:1px solid var(--crit);border-radius:11px;padding:11px 12px;background:var(--crit-a)}.v4 .rjp.open{display:flex}'
+    + '.v4 .rjp .rq{font-size:12px;font-weight:700;color:var(--ink)}.v4 .rjp .rs{display:flex;flex-wrap:wrap;gap:6px}'
+    + '.v4 .rjp label{position:relative;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:999px;border:1px solid var(--ln2);background:var(--s1);color:var(--ink2);cursor:pointer;white-space:nowrap}.v4 .rjp label input{position:absolute;opacity:0;pointer-events:none}.v4 .rjp label.on{border-color:var(--crit);color:var(--crit);background:var(--s1);box-shadow:inset 0 0 0 1px var(--crit)}'
+    + '.v4 .rjp .rn{font:inherit;font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid var(--ln2);background:var(--s1);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}'
+    + '.v4 .rjp .ra{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.v4 .rjp .rj4-ok{font:inherit;font-size:12px;font-weight:700;padding:6px 14px;border-radius:8px;border:1px solid var(--crit);background:var(--crit);color:#fff;cursor:pointer}.v4 .rjp .rh{font-size:11px;color:var(--mut)}'
+    + '.v4 .rr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.4fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--ln3);font-size:12.5px}.v4 .rr span{color:var(--mut)}.v4 .rr em{font-style:normal;font-weight:700;font-size:10.5px;padding:2px 8px;border-radius:999px;background:var(--s2);color:var(--ink2);margin-right:6px;white-space:nowrap}@media(max-width:700px){.v4 .rr{grid-template-columns:minmax(0,1fr) auto}.v4 .rr .rw{grid-column:1 / -1;grid-row:2}}'
+    + '.v4 .ur-b{font:inherit;font-size:11.5px;font-weight:650;padding:4px 10px;border-radius:7px;border:1px solid var(--ln2);background:transparent;color:var(--ink2);cursor:pointer;white-space:nowrap}'
     + '.v4 .g{border-radius:9px;padding:7px 8px;font-size:11px;line-height:1.25;background:var(--s2);color:var(--ink2);min-width:0}.v4 .g i{font-style:normal;font-weight:800;display:block;font-size:13px;margin-bottom:1px}'
     + '.v4 .g.pass{background:var(--good-a);color:var(--good)}.v4 .g.fail{background:var(--crit-a);color:var(--crit)}.v4 .g.check{background:var(--warn-a);color:var(--warn)}'
     + '.v4 .nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.v4 .nums div{font-size:10.5px;color:var(--mut);min-width:0}.v4 .nums b{display:block;font-size:15px;color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}.v4 .nums b.pos{color:var(--good)}.v4 .nums b.neg{color:var(--crit)}'
@@ -57,7 +73,7 @@ function testsV4Block(D) {
     + '<div class="rl">Тест бүрийн дүрэм: ' + mnt(R.kill_mnt) + ' зарцуулаад хаягтай захиалга 0 бол зогс · таг ' + mnt(R.cap_mnt) + ' · ≥' + R.win_orders + ' захиалга ба CPA ≤' + mnt(R.win_cpa_mnt) + ' бол ялагч нэр дэвшигч</div></div>');
   // 2 · KPI
   o('<div class="krow krow4">'
-    + '<div class="k ' + lvl + '"><div class="kl">Бэлэн карт</div><div class="kv">' + ready + ' / ' + shown.length + '</div><div class="ks">4 хаалга бүгд давсан</div></div>'
+    + '<div class="k ' + lvl + '"><div class="kl">Бэлэн карт</div><div class="kv">' + ready + ' / ' + shown.length + '</div><div class="ks">' + GN + ' хаалга бүгд давсан</div></div>'
     + '<div class="k"><div class="kl">7 хоногийн дугтуй</div><div class="kv">' + mnt(W.left_mnt) + '</div><div class="ks">зарцуулсан ' + mnt(W.spend_mnt) + ' · таг ' + mnt(W.cap_mnt) + '</div></div>'
     + '<div class="k"><div class="kl">Идэвхтэй тест</div><div class="kv">' + T.length + ' / 3</div><div class="ks">долоо хоногт 3 хүртэл</div></div>'
     + '<div class="k ' + (lt.days > 14 ? 'crit' : '') + '"><div class="kl">Сүүлийн тест</div><div class="kv">' + (lt.days != null ? esc(lt.days) + ' хоног' : '—') + '</div><div class="ks">зорилт: 7 хоног бүр 3 тест</div></div>'
@@ -72,19 +88,34 @@ function testsV4Block(D) {
     if (g.price === 'fail') why.push(c.bundle2 ? 'нэг ширхэг ' + mnt(c.sell) + ' — 2ш багцаар ' + mnt(R.price_min) + '+ болгоно' : 'үнэ ' + mnt(c.sell) + ' < ' + mnt(R.price_min));
     if (g.cost === 'fail') why.push(c.flags && c.flags.liquid ? 'шингэнтэй хувилбар — усгүй USB хувилбар олох' : 'буух өртөг ' + mnt(c.landed) + ' > ' + mnt(R.landed_max));
     if (g.temu === 'fail') why.push('Temu хямд зардаг');
+    var b = c.broad || {}, bo = b.owner || null, who = '';
+    if (GN === 5) {
+      if (g.broad === 'fail' && !(bo && bo.ok === false)) why.push('судалгаагаар зорилтот хүрээ нарийн');
+      who = '<div class="who"><div class="wt"><b>Хэн авах вэ:</b> ' + (b.who ? esc(b.who) : 'судалгаа хараахан бөглөөгүй') + '</div>'
+        + (bo && bo.ok ? '<span class="ok">✓ Та баталсан' + (bo.at ? ' · ' + esc(dm(bo.at)) : '') + '</span><button class="lk4 bk-b" data-f="' + c.find_id + '" data-ok="0">болих</button>'
+          : '<button class="bk-b" data-f="' + c.find_id + '" data-ok="1">✓ Өргөн хэрэглээ мөн</button>') + '<div class="out" id="out-bk' + c.find_id + '"></div></div>';
+    }
+    var rjp = '<div class="rjp' + (c._open ? ' open' : '') + '" id="rjp' + c.find_id + '"><div class="rq">Яагаад татгалзаж байна вэ?</div><div class="rs">'
+      + RJ.map(function (r, i) { return '<label' + (i === 0 ? ' class="on"' : '') + '><input type="radio" name="rj' + c.find_id + '" value="' + r[0] + '"' + (i === 0 ? ' checked' : '') + '>' + r[1] + '</label>'; }).join('')
+      + '</div><input type="text" class="rn" placeholder="Тэмдэглэл (заавал биш) — жишээ: зөвхөн оффисын хүнд хэрэгтэй">'
+      + '<div class="ra"><button class="rj4-ok" data-f="' + c.find_id + '" data-n="' + esc(c.name) + '">Татгалзах</button><button class="lk4 rj4-x" data-f="' + c.find_id + '">болих</button><span class="rh">Карт алга болно · шалтгааныг судалгаа уншиж суралцана · буцааж болно</span></div>'
+      + '<div class="out" id="out-rj4' + c.find_id + '"></div></div>';
     return '<div class="cd' + (c.ready ? ' rdy' : '') + '">'
-      + '<div class="ct"><div><div class="nm4">' + esc(c.name) + '</div><div class="cat">' + esc(c.category) + ' · №' + c.find_id + '</div></div><span class="bdg' + (c.ready ? ' rdy' : '') + '">' + (c.ready ? 'ТЕСТЭД БЭЛЭН' : c.pass_n + ' / 4 хаалга') + '</span></div>'
-      + '<div class="gt">' + ['price', 'cost', 'demo', 'temu'].map(function (k) { return '<div class="g ' + (g[k] || 'check') + '"><i>' + GI[g[k] || 'check'] + '</i>' + GL[k] + '</div>'; }).join('') + '</div>'
+      + '<div class="ct"><div><div class="nm4">' + esc(c.name) + '</div><div class="cat">' + esc(c.category) + ' · №' + c.find_id + '</div></div><span class="bdg' + (c.ready ? ' rdy' : '') + '">' + (c.ready ? 'ТЕСТЭД БЭЛЭН' : c.pass_n + ' / ' + GN + ' хаалга') + '</span></div>'
+      + '<div class="gt">' + KS.map(function (k) { return '<div class="g ' + (g[k] || 'check') + '"><i>' + GI[g[k] || 'check'] + '</i>' + GL[k] + '</div>'; }).join('') + '</div>'
       + '<div class="nums"><div><b>' + mnt(c.sell) + '</b>зарах үнэ</div><div><b>' + mnt(c.landed) + '</b>буух өртөг</div><div><b class="' + (c.profit >= R.profit_min ? 'pos' : 'neg') + '">' + mnt(c.profit) + '</b>ашиг / ш</div><div><b>' + (c.weight_g ? n(c.weight_g) + ' г' : '—') + '</b>жин</div></div>'
       + '<div class="ln4"><em class="' + ml[1] + '">' + ml[0] + '</em>' + esc(st) + '</div>'
       + (c.temu_note ? '<div class="ln4">' + esc(c.temu_note) + '</div>' : '')
+      + who
       + (why.length || miss.length ? '<div class="ms">' + (why.length ? '<b>Унасан:</b> ' + esc(why.join(' · ')) + (miss.length ? '<br>' : '') : '') + (miss.length ? '<b>Дутуу:</b> ' + esc(miss.join(' · ')) : '') + '</div>' : '')
       + '<div class="ft">' + (c.cn ? '<a href="' + esc(c.cn) + '" target="_blank" rel="noopener">1688</a>' : '') + (c.tt ? '<a href="' + esc(c.tt) + '" target="_blank" rel="noopener">▶ Бичлэг</a>' : '<span class="no">бичлэг алга</span>')
+      + (GN === 5 ? '<button class="rj4-b" data-f="' + c.find_id + '">Татгалзах</button>' : '')
       + (c.ready ? '<button class="pk sel-b" data-f="' + c.find_id + '" data-n="' + esc(c.name) + '">Тестэд сонгох</button>' : '<button class="pk off" disabled>Нотолгоо хүлээж байна</button>') + '</div>'
       + (c.ready ? '<div class="out" id="out-sel' + c.find_id + '"></div>' : '')
+      + (GN === 5 ? rjp : '')
       + '</div>';
   };
-  o('<div class="sh2"><b>Нэр дэвшигч</b><span>долоо хоногт ≤6 карт · эзэн 3-ыг сонгоно · оноо байхгүй, хаалга бүр тусдаа</span></div>');
+  o('<div class="sh2"><b>Нэр дэвшигч</b><span>долоо хоногт ≤6 карт · эзэн 3-ыг сонгоно эсвэл шалтгаантай татгалзана · оноо байхгүй</span></div>');
   o('<div class="cg">' + shown.map(card).join('') + '</div>');
   // 4 · идэвхтэй микро-тест
   o('<div class="sh2"><b>Идэвхтэй тест</b><span>зарцуулалт ба хаягтай захиалга — дүрэм өөрөө дохио өгнө (Telegram)</span></div>');
@@ -103,12 +134,21 @@ function testsV4Block(D) {
   // 5 · бусад нь хаалттай
   if (out.length) {
     o('<details class="dd"><summary>Хаалга давахгүй ' + out.length + ' бараа</summary><div class="in">' + out.map(function (c) {
-      var g = c.gates || {}; var f = ['price', 'cost', 'demo', 'temu'].filter(function (k) { return g[k] === 'fail'; }).map(function (k) { return GL[k]; });
+      var g = c.gates || {}; var f = KS.filter(function (k) { return g[k] === 'fail'; }).map(function (k) { return GL[k]; });
       return '<div class="or"><div><b>' + esc(c.name) + '</b> · №' + c.find_id + '</div><span>' + esc(f.join(', ')) + ' · ашиг ' + mnt(c.profit) + '</span></div>';
     }).join('') + '</div></details>');
   }
+  var RJD = D.rejected || [];
+  if (GN === 5 && RJD.length) {
+    o('<details class="dd"' + (D._rjopen ? ' open' : '') + '><summary>Татгалзсан ' + RJD.length + ' бараа — шалтгаантай</summary><div class="in">' + RJD.map(function (r) {
+      return '<div class="rr"><div><b>' + esc(r.name) + '</b> · №' + r.find_id + '</div><div class="rw"><em>' + esc(RJL[r.reason] || r.reason || 'Бусад') + '</em><span>' + esc(dm(r.at)) + (r.note ? ' · ' + esc(r.note) : '') + '</span></div>'
+        + '<button class="ur-b" data-f="' + r.find_id + '" data-n="' + esc(r.name) + '">Буцаах</button></div>';
+    }).join('') + '<div class="out" id="out-ur"></div></div></details>');
+  }
   o('<details class="dd"><summary>Дүрэм ба арга</summary><div class="in">'
-    + '<b>4 хаалга.</b> Үнэ ≥' + mnt(R.price_min) + ' ба хүргэлтийн дараах ашиг ≥' + mnt(R.profit_min) + ' · буух өртөг ≤' + mnt(R.landed_max) + ', ≤' + (R.weight_max_g / 1000) + ' кг, шингэнгүй, 1688 зургаар баталсан · 3 секундэд ойлгогдох бичлэгтэй · Temu манай үнийн ' + R.temu_floor_pct + '%-иас доош зардаггүй.<br>'
+    + '<b>' + GN + ' хаалга.</b> Үнэ ≥' + mnt(R.price_min) + ' ба хүргэлтийн дараах ашиг ≥' + mnt(R.profit_min) + ' · буух өртөг ≤' + mnt(R.landed_max) + ', ≤' + (R.weight_max_g / 1000) + ' кг, шингэнгүй, 1688 зургаар баталсан · 3 секундэд ойлгогдох бичлэгтэй · Temu манай үнийн ' + R.temu_floor_pct + '%-иас доош зардаггүй'
+    + (GN === 5 ? ' · <b>өргөн хэрэглээ</b>: судалгаа «хэн авах вэ»-г бичнэ, эцсийн ✓-ийг эзэн тавина' : '') + '.<br>'
+    + (GN === 5 ? '<b>Татгалзал.</b> Картыг шалтгаантай хаахад жагсаалтаас гарна; өдөр бүрийн судалгаа шалтгааныг уншиж ижил төрлийн барааг дахин санал болгохгүй.<br>' : '')
     + '<b>Микро-тест.</b> Тусдаа кампанит ажил, урьдчилсан захиалга, нийлүүлэгчийн бичлэг. ' + mnt(R.kill_mnt) + '-д хаягтай захиалга 0 бол зогс; таг ' + mnt(R.cap_mnt) + '; 1–4 захиалгатай бол хоёр дахь бичлэг +30,000₮; ≥' + R.win_orders + ' захиалга ба CPA ≤' + mnt(R.win_cpa_mnt) + ' бол ялагч нэр дэвшигч.<br>'
     + '<b>Яагаад оноо байхгүй вэ.</b> Хуучин эрэмбийн 7 хүчин зүйлийн аль нь ч монгол хүн худалдаж авахыг хэмждэггүй байсан; 4 тестийн үр дүнд тааруулсан оноо 7 хоногт 3 удаа №1-ээ сольсон.</div></details>');
   o('</div>');
