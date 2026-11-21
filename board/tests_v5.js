@@ -81,6 +81,7 @@ function testsV5Block(D, V4) {
     o('</div><div class="v5-ft"><button class="v5-take">Тестэд авъя</button><button class="v5-no">Татгалзах</button><div class="h">«Тестэд авъя» дармагц бараа тестийн жагсаалтад орж, шүүлтүүрийн дүн ба хүслийн оноо түгжигдэнэ. Дараа нь чатад «№' + f + ' тестэд авлаа» гэж хэлээрэй.</div></div>');
     o('<div class="v5-rj"><div class="rs">' + Object.keys(V5R).map(function (k, i) { return '<label><input type="radio" name="v5r' + f + '" value="' + k + '"' + (i ? '' : ' checked') + '> ' + V5R[k] + '</label>'; }).join('') + '</div><input type="text" class="v5-rn" placeholder="тайлбар (заавал биш)"><button class="v5-sv" data-act="reject">Татгалзаж хадгалах</button></div></div>');
   });
+  if (D.review || D.closed3 || D.mine) o(knBlocks(D)); /* KN: эзэн шалгах · уурхай · хаагдсан */
   o('<details class="v5-dd"' + (C.length ? '' : ' open') + '><summary>Досье бүрдүүлж буй ' + n(B.length) + ' бараа — аль шүүлтүүр дутуу</summary><div class="in">' + (B.length ? B.map(function (b) {
     var G = b.gates || {};
     return '<div class="v5-br"><div class="bn">' + esc(b.name) + '<small>№' + b.find_id + ' · ' + n(b.pass_n) + ' / 8 давсан' + (+b.fail_n ? ' · ' + n(b.fail_n) + ' унасан' : '') + '</small></div><div class="v5-gs">' + Object.keys(V5G).map(function (k) { var s = (G[k] || {}).st; return '<span class="v5-g ' + (s === 'pass' ? 'p' : s === 'fail' ? 'f' : '') + '" title="' + esc((G[k] || {}).why || '') + '">' + (s === 'pass' ? '✓ ' : s === 'fail' ? '✕ ' : '… ') + V5G[k] + '</span>'; }).join('') + '</div></div>';
@@ -101,6 +102,7 @@ function testsV5Block(D, V4) {
   return h.join('');
 }
 function testsV5Client(root, post, show, reload) {
+  if (typeof knWhatIf === 'function') knWhatIf(root); /* KN: үнийн тооцоолуур */
   var qa = function (s, el) { return Array.prototype.slice.call((el || root).querySelectorAll(s)); };
   qa('.v5-cand').forEach(function (card) {
     var f = +card.dataset.f, out = card.querySelector('#v5o' + f), fm = function (k) { return card.querySelector('.v5-fm[data-k="' + k + '"]'); };
@@ -190,4 +192,88 @@ function mnmapBlock(M) {
     + '<div class="mm-m">Эх: Meta Ad Library (Монгол, идэвхтэй зар) → <code>ad_signals</code>; хуудас, зар бүрийг гараар ангилсан (<code>page_verdicts</code>, <code>ad_verdicts</code>). Удаан явж буй зар = худалдагч мөнгө зарцуулсаар байгаагийн нотолгоо, борлуулалтын тоо биш. Тулгуур = онлайн худалдагчийн 50,000₮-өөс дээш үнэтэй, 180+ хоног явсан зартай бараа (уудаг, эмчилгээний бараа орохгүй) — анч «Монголоос» эгнээндээ эндээс эхэлнэ. Сүүлийн ' + n(M.fresh_days) + ' хоногт харагдсан зарыг тоолно; хайлтын бүх үг уншигдаагүй бол тоо бодитоос бага.</div></details>');
   h.push('</div></details>');
   return h.join('');
+}
+
+/* KN (2026-11-21): «Эзэн шалгах» (1–2 шүүлтүүрт унасан) + үнийн тооцоолуур · «Хаагдсан» (3+ унасан) · «Уурхай» (7 хоногийн юүлүүр).
+   Өгөгдөл: v5_board() → review[], closed3[], mine{}. Хуудасны дотоод класс: .kn-* (board.css-тэй мөргөлдөхгүй). */
+function knBlocks(D) {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var n = function (x) { return x == null || x === '' ? '—' : Math.round(Number(x)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var GN = { F0: 'Хийж болох', F1: 'Бичлэг, сонирхол', F2: 'Борлуулалт', F3: 'Авах хүсэл', F4: 'Зах зээл', F5: 'Үнэ цэн', F6: 'МН өрсөлдөөн', F7: '1688' };
+  var R = D.review || [], C = D.closed3 || [], M = D.mine || {}, h = [];
+  var o = function (s) { h.push(s); };
+  o('<style>'
+    + '.kn-h{display:flex;align-items:baseline;gap:10px;margin:22px 0 10px}.kn-h b{font-size:15px}.kn-h span{font-size:12px;color:var(--ink2)}'
+    + '.kn-c{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:14px 16px;margin:0 0 12px}'
+    + '.kn-t{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px}.kn-t b{font-size:14.5px}.kn-t small{font-size:11.5px;color:var(--ink2)}'
+    + '.kn-p{font-size:11px;font-weight:650;border-radius:99px;padding:2px 9px;border:1px solid var(--ln)}.kn-p.f{color:var(--crit);border-color:var(--crit)}.kn-p.g{color:var(--good);border-color:var(--good)}.kn-p.m{color:var(--ink2)}'
+    + '.kn-f{font-size:12.5px;line-height:1.5;margin:2px 0;padding-left:10px;border-left:3px solid var(--crit)}.kn-f i{font-style:normal;font-weight:650}'
+    + '.kn-m{font-size:12px;color:var(--ink2);margin:6px 0 0}'
+    + '.kn-ft{margin:12px 0 4px;display:grid;gap:8px;font-size:13px}.kn-fi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--ln);border-radius:10px;padding:8px 11px;background:var(--s2)}.kn-fi .kn-nm{font-weight:650}.kn-fi .kn-pc{font-size:12px;color:var(--good);font-variant-numeric:tabular-nums}.kn-fi small{display:block;font-size:12px;color:var(--ink2);margin-top:2px}.kn-fi a{font-size:12.5px;font-weight:650;text-decoration:none;color:inherit;border:1px solid var(--ln);border-radius:9px;padding:6px 11px;background:var(--s1);white-space:nowrap}.kn-fi .kn-nv{font-size:12px;color:var(--ink2)}'
+    + '.kn-l{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}.kn-l a,.kn-l span{font-size:12.5px;border-radius:9px;padding:6px 11px;border:1px solid var(--ln);text-decoration:none;color:inherit;background:var(--s2)}.kn-l a{font-weight:650}.kn-l .no{color:var(--warn);border-style:dashed;background:none}'
+    + '.kn-w{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:14px;margin:12px 0 0;padding:12px 0 0;border-top:1px dashed var(--ln)}'
+    + '.kn-w label{font-size:11.5px;color:var(--ink2);display:block;margin:0 0 4px}.kn-w input[type=number]{width:100%;box-sizing:border-box;font:inherit;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;padding:7px 9px;border-radius:9px;border:1px solid var(--ln);background:var(--s2);color:inherit}'
+    + '.kn-w input[type=range]{width:100%;margin:8px 0 0}.kn-r{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}'
+    + '.kn-k{border:1px solid var(--ln);border-radius:10px;padding:8px 10px;min-width:0}.kn-k .l{font-size:11px;color:var(--ink2)}.kn-k .v{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums;margin:2px 0}.kn-k .s{font-size:11px;line-height:1.35;color:var(--ink2)}'
+    + '.kn-k.ok .v{color:var(--good)}.kn-k.no .v{color:var(--crit)}'
+    + '.kn-fn{display:grid;gap:6px;margin:10px 0 0}.kn-fr{display:grid;grid-template-columns:150px minmax(0,1fr) 54px;gap:10px;align-items:center;font-size:12.5px}.kn-fr .b{display:block;height:10px;border-radius:99px;background:var(--s2);overflow:hidden}.kn-fr .b i{display:block;height:100%;border-radius:99px;background:var(--f3,var(--good))}.kn-fr .x{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}'
+    + '.kn-ch{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}.kn-ch span{font-size:11.5px;border:1px solid var(--ln);border-radius:99px;padding:2px 9px;color:var(--ink2)}'
+    + '@media(max-width:640px){.kn-w{grid-template-columns:minmax(0,1fr)}.kn-r{grid-template-columns:minmax(0,1fr)}.kn-fr{grid-template-columns:110px minmax(0,1fr) 40px}}'
+    + '</style>');
+
+  /* 1 — Эзэн шалгах */
+  o('<div class="kn-h"><b>Эзэн шалгах — 1–2 шүүлтүүрт унасан ' + n(R.length) + ' бараа</b><span>3 унавал автоматаар хаагдана · үнээ өөрчилж үзэж болно</span></div>');
+  if (!R.length) o('<div class="kn-c"><div class="kn-m">Одоогоор алга.</div></div>');
+  R.forEach(function (r) {
+    var G = r.gates || {}, W = r.wi || {}, fails = [], miss = [];
+    Object.keys(GN).forEach(function (k) { var g = G[k] || {}; if (g.st === 'fail') fails.push('<div class="kn-f"><i>' + GN[k] + ':</i> ' + esc(g.why) + '</div>'); else if (g.st !== 'pass') miss.push(GN[k]); });
+    o('<div class="kn-c" data-kn=\'' + esc(JSON.stringify({ landed: r.landed, sell: r.sell, wi: W })) + '\'>');
+    o('<div class="kn-t"><b>' + esc(r.name) + '</b><small>№' + r.find_id + ' · ' + esc(r.category || '') + '</small><span class="kn-p f">' + n(r.fail_n) + ' унасан</span><span class="kn-p g">' + n(r.pass_n) + ' давсан</span>' + (+r.missing_n ? '<span class="kn-p m">' + n(r.missing_n) + ' бөглөөгүй</span>' : '') + '</div>');
+    o(fails.join(''));
+    if (miss.length) o('<div class="kn-m">Бөглөөгүй: ' + miss.join(' · ') + '</div>');
+    o('<div class="kn-l">' + (r.src ? '<a href="' + esc(r.src) + '" target="_blank" rel="noopener">▶ Олсон эх сурвалж</a>' : '<span class="no">Эх сурвалжийн линк алга</span>')
+      + (r.cn_url ? '<a href="' + esc(r.cn_url) + '" target="_blank" rel="noopener">1688 дэлгүүр · ¥' + esc(r.cn_total) + (r.weight_g ? ' · ' + n(r.weight_g) + ' г' : '') + '</a>' : '<span class="no">1688 линк алга — өөрөө хайж үзнэ</span>')
+      + (r.mn ? '<span>Facebook: ' + n(r.mn.sellers) + ' зарагч' + (r.mn.pmin ? ' · ' + n(r.mn.pmin) + (r.mn.pmax && r.mn.pmax !== r.mn.pmin ? '–' + n(r.mn.pmax) : '') + '₮' : '') + ' · ' + esc(r.mn.at) + '</span>' : '<span class="no">Монголд Facebook-ээр шалгаагүй</span>') + '</div>');
+    o('<div class="kn-w"><div><label>Зарах үнэ, ₮ (системийн үнэ ' + n(r.sell) + ')</label><input type="number" class="kn-sell" step="1000" min="0" value="' + (r.sell || 0) + '"><input type="range" class="kn-rng" min="' + Math.max(0, Math.round((r.landed || 0) / 1000) * 1000) + '" max="' + Math.round(((r.sell || 100000) * 2) / 1000) * 1000 + '" step="1000" value="' + (r.sell || 0) + '"></div><div class="kn-r"></div></div></div>');
+  });
+
+  /* 2 — Уурхай */
+  var st = M.by_status || {}, tot = +M.intake || 0, mx = Math.max(tot, 1);
+  var rows = [['Үзсэн бараа', tot], ['Шүүлтээр хассан', +st.screened_out || 0], ['Хүсэл / үнээр хаасан', +st.closed || 0], ['Монголд ханасан', +st.mn_saturated || 0], ['Онцолсон', +st.featured || 0], ['Досьед орсон', +st.dossier || 0]];
+  var EY = M.eye || {}, FT = M.featured || [];
+  o('<details class="v5-dd"><summary>⛏ Уурхай — сүүлийн ' + n(M.days || 7) + ' хоногт ' + n(tot) + ' бараа үзсэн · ' + n(M.mn_checks) + ' шалгалт · ' + n(M.mn_names) + ' монгол нэршил</summary><div class="in"><div class="kn-fn">'
+    + rows.map(function (x) { return '<div class="kn-fr"><span>' + x[0] + '</span><span class="b"><i style="width:' + Math.max(2, Math.round(100 * x[1] / mx)) + '%"></i></span><span class="x">' + n(x[1]) + '</span></div>'; }).join('')
+    + '</div><div class="kn-ch">' + Object.keys(M.by_cat || {}).map(function (k) { return '<span>' + esc(k) + ' ' + n(M.by_cat[k]) + '</span>'; }).join('') + '</div>'
+    + (FT.length ? '<div class="kn-ft"><b>Онцолсон ' + n(FT.length) + ' бараа</b>' + FT.map(function (f) { var pc = f.owner_pct != null ? 'эзэн ' + n(f.owner_pct) + '%' : (f.model_pct != null ? 'загвар ' + n(f.model_pct) + '%' : ''); return '<div class="kn-fi"><div><span class="kn-nm">' + esc(f.name) + '</span>' + (pc ? ' <span class="kn-pc">' + pc + '</span>' : '') + '<small>' + esc(f.why || '') + '</small></div>' + (f.video ? '<a href="' + esc(f.video) + '" target="_blank" rel="noopener">▶ Бичлэг</a>' : '<span class="kn-nv">бичлэг алга</span>') + '</div>'; }).join('') + '</div>' : '')
+    + (EY.n ? '<div class="kn-m">Эзний нүдний загвар ' + esc(EY.ver || '') + ': таны ' + n(EY.n) + ' үнэлгээнээс бодсон · дундаж зөрүү ' + esc(EY.mae) + ' оноо · таны өндөр үнэлсэн ' + n(EY.owner_top) + ' барааны ' + n(EY.both_top) + '-г зөв таньсан · загвараар үнэлсэн ' + n(EY.auto_n) + ' бараа</div>' : '')
+    + '<div class="kn-m">Эх үүсвэр: TikTok Shop-ын өдрийн шилдэг ба сүүлийн 30 хоногийн шинэ бараа (ангиллаар) + TikTok бичлэг. Монголд байгаа эсэхийг Facebook-ийн хайлтаар, жинхэнэ монгол нэршлээр нь шалгана. Эзний үнэлгээ: ' + n(M.owner_rated) + '.</div></div></details>');
+
+  /* 3 — Хаагдсан */
+  o('<details class="v5-dd"><summary>Хаагдсан ' + n(C.length) + ' бараа — 3 ба түүнээс олон шүүлтүүрт унасан</summary><div class="in">' + (C.length ? C.map(function (c) {
+    return '<div style="margin:0 0 10px"><b>' + esc(c.name) + '</b> <small>№' + c.find_id + ' · ' + esc(c.updated || '') + '</small>' + (c.fails || []).map(function (f) { return '<div class="kn-f" style="font-size:12px">' + esc(f) + '</div>'; }).join('') + '</div>';
+  }).join('') : 'алга') + '</div></details>');
+  return h.join('');
+}
+
+/* Үнэ өөрчилж үзэх тооцоолуур — серверт хүсэлт явуулахгүй, v5_gate-ийн F3 / F5 томьёог хуулбарлана. */
+function knWhatIf(root) {
+  var n = function (x) { return Math.round(Number(x)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  [].forEach.call(root.querySelectorAll('.kn-c[data-kn]'), function (card) {
+    var d = JSON.parse(card.getAttribute('data-kn')), W = d.wi || {}, inp = card.querySelector('.kn-sell'), rng = card.querySelector('.kn-rng'), out = card.querySelector('.kn-r');
+    var calc = function (sell) {
+      var k = [], profit = d.landed == null ? null : sell - d.landed - (W.deliv || 7000);
+      k.push(profit == null ? ['', 'Ашиг', '—', 'өртөг тодорхойгүй'] : [profit >= W.profit_min ? 'ok' : 'no', 'Ашиг', n(profit) + '₮', 'босго ' + n(W.profit_min) + '₮ · буусан өртөг ' + n(d.landed) + '₮']);
+      k.push(W.cap == null ? ['', 'Үнэ цэн', '—', 'Монгол дахь орлуулагч, түүний үнэ бичээгүй'] : [sell <= W.cap ? 'ok' : 'no', 'Үнэ цэн', sell <= W.cap ? 'багтана' : 'хэтэрнэ', 'дээд ' + n(W.cap) + '₮ («' + (W.anchor || '') + '», онцгой ' + W.special + '/2)']);
+      if (!W.ok) k.push(['', 'Авах хүсэл', '—', 'асуултууд бөглөөгүй']);
+      else {
+        var pct = 100 * sell / W.income, a1 = pct <= W.easy ? 2 : pct <= W.hard ? 1 : 0, A = (a1 + (+W.a_rest || 0)) / 8, sc = Math.round(100 * W.M * A * W.P);
+        if (W.zero) k.push(['no', 'Авах хүсэл', sc, 'гол асуулт 0 оноотой — үнээс хамаарахгүй унана']);
+        else if (String(W.m1) !== '2') k.push(['no', 'Авах хүсэл', sc, 'гол сэдэл хүчтэй биш — үнээс хамаарахгүй унана']);
+        else { var ok = sc >= W.desire_min && W.M >= W.m_min && A >= W.a_min && W.P >= W.p_min; k.push([ok ? 'ok' : 'no', 'Авах хүсэл', sc, 'босго ' + W.desire_min + ' · үнэ орлогын ' + pct.toFixed(1) + '%']); }
+      }
+      out.innerHTML = k.map(function (x) { return '<div class="kn-k ' + x[0] + '"><div class="l">' + x[1] + '</div><div class="v">' + x[2] + '</div><div class="s">' + x[3] + '</div></div>'; }).join('');
+    };
+    var on = function (e) { var v = +e.target.value || 0; inp.value = v; rng.value = v; calc(v); };
+    inp.addEventListener('input', on); rng.addEventListener('input', on); calc(+inp.value || 0);
+  });
 }
