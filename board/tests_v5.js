@@ -95,6 +95,7 @@ function testsV5Block(D, V4) {
       + (HF.length ? '<div class="v5-br"><div class="bn">Хаалганд унасан<small>' + HF.map(function (f) { return esc(f.at) + ' · ' + esc(f.product) + ' — ' + esc(f.why); }).join('<br>') + '</small></div></div>' : '')
       + '</div></details>');
   }
+  if (D.mnmap && !D.mnmap.err) o(mnmapBlock(D.mnmap)); /* KJ: зах зээлийн зураг */
   o('<details class="v5-dd"><summary>Татгалзсан ' + n(RJ.length) + ' бараа — шалтгаантай</summary><div class="in">' + (RJ.length ? RJ.map(function (r) { return '<div class="v5-br"><div class="bn">' + esc(r.name) + '<small>№' + r.find_id + ' · ' + esc(V5R[r.reason] || r.reason || '') + (r.note ? ' — ' + esc(r.note) : '') + ' · ' + esc(r.at || '') + '</small></div><button class="v5-ur" data-f="' + r.find_id + '">буцаах</button></div>'; }).join('') : 'алга') + '<div class="v5-out" id="v5our"></div></div></details>');
   o('<details class="v5-dd"><summary>Дүрэм ба арга</summary><div class="in">Бараа энд гарахын тулд 8 шүүлтүүрийг бүгдийг давна: хийж болох · демо бичлэг + авах сонирхлын дохио · борлуулалтын нотолгоо · худалдан авах хүсэл · зах зээлийн хэмжээ · үнэ цэн (Монгол дахь орлуулагчийн үнэ × манай бараа хэр онцгой; ашиг ≥ ' + mnt(cfg.profit_min) + ') · Монголын өрсөлдөөн · 1688 нийлүүлэлт. Нотолгоогүй хариултыг систем хүлээж авахгүй.<br><br><b>Хүсэл = 100 × Сэдэл × Хялбар × Өдөөлт</b>; гол сэдэл хүчтэй (2 оноо) байх ёстой. Шар өнгө = босгын зах дээр давсан. Манай 3 тестийн сургамж: хамгийн вирал бараа унасан, ялгасан нь сэдэл ба нэгжийн ашиг. Ширээний шүүлтүүр «заавал ялна» гэж амлахгүй — эцсийн шалгалт нь бичил тест (30,000₮-д 0 захиалга бол зогсоно).</div></details></div>');
   return h.join('');
@@ -139,4 +140,54 @@ function testsV5Client(root, post, show, reload) {
     });
   });
   qa('.v5-ur').forEach(function (b) { b.addEventListener('click', function () { post({ action: 'findact', do: 'unreject', find_id: +b.dataset.f, by: 'эзэн' }, b, root.querySelector('#v5our')).then(function () { reload(500); }); }); });
+}
+
+/* KJ — «Тест» хуудасны «🗺 Зах зээлийн зураг» хэсэг. Өгөгдөл: v5_board().mnmap (mnmap_board()).
+   Дүрэм: starshopping-board-page-design — дүгнэлт 1 мөр → KPI → ≤3 график → 2 жижиг карт → бусад нь <details>. Орон нутгийн анги .mm-* */
+function mnmapBlock(M) {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var n = function (x) { return x == null || x === '' ? '—' : Math.round(Number(x)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var mnt = function (x) { return x == null || x === '' ? 'үнэ бичээгүй' : n(x) + '₮'; };
+  var pct = function (a, b) { return b ? Math.round(100 * a / b) : 0; };
+  var CSS = '.mm .mm-v{border-left:4px solid var(--warn);background:var(--s2);border-radius:10px;padding:11px 14px;font-size:13.5px;line-height:1.5;color:var(--ink);margin:2px 0 12px;display:flex;gap:6px 16px;flex-wrap:wrap;align-items:baseline}.mm .mm-v b{font-weight:700}.mm .mm-v .mm-r{margin-left:auto;font-size:11px;color:var(--mut);white-space:nowrap}'
+    + '.mm .mm-g{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:var(--gap);margin-bottom:var(--gap)}@media(max-width:980px){.mm .mm-g{grid-template-columns:minmax(0,1fr)}}'
+    + '.mm .mm-c{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:13px 14px;min-width:0}.mm .mm-h{font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:var(--mut);margin-bottom:9px}.mm .mm-h em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:400;font-size:11px;margin-left:6px}'
+    + '.mm .mm-b{display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 0;font-size:12px}.mm .mm-b .mm-l{color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mm .mm-b .mm-t{height:12px;background:var(--ln3);border-radius:6px;overflow:hidden;display:flex}.mm .mm-b .mm-t i{display:block;height:100%;background:var(--f3)}.mm .mm-b .mm-t i.c{background:var(--crit)}.mm .mm-b .mm-t i.g{background:var(--good)}.mm .mm-b .mm-t i.m{background:var(--ln2)}.mm .mm-b .mm-x{font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink);white-space:nowrap;min-width:64px;text-align:right}.mm .mm-b .mm-x small{color:var(--mut);font-size:10.5px}'
+    + '.mm .mm-k{display:flex;gap:12px;font-size:10.5px;color:var(--mut);margin-top:7px;flex-wrap:wrap}.mm .mm-k span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--f3)}.mm .mm-k span.c:before{background:var(--crit)}.mm .mm-k span.g:before{background:var(--good)}.mm .mm-k span.x:before{display:none}'
+    + '.mm .mm-s{margin-top:12px;padding-top:10px;border-top:1px solid var(--ln3)}'
+    + '.mm .mm-i{display:flex;gap:10px;justify-content:space-between;align-items:baseline;padding:6px 0;border-top:1px solid var(--ln3);font-size:12.5px}.mm .mm-i:first-of-type{border-top:0}.mm .mm-i .mm-n{min-width:0;color:var(--ink);font-weight:600;overflow-wrap:anywhere}.mm .mm-i .mm-n small{display:block;font-weight:400;font-size:11px;color:var(--mut)}.mm .mm-i .mm-p{white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}.mm .mm-i .mm-p small{display:block;font-size:11px;color:var(--mut)}'
+    + '.mm details.mm-d{margin-top:2px}.mm details.mm-d>summary{cursor:pointer;font-size:12px;color:var(--ink2);padding:8px 0}.mm .mm-d .sc{margin:6px 0 12px}.mm .mm-d td.r,.mm .mm-d th.r{text-align:right;font-variant-numeric:tabular-nums}.mm .mm-d td.wr{white-space:normal;min-width:160px}.mm .mm-m{font-size:11.5px;color:var(--mut);line-height:1.55}';
+  var K = M.kpi || {}, C = M.cats || [], B = M.bands || [], A = M.age || [], AN = M.anchors || [], BD = M.body || [], CL = M.clones || [];
+  var cmax = Math.max.apply(null, C.map(function (c) { return c.pages; }).concat([1]));
+  var bsum = B.reduce(function (s, b) { return s + b.n; }, 0), bmax = Math.max.apply(null, B.map(function (b) { return b.n; }).concat([1]));
+  var asum = A.reduce(function (s, a) { return s + a.n; }, 0), amax = Math.max.apply(null, A.map(function (a) { return a.n; }).concat([1]));
+  var item = function (x) { return '<div class="mm-i"><div class="mm-n">' + esc(x.product) + '<small>' + esc(x.page || '') + (x.pages > 1 ? ' · ' + n(x.pages) + ' хуудас' : '') + (x.claims ? ' · зар нь амлалттай' : '') + '</small></div><div class="mm-p">' + mnt(x.price) + '<small>' + n(x.days) + ' хоног</small></div></div>'; };
+  var top = C[0] || null, share = top && top.ads ? Math.round(100 * top.claims / top.ads) : 0;
+  var verdict = top ? esc(top.cat) + ' хамгийн олон худалдагчтай (' + n(top.pages) + ' хуудас)' + (share >= 50 ? ', гэхдээ зарын ' + share + '% нь «эмчилнэ» гэсэн амлалттай.' : '.') : 'Өгөгдөл алга.';
+  var bp = BD.map(function (x) { return +x.price; }).filter(function (v) { return v >= 30000 && v <= 150000; });
+  var verdict2 = bp.length ? 'Төхөөрөмж, зүүдэг эдлэлийн үнэ ' + Math.round(Math.min.apply(null, bp) / 1000) + '–' + Math.round(Math.max.apply(null, bp) / 1000) + ' мянга.' : '';
+  var stale = +M.stale_days > 8 ? ' (⚠ ' + n(M.stale_days) + ' хоногийн өмнө)' : '';
+  var h = [];
+  h.push('<style>' + CSS + '</style><details class="v5-dd mm"' + (M.open ? ' open' : '') + '><summary>🗺 Зах зээлийн зураг — ' + esc(M.read_at) + ' уншсан' + stale + ' · 90+ хоног зартай онлайн худалдагч ' + n(K.sellers90) + ' хуудас · анчны тулгуур ' + n(AN.length) + ' бараа</summary><div class="in">');
+  h.push('<div class="mm-v"><span><b>' + verdict + '</b> ' + verdict2 + '</span><span class="mm-r">' + n(M.ads) + ' зар · ' + n(M.pages) + ' хуудас · ' + n(M.terms) + ' үгээр уншсан</span></div>');
+  h.push('<div class="krow krow4">'
+    + '<div class="k"><div class="kl">Онлайн худалдагч</div><div class="kv">' + n(K.sellers90) + '</div><div class="ks">90+ хоног зартай хуудас · 180+ нь ' + n(K.sellers180) + '</div></div>'
+    + '<div class="k warn"><div class="kl">30 мянгаас доош</div><div class="kv">' + pct(K.p_lt30, K.priced) + '%</div><div class="ks">үнэ бичсэн ' + n(K.priced) + ' зарын ' + n(K.p_lt30) + ' нь</div></div>'
+    + '<div class="k good"><div class="kl">50 мянга ба дээш</div><div class="kv">' + pct(K.p_ge50, K.priced) + '%</div><div class="ks">' + n(K.p_ge50) + ' зар · 80 мянга+ нь ' + n(K.p_ge80) + '</div></div>'
+    + '<div class="k"><div class="kl">Анчны тулгуур</div><div class="kv">' + n(AN.length) + '</div><div class="ks">50 мянга+, 180+ хоног · «Монголоос» эгнээнд</div></div></div>');
+  h.push('<div class="mm-g"><div class="mm-c"><div class="mm-h">Ангилал<em>90+ хоног зартай онлайн худалдагчийн хуудас</em></div>'
+    + C.map(function (c) { var cs = c.ads ? c.claims / c.ads : 0, w = 100 * c.pages / cmax; return '<div class="mm-b"><div class="mm-l">' + esc(c.cat) + '</div><div class="mm-t"><i class="c" style="width:' + (w * cs).toFixed(1) + '%"></i><i style="width:' + (w * (1 - cs)).toFixed(1) + '%"></i></div><div class="mm-x">' + n(c.pages) + ' <small>· ' + n(c.med) + '₮</small></div></div>'; }).join('')
+    + '<div class="mm-k"><span class="c">зар нь «эмчилнэ» амлалттай</span><span>амлалтгүй</span><span style="margin-left:auto" class="x">тоо = хуудас · голч үнэ</span></div></div>'
+    + '<div class="mm-c"><div class="mm-h">Үнэ<em>үнэ бичсэн ' + n(bsum) + ' зар</em></div>'
+    + B.map(function (b) { return '<div class="mm-b"><div class="mm-l">' + esc(b.label) + '</div><div class="mm-t"><i class="' + (b.hi ? 'g' : 'm') + '" style="width:' + (100 * b.n / bmax).toFixed(1) + '%"></i></div><div class="mm-x">' + n(b.n) + ' <small>· ' + pct(b.n, bsum) + '%</small></div></div>'; }).join('')
+    + '<div class="mm-s"><div class="mm-h">Зарын нас<em>' + pct((A[A.length - 1] || {}).n || 0, asum) + '% нь л 180 хоног давсан</em></div>'
+    + A.map(function (a, i) { return '<div class="mm-b"><div class="mm-l">' + esc(a.label) + '</div><div class="mm-t"><i class="' + (i === A.length - 1 ? 'g' : 'm') + '" style="width:' + (100 * a.n / amax).toFixed(1) + '%"></i></div><div class="mm-x">' + n(a.n) + ' <small>· ' + pct(a.n, asum) + '%</small></div></div>'; }).join('') + '</div></div></div>');
+  h.push('<div class="mm-g"><div class="mm-c"><div class="mm-h">Анчны тулгуур<em>хамгийн удаан зарагдаж буй 6</em></div>' + AN.slice(0, 6).map(item).join('') + '</div>'
+    + '<div class="mm-c"><div class="mm-h">Биеийн тав тух, галбир<em>төхөөрөмж, зүүдэг эдлэл</em></div>' + BD.slice(0, 6).map(item).join('') + '</div></div>');
+  h.push('<details class="mm-d"><summary>Бүх тулгуур ' + n(AN.length) + ' бараа · олон хуудас зардаг ' + n(CL.length) + ' бараа · арга</summary>'
+    + '<div class="sc"><table><tr><th>Тулгуур бараа</th><th class="r">Үнэ</th><th class="r">Хоног</th><th>Хуудас</th></tr>' + AN.map(function (x) { return '<tr><td class="wr">' + esc(x.product) + (x.claims ? ' <small style="color:var(--crit)">амлалттай</small>' : '') + '</td><td class="r">' + mnt(x.price) + '</td><td class="r">' + n(x.days) + '</td><td>' + esc(x.page) + '</td></tr>'; }).join('') + '</table></div>'
+    + '<div class="sc"><table><tr><th>Олон хуудас зардаг бараа</th><th class="r">Хуудас</th><th class="r">Хоног</th><th class="r">Үнэ</th></tr>' + CL.map(function (x) { return '<tr><td class="wr">' + esc(x.product) + '</td><td class="r">' + n(x.pages) + '</td><td class="r">' + n(x.dmin) + '–' + n(x.dmax) + '</td><td class="r">' + mnt(x.price) + '</td></tr>'; }).join('') + '</table></div>'
+    + '<div class="mm-m">Эх: Meta Ad Library (Монгол, идэвхтэй зар) → <code>ad_signals</code>; хуудас, зар бүрийг гараар ангилсан (<code>page_verdicts</code>, <code>ad_verdicts</code>). Удаан явж буй зар = худалдагч мөнгө зарцуулсаар байгаагийн нотолгоо, борлуулалтын тоо биш. Тулгуур = онлайн худалдагчийн 50,000₮-өөс дээш үнэтэй, 180+ хоног явсан зартай бараа (уудаг, эмчилгээний бараа орохгүй) — анч «Монголоос» эгнээндээ эндээс эхэлнэ. Сүүлийн ' + n(M.fresh_days) + ' хоногт харагдсан зарыг тоолно; хайлтын бүх үг уншигдаагүй бол тоо бодитоос бага.</div></details>');
+  h.push('</div></details>');
+  return h.join('');
 }
