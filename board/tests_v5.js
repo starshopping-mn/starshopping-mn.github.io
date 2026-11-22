@@ -221,6 +221,8 @@ function knBlocks(D) {
     + '@media(max-width:640px){.kn-w{grid-template-columns:minmax(0,1fr)}.kn-r{grid-template-columns:minmax(0,1fr)}.kn-fr{grid-template-columns:110px minmax(0,1fr) 40px}}'
     + '</style>');
 
+  /* LN (11-22): «Хайлт» хуудастай холбоос — хоёр хуудас нэг шугам: Хайлт (олох, чиний нүд) → Тест */
+  o('<div class="kn-h" style="margin-bottom:0"><span>Бараа хайлт: чиний нүд хэрэгтэй <b>' + n((M.owner_look || {}).n) + '</b> · Монголын шалгалт хүлээж буй <b>' + n((M.owner_look || {}).mn_queue) + '</b> — <a href="/board/?view=mine" style="color:var(--gold);font-weight:700">«Хайлт» хуудас →</a></span></div>');
   /* 1 — Эзэн шалгах */
   o('<div class="kn-h"><b>Эзэн шалгах — 1–2 шүүлтүүрт унасан ' + n(R.length) + ' бараа</b><span>3 унавал автоматаар хаагдана · үнээ өөрчилж үзэж болно</span></div>');
   if (!R.length) o('<div class="kn-c"><div class="kn-m">Одоогоор алга.</div></div>');
