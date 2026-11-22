@@ -6,6 +6,7 @@ function ssNav(on, themeQ) {
     ['home', '/board/' + (themeQ ? '?theme=' + themeQ : ''), 'Нүүр'],
     ['brief', '/board/?view=brief' + tq, '☀ Тайлан'],
     ['tests', '/board/?view=tests' + tq, 'Тест'],
+    ['mine', '/board/?view=mine' + tq, 'Хайлт'],
     ['orders', '/board/?view=orders' + tq, 'Захиалга'],
     ['money', '/board/?view=money' + tq, 'Мөнгө'],
     ['ops', '/board/?view=ops' + tq, 'Нөөц · PO'],
@@ -46,6 +47,7 @@ function ssNav(on, themeQ) {
     leak:     { data: 'leak',     extra: { crm: 'crm' }, render: 'renderLeak' },  // блок GG (11-11): алдагдлын газрын зураг — leak_map; машин эзэмшигчдийн сан — car_owner_book
     brief:    { data: 'brief',    extra: {}, render: 'renderBrief', keep: true },   // блок GM (11-11): өглөөний тайлан — morning_brief, «Сонсох»
     chat:     { data: 'chat',     extra: {}, render: 'renderChat' },   // блок ID (11-16): чатботын менежер — cm_board (олдвор, хариуны хурд, юүлүүр)
+    mine:     { data: 'mine',     extra: {}, render: 'renderMine' },   // блок LK (11-22): бараа хайлт — mine_page (эзний харах жагсаалт, юүлүүр, системийн өөрийн шалгалт); хувь хадгалах = ssRpc mine_eye_save
     money_old: { data: 'money',   extra: {}, render: 'renderMoney', passQuery: true }  // блок C2: хуучин мөнгө — ангилал, дэвтэр, сан (v2-ийн «Дэлгэрэнгүй»)
   };
   // C3: хуучин хаягууд → шинэ хуудас (хуучин холбоос, Telegram мессеж ажилласаар)
