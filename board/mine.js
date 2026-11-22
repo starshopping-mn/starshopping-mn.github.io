@@ -2,7 +2,7 @@
    Өгөгдөл: ?view=mine → board_read → mine_page() = mine_health() + mine_owner_list() + МН шалгалтын дараалал + сүүлийн ажиллагаанууд.
    Бичих ганц үйлдэл: «Хадгалах» → ssRpc mine_eye_save (түлхүүрийг DB шалгана, n8n ажиллагаа зарцуулахгүй) → owner_eye_set.
      70+ → Досье (1688-ийн өртөг, 8 шүүлтүүр), 70-аас доош → хаагдана.
-   «Шийдвэр хүлээж буй» бараа (оролтын хаалга татгалзсан, note-д ЭЗНИЙ ШИЙДВЭР) хувиар шийдэгдэхгүй — талбаргүй, баримттай нь харуулна.
+   «Шийдвэр хүлээж буй» бараа (оролтын хаалга татгалзсан, note-д ЭЗНИЙ ШИЙДВЭР): LN-ээс хойш мөн хувь өгнө — 70+ = эзний шийдвэрээр санд орно (mine_promote хаалгыг давуулна), доош = хаагдана.
    Бүтэц (самбарын стандарт): 1 мөр дүгнэлт → 4 KPI → чиний нүд хэрэгтэй бараа + юүлүүр → системийн өөрийн шалгалт → дэлгэрэнгүй (нээгддэг).
    Классууд .mi дотор (board.css-ийн нийтийн класстай мөргөлдөхгүй). */
 function renderMine(DATA, QUERY) {
@@ -43,6 +43,8 @@ function renderMine(DATA, QUERY) {
     + '.mi .ac .hl{font-size:11.5px;color:var(--ink2);line-height:1.45;flex:1 1 200px;min-width:0}'
     + '.mi .ot{display:none;font-size:12px;line-height:1.45;padding:7px 10px;border-radius:9px;background:var(--good-a);color:var(--ink)}.mi .ot.on{display:block}.mi .ot.bad{background:var(--warn-a)}'
     + '.mi details.dn{font-size:11.5px;color:var(--ink2);line-height:1.55}.mi details.dn>summary{cursor:pointer;color:var(--mut);font-weight:600}.mi details.dn p{margin:6px 0 0;overflow-wrap:anywhere}'
+    + '.mi a.lk{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-radius:14px;border:1px solid var(--ln);background:var(--s1);color:var(--ink);font-size:12.5px;text-decoration:none;line-height:1.45}.mi a.lk span:last-child{font-weight:700;color:var(--gold);white-space:nowrap}'
+    + '.mi .wn b{color:var(--ink2)}'
     + '.mi .emp{font-size:12.5px;color:var(--mut);padding:10px 2px;line-height:1.5}'
     + '.mi .fn{display:flex;flex-direction:column;gap:7px}.mi .fr{display:grid;grid-template-columns:minmax(0,132px) minmax(0,1fr) 52px;gap:9px;align-items:center;font-size:12px}'
     + '.mi .fr span{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mi .fr .tr{height:10px;background:var(--s2);border-radius:999px;overflow:hidden}.mi .fr .tr i{display:block;height:100%;border-radius:999px;background:var(--f3,var(--gold))}'
@@ -87,6 +89,8 @@ function renderMine(DATA, QUERY) {
   K('Бүх шүүлтийг давсан', num(F.cands), 'эзний харах <b>' + num(F.owner_look) + '</b> · онцолсон <b>' + num(F.featured_now) + '</b>', n(F.cands) > 0 ? 'good' : 'crit');
   o('</div>');
 
+  /* LN: «Тест» хуудастай холбоос — хоёр хуудас нэг шугам: Хайлт (олох, чиний нүд) → Тест (8 шүүлтүүр давсан бараа, эзэн шалгах, тест эхлүүлэх) */
+  o('<a class="lk" href="/board/?view=tests' + (themeQ ? '&amp;theme=' + themeQ : '') + '"><span><b>Дараагийн алхам — «Тест» хуудас</b> · бүх шүүлтийг давсан <b>' + num(F.cands) + '</b> · эзэн шалгах (1–2 шүүлтүүрт унасан) <b>' + num(F.review) + '</b></span><span>нээх →</span></a>');
   o('<div class="g2">');
   // ── Чиний нүд хэрэгтэй
   const tags = (r) => '<div class="tg">'
@@ -108,12 +112,15 @@ function renderMine(DATA, QUERY) {
       + '<button type="button" data-save="' + esc(r.id) + '">Хадгалах</button></div><div class="ot" role="status"></div></div>');
   });
   HOLD.forEach((r) => {
+    /* LN (11-22): «шийдвэр хүлээж буй» бараанд ч хувь өгнө — 70+ = эзний шийдвэрээр оролтын хаалгыг давуулж санд оруулна (Тест хуудасны «Эзэн шалгах»), доош = хаагдана */
     o('<div class="it"><div class="nm">' + esc(r.name) + '</div>' + tags(r)
       + (A(r.soft).length ? '<div class="wn">' + esc(A(r.soft).join(' · ')) + '</div>' : '')
-      + '<div class="ac">' + vbtn(r) + '<span class="hl">Оролтын хаалга татгалзсан тул хувиар шийдэгдэхгүй. Бусад бараа үнэлэгдэж дуусмагц хамт шийднэ'
-      + (left ? ' — үлдсэн: үнэлгээ ' + num(F.backlog_new) + ' · Монголын шалгалт ' + num(F.mn_queue) : '') + '.</span></div>'
+      + '<div class="wn">Оролтын хаалга татгалзсан бараа. Бичлэг ба доорх тэмдэглэлээс өртөг, шаардлагатай үнийг хараад шийд: <b>70+</b> өгвөл чиний шийдвэрээр санд орж, «Тест» хуудасны «Эзэн шалгах» хэсэгт унасан шүүлтүүртэйгээ гарна · <b>70-аас доош</b> бол хаагдана.</div>'
       + (r.note ? '<details class="dn" data-keep="mi-note-' + esc(r.id) + '"><summary>Досьегийн тэмдэглэл (өртөг, шаардлагатай үнэ)</summary><p>' + esc(r.note) + '</p></details>' : '')
-      + '</div>');
+      + '<div class="ac">' + vbtn(r)
+      + '<input class="mwy" type="text" maxlength="300" placeholder="яагаад (заавал биш)" aria-label="Шалтгаан">'
+      + '<input class="mpc" type="number" min="0" max="100" inputmode="numeric" placeholder="%" aria-label="Миний хувь">'
+      + '<button type="button" data-save="' + esc(r.id) + '">Хадгалах</button></div><div class="ot" role="status"></div></div>');
   });
   o('</div>');
 
