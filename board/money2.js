@@ -122,7 +122,12 @@ function renderMoney2(DATA, QUERY) {
   o('<div class="cd col"><div class="lb">Авлага</div><div class="big nm">' + mnt(recv) + '</div><div class="sb">Хүргэгдсэн, мөнгө нь ирээгүй (хүргэлтийн хөлс хассан)</div>'
     + (n(P.on_road) ? '<div class="sb mu">+ замд яваа захиалга ' + bn(P.on_road) + ' (хүлээгдэж буй — нийтэд ороогүй)</div>' : '') + '</div>');
   o('<div class="cd col"><div class="lb">Бараа</div><div class="big nm">' + mnt(goods) + '</div><div class="sb">Агуулахад ' + mnt(P.stock) + '</div><div class="sb">Хятадаас замд ' + mnt(P.transit) + '</div></div>');
-  o('<div class="cd col"><div class="lb">30 хоногт төлөх</div><div class="big nm neg">' + (n(P.payables_30d) ? '−' : '') + mnt(P.payables_30d) + '</div><div class="sb">Хэрэгслийн захиалга (Claude, n8n, Higgsfield…)</div><div class="sb">Өр ' + mnt(P.debts) + '</div></div>');
+  o('<div class="cd col"><div class="lb">30 хоногт төлөх</div><div class="big nm neg">' + (n(P.payables_30d) ? '−' : '') + mnt(P.payables_30d) + '</div><div class="sb">Хэрэгслийн захиалга (Claude, n8n, Higgsfield…)' + (n(P.loan_30d) || A((P.loan || {}).due).length ? ' ' + mnt(P.payables_subs) : '') + '</div>'
+    /* LL (11-22): эзний зээлийн төлбөр — 30 хоногт; зээлийн дансанд байгаа мөнгө хүрэхгүй хэсэг л бэлнээс гарна (loan_plan) */
+    + (function () { const L = P.loan || {}, lim = new Date(new Date(L.today || Date.now()).getTime() + 30 * 86400000).toISOString().slice(0, 10);
+        const du = A(L.due).filter((x) => x && String(x.d) <= lim); if (!du.length) return '';
+        return '<div class="sb">Зээлийн төлбөр (хувийн): ' + du.map((x) => day(x.d) + (n(x.from_cash) ? ' бэлнээс ' + mnt(x.from_cash) : ' зээлийн данснаас')).join(' · ') + '</div>'; })()
+    + '<div class="sb">Өр ' + mnt(P.debts) + '</div></div>');
   o('</div></section>');
 
   // ── 2 · Ашиг
@@ -166,15 +171,15 @@ function renderMoney2(DATA, QUERY) {
     const cols = 'grid-template-columns:repeat(' + W.length + ',minmax(0,1fr))';
     o('<section class="cd col" aria-label="Мөнгөний урсгал" style="gap:14px"><div class="hr"><h2 class="h">3 · Ирэх ' + W.length + ' долоо хоног</h2><span class="sb">долоо хоногийн эцсийн бэлэн мөнгө (таамаг) · доод хязгаар ' + bn(floor) + '</span></div>');
     o('<div class="vb" style="' + cols + '">' + W.map((x) => {
-      const b = n(x.balance), low = b < floor, inn = n(x.in_gyals), outt = n(x.out_po) + n(x.out_ads) + n(x.out_subs) + n(x.out_debt);
-      const tip = day(x.from) + '–' + day(x.to) + ': орох ' + num(inn) + ' · гарах ' + num(outt) + ' (PO ' + num(x.out_po) + ', зар ' + num(x.out_ads) + ', хэрэгсэл ' + num(x.out_subs) + (n(x.out_debt) ? ', өр ' + num(x.out_debt) : '') + ') · үлдэгдэл ' + num(b);
+      const b = n(x.balance), low = b < floor, inn = n(x.in_gyals), outt = n(x.out_po) + n(x.out_ads) + n(x.out_subs) + n(x.out_debt) + n(x.out_loan);
+      const tip = day(x.from) + '–' + day(x.to) + ': орох ' + num(inn) + ' · гарах ' + num(outt) + ' (PO ' + num(x.out_po) + ', зар ' + num(x.out_ads) + ', хэрэгсэл ' + num(x.out_subs) + (n(x.out_debt) ? ', өр ' + num(x.out_debt) : '') + (n(x.out_loan) ? ', зээл ' + num(x.out_loan) : '') + ') · үлдэгдэл ' + num(b);
       return '<div title="' + esc(tip) + '"><span class="nm" style="font-size:11px' + (low ? ';color:var(--crit);font-weight:700' : '') + '">' + bs(b) + '</span><i style="height:' + Math.max(2, Math.round((Math.abs(b) / mx) * 130)) + 'px;background:' + (low ? 'var(--crit)' : 'var(--good)') + '"></i></div>';
     }).join('') + '</div>');
     o('<div class="vx" style="' + cols + '">' + W.map((x) => '<span>' + day(x.from) + '</span>').join('') + '</div>');
-    const tIn = W.reduce((s, x) => s + n(x.in_gyals), 0), tPo = W.reduce((s, x) => s + n(x.out_po), 0), tAd = W.reduce((s, x) => s + n(x.out_ads), 0), tSub = W.reduce((s, x) => s + n(x.out_subs), 0);
+    const tIn = W.reduce((s, x) => s + n(x.in_gyals), 0), tPo = W.reduce((s, x) => s + n(x.out_po), 0), tAd = W.reduce((s, x) => s + n(x.out_ads), 0), tSub = W.reduce((s, x) => s + n(x.out_subs), 0), tLoan = W.reduce((s, x) => s + n(x.out_loan), 0);
     const lowW = W.filter((x) => n(x.balance) < floor);
     o('<div class="g4" style="gap:10px"><div class="sb"><b class="pos">Орох:</b> хүргэлтийн тооцоо ≈' + bn(tIn) + ' (' + W.length + ' долоо хоногт)</div>'
-      + '<div class="sb"><b class="neg">Гарах:</b> бараа ' + bn(tPo) + ' · зар ' + bn(tAd) + ' · хэрэгсэл ' + bn(tSub) + '</div>'
+      + '<div class="sb"><b class="neg">Гарах:</b> бараа ' + bn(tPo) + ' · зар ' + bn(tAd) + ' · хэрэгсэл ' + bn(tSub) + (tLoan ? ' · зээлийн төлбөр ' + bn(tLoan) : '') + '</div>'
       + '<div class="sb"><b>Дүрэм:</b> үлдэгдэл ' + bn(floor) + '-аас доош орох долоо хоног улаанаар — тэр долоо хоногт PO, зар нэмэхгүй.' + (lowW.length ? ' <b class="neg">' + lowW.map((x) => day(x.from)).join(', ') + '</b>' : '') + '</div></div>');
     o('</section>');
   }
