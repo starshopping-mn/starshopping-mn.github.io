@@ -181,6 +181,7 @@ function renderTests(DATA, QUERY) {
    + '.kv{font-size:13px;line-height:1.6}.kv span{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-right:6px}'
    + '.tc{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:16px;margin:10px 0}.tc .hd2{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tc .hd2 h3{margin:0;font-size:17px;flex:1;min-width:180px}'
    + '.prog{height:8px;background:var(--s2);border-radius:4px;overflow:hidden;margin:12px 0 4px}.prog i{display:block;height:100%;background:var(--good);transition:width .5s ease}'
+   + '.tc .stp,.tc .dt{animation:none;opacity:1;transform:none}' /* LW 11/23: board.css-ийн icon .stp/.dt хөдөлгөөн алхмуудыг анивчуулж байсан */
    + '.steps{display:grid;gap:6px;margin-top:10px}.stp{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--ln3);border-radius:var(--r-s);background:var(--bg)}'
    + '.stp .no{width:26px;height:26px;border-radius:50%;background:var(--s2);color:var(--mut);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}.stp.done .no{background:var(--good);color:#fff}.stp.now .no{background:var(--blue);color:#fff}.stp.now{border-color:var(--blue)}'
    + '.stp .tt{font-weight:700;font-size:14px}.stp.done .tt{text-decoration:line-through;color:var(--mut)}.stp .dt{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.45}.stp .ow{font-size:11px;margin-top:4px;color:var(--mut)}.stp .ow.me{color:var(--gold);font-weight:700}'
