@@ -45,6 +45,13 @@
       "image": "assets/cat-huuhdiin-heregsel.png",
       "order": 2,
       "active": true
+    },
+    {
+      "slug": "hogjim",
+      "name": "ХӨГЖИМ",
+      "image": "assets/cat-hogjim.png",
+      "order": 3,
+      "active": true
     }
   ],
   "products": [
@@ -92,6 +99,30 @@
       "maxPerOrder": 5
     },
     {
+      "slug": "changa-yarigch-taviur",
+      "product_id": "a2025a37-0583-424c-95dd-99e3f0811d05",
+      "category": "hogjim",
+      "name": "Утас тавихад дуугардаг чанга яригч тавиур",
+      "desc": "Утсаа тавихад л дуугарна\nBluetooth холбох шаардлагагүй — утсаа тавихад автоматаар дуугарна\niPhone, Android, таблет — бүгдэд тохирно\nУтасныхаас хамаагүй чанга — 5W, 52мм чанга яригч\nХөгжмийн хэмнэлээр өнгө солих RGB гэрэл\n2000mAh цэнэг — 4–5 цаг тоглоно, Type-C-ээр 2 цагт цэнэглэгдэнэ\nPower bank — USB кабелиар утсаа цэнэглэж болно\n360° эргэдэг — TikTok, кино, видео дуудлагад гар чөлөөтэй\nBluetooth 5.4 горим — 10 метрийн зайнаас тоглуулна\n6 өнгө — Хар · Цагаан · Ягаан · Ногоон · Цэнхэр · Улбар шар",
+      "price": 84000,
+      "discount": null,
+      "compareAt": null,
+      "images": [
+        "https://starshopping.mn/img/speaker-har-1200.webp",
+        "https://starshopping.mn/img/speaker-tsagaan-1200.webp",
+        "https://starshopping.mn/img/speaker-yagaan-1200.webp",
+        "https://starshopping.mn/img/speaker-nogoon-1200.webp",
+        "https://starshopping.mn/img/speaker-tsenher-1200.webp",
+        "https://starshopping.mn/img/speaker-ulbar-1200.webp"
+      ],
+      "featured": false,
+      "deliveryPaidBy": "included",
+      "fulfillment": "test",
+      "shipsInDays": 14,
+      "maxPerOrder": 5,
+      "active": true
+    },
+    {
       "slug": "mashiny-haalganii-gerel",
       "product_id": "f26c23d5-9898-46b3-b629-58a17b29a2b8",
       "category": "avto",
@@ -116,7 +147,7 @@
   "bundles": [],
   "reviews": [],
   "stock": {
-    "Halaaguurtai-hantaaz": 38,
+    "Halaaguurtai-hantaaz": 34,
     "mashiny-haalganii-gerel": 23
   }
 }
