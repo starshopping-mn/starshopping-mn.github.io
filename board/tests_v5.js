@@ -4,7 +4,8 @@
 var V5G = { F0: 'Хийж болох', F1: 'Бичлэг', F2: 'Борлуулалт', F3: 'Хүсэл', F4: 'Зах зээл', F5: 'Үнэ цэн', F6: 'Монгол', F7: '1688' };
 var V5Q = { M1: 'Гол сэдэл', M2: 'Орлуулагчаас илүү', M3: 'Шууд харагдах', M4: 'Нийгмийн хөшүүрэг', M5: 'Монголд нийцэх', A2: 'Сонголтын түвэг', A3: 'Эрсдэл бууруулагч', A4: 'Ойлгомжтой', P1: 'Бичлэг бэлэн', P2: 'Цаг үе' };
 var V5R = { narrow: 'цөөн хүнд хэрэгтэй', mn_common: 'Монголд элбэг', mn_fit: 'Монголд тохирохгүй', demo: 'бичлэг итгүүлэхгүй', quality: 'чанар эргэлзээтэй', other: 'бусад' };
-function testsV5Block(D, V4) {
+function testsV5Block(D, V4, OPT) {
+  var LEAN = !!(OPT && OPT.lean); /* LY: v6 дээд хэсэг нь нэр дэвшигч, эзэн шалгахыг харуулдаг үед зөвхөн лавлах хэсгүүд */
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var n = function (x) { return x == null || x === '' ? '—' : Math.round(Number(x)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
   var mnt = function (x) { return x == null || x === '' ? '—' : n(x) + '₮'; };
@@ -41,11 +42,11 @@ function testsV5Block(D, V4) {
   var h = [], o = function (s) { h.push(s); };
   var C = D.cands || [], B = D.building || [], P = D.pipe || {}, cfg = D.cfg || {}, RJ = (V4 && V4.rejected) || [];
   o('<style>' + CSS + '</style><div class="v5w">');
-  o('<div class="v5-hero' + (C.length ? '' : ' none') + '"><div class="t1">' + (C.length ? 'Танд үзүүлэх ' + C.length + ' бараа — 8 шүүлтүүрийг бүгдийг давсан' : 'Одоогоор 8 шүүлтүүрийг бүрэн давсан бараа алга') + '</div><div class="t2">'
+  if (!LEAN) o('<div class="v5-hero' + (C.length ? '' : ' none') + '"><div class="t1">' + (C.length ? 'Танд үзүүлэх ' + C.length + ' бараа — 8 шүүлтүүрийг бүгдийг давсан' : 'Одоогоор 8 шүүлтүүрийг бүрэн давсан бараа алга') + '</div><div class="t2">'
     + (C.length ? 'Таны ажил: үнэ, өртгийг нягтлаад «Тестэд авъя» эсвэл «Татгалзах». Нотолгоо бүр линктэй.' : 'Судлаач өдөр бүр 10:07-д 2–3 барааны досьег бүрдүүлнэ. Бүрдүүлж буй ' + n(B.length) + ' барааг доороос харна уу.') + '</div></div>');
-  o('<div class="v5-pipe"><div class="v5-ps"><b>' + n(P.found7) + '</b><span>7 хоногт олдсон (линктэй)</span></div><div class="v5-ps"><b>' + n(B.length) + '</b><span>досье бүрдүүлж буй</span></div><div class="v5-ps on"><b>' + n(C.length) + '</b><span>8 шүүлтүүр давсан — таны шийдвэр</span></div><div class="v5-ps"><b>' + n(P.tests) + ' / ' + n(P.tests_max) + '</b><span>тест явж байна</span></div></div>');
-  if (C.length) o('<div class="v5-sec"><b>Нэр дэвшигч</b><span>нотолгоо бүр линктэй · үнэ, өртгийг та засна</span></div>');
-  C.forEach(function (c) {
+  if (!LEAN) o('<div class="v5-pipe"><div class="v5-ps"><b>' + n(P.found7) + '</b><span>7 хоногт олдсон (линктэй)</span></div><div class="v5-ps"><b>' + n(B.length) + '</b><span>досье бүрдүүлж буй</span></div><div class="v5-ps on"><b>' + n(C.length) + '</b><span>8 шүүлтүүр давсан — таны шийдвэр</span></div><div class="v5-ps"><b>' + n(P.tests) + ' / ' + n(P.tests_max) + '</b><span>тест явж байна</span></div></div>');
+  if (C.length && !LEAN) o('<div class="v5-sec"><b>Нэр дэвшигч</b><span>нотолгоо бүр линктэй · үнэ, өртгийг та засна</span></div>');
+  (LEAN ? [] : C).forEach(function (c) {
     var f = c.find_id, g = c.gate || {}, G = g.gates || {}, ds = g.desire || {}, A = c.answers || {}, why = function (k) { return esc((G[k] || {}).why || '').replace(/\d{5,}/g, function (x) { return n(x); }); }, edge = function (k) { return /⚠/.test((G[k] || {}).why || ''); }, ne = Object.keys(V5G).filter(edge).length;
     o('<div class="v5-cand" data-f="' + f + '"><div class="v5-ch"><div><div class="n1">' + esc(c.name) + '</div><div class="n2">' + esc(c.category || '') + ' · №' + f + ' · досье ' + esc(c.updated || '') + '</div></div><span class="v5-bd' + (ne ? ' v5-bdw' : '') + '">8 / 8 ДАВСАН · ХҮСЭЛ ' + n(ds.score) + (ne ? ' · ' + ne + ' ЗАХ ДЭЭР' : '') + '</span></div>');
     o('<div class="v5-big"><div class="v5-bt"><div class="l">Зарах үнэ</div><div class="v">' + mnt(g.sell) + '</div><div class="s">' + (c.price_owner ? 'таны тогтоосон үнэ' : 'системийн санал') + (ds.price_pct != null ? ' · өрхийн сарын орлогын ' + esc(ds.price_pct) + '%' : '') + '</div><button class="v5-ed" data-fm="p">үнэ засах</button>'
@@ -81,8 +82,8 @@ function testsV5Block(D, V4) {
     o('</div><div class="v5-ft"><button class="v5-take">Тестэд авъя</button><button class="v5-no">Татгалзах</button><div class="h">«Тестэд авъя» дармагц бараа тестийн жагсаалтад орж, шүүлтүүрийн дүн ба хүслийн оноо түгжигдэнэ. Дараа нь чатад «№' + f + ' тестэд авлаа» гэж хэлээрэй.</div></div>');
     o('<div class="v5-rj"><div class="rs">' + Object.keys(V5R).map(function (k, i) { return '<label><input type="radio" name="v5r' + f + '" value="' + k + '"' + (i ? '' : ' checked') + '> ' + V5R[k] + '</label>'; }).join('') + '</div><input type="text" class="v5-rn" placeholder="тайлбар (заавал биш)"><button class="v5-sv" data-act="reject">Татгалзаж хадгалах</button></div></div>');
   });
-  if (D.review || D.closed3 || D.mine) o(knBlocks(D)); /* KN: эзэн шалгах · уурхай · хаагдсан */
-  o('<details class="v5-dd"' + (C.length ? '' : ' open') + '><summary>Досье бүрдүүлж буй ' + n(B.length) + ' бараа — аль шүүлтүүр дутуу</summary><div class="in">' + (B.length ? B.map(function (b) {
+  if (D.review || D.closed3 || D.mine) o(knBlocks(D, LEAN)); /* KN: эзэн шалгах · уурхай · хаагдсан */
+  o('<details class="v5-dd"' + (C.length || LEAN ? '' : ' open') + '><summary>Досье бүрдүүлж буй ' + n(B.length) + ' бараа — аль шүүлтүүр дутуу</summary><div class="in">' + (B.length ? B.map(function (b) {
     var G = b.gates || {};
     return '<div class="v5-br"><div class="bn">' + esc(b.name) + '<small>№' + b.find_id + ' · ' + n(b.pass_n) + ' / 8 давсан' + (+b.fail_n ? ' · ' + n(b.fail_n) + ' унасан' : '') + '</small></div><div class="v5-gs">' + Object.keys(V5G).map(function (k) { var s = (G[k] || {}).st; return '<span class="v5-g ' + (s === 'pass' ? 'p' : s === 'fail' ? 'f' : '') + '" title="' + esc((G[k] || {}).why || '') + '">' + (s === 'pass' ? '✓ ' : s === 'fail' ? '✕ ' : '… ') + V5G[k] + '</span>'; }).join('') + '</div></div>';
   }).join('') : 'Одоогоор досье эхлээгүй. Дараагийн судалгааны ажиллагаа эхний 2–3 барааг авна.') + '</div></details>');
@@ -196,7 +197,7 @@ function mnmapBlock(M) {
 
 /* KN (2026-11-21): «Эзэн шалгах» (1–2 шүүлтүүрт унасан) + үнийн тооцоолуур · «Хаагдсан» (3+ унасан) · «Уурхай» (7 хоногийн юүлүүр).
    Өгөгдөл: v5_board() → review[], closed3[], mine{}. Хуудасны дотоод класс: .kn-* (board.css-тэй мөргөлдөхгүй). */
-function knBlocks(D) {
+function knBlocks(D, LEAN) {
   var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
   var n = function (x) { return x == null || x === '' ? '—' : Math.round(Number(x)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
   var GN = { F0: 'Хийж болох', F1: 'Бичлэг, сонирхол', F2: 'Борлуулалт', F3: 'Авах хүсэл', F4: 'Зах зээл', F5: 'Үнэ цэн', F6: 'МН өрсөлдөөн', F7: '1688' };
@@ -222,11 +223,11 @@ function knBlocks(D) {
     + '</style>');
 
   /* LN (11-22): «Хайлт» хуудастай холбоос — хоёр хуудас нэг шугам: Хайлт (олох, чиний нүд) → Тест */
-  o('<div class="kn-h" style="margin-bottom:0"><span>Бараа хайлт: чиний нүд хэрэгтэй <b>' + n((M.owner_look || {}).n) + '</b> · Монголын шалгалт хүлээж буй <b>' + n((M.owner_look || {}).mn_queue) + '</b> — <a href="/board/?view=mine" style="color:var(--gold);font-weight:700">«Хайлт» хуудас →</a></span></div>');
+  if (!LEAN) o('<div class="kn-h" style="margin-bottom:0"><span>Бараа хайлт: чиний нүд хэрэгтэй <b>' + n((M.owner_look || {}).n) + '</b> · Монголын шалгалт хүлээж буй <b>' + n((M.owner_look || {}).mn_queue) + '</b> — <a href="/board/?view=mine" style="color:var(--gold);font-weight:700">«Хайлт» хуудас →</a></span></div>');
   /* 1 — Эзэн шалгах */
-  o('<div class="kn-h"><b>Эзэн шалгах — 1–2 шүүлтүүрт унасан ' + n(R.length) + ' бараа</b><span>3 унавал автоматаар хаагдана · үнээ өөрчилж үзэж болно</span></div>');
-  if (!R.length) o('<div class="kn-c"><div class="kn-m">Одоогоор алга.</div></div>');
-  R.forEach(function (r) {
+  if (!LEAN) o('<div class="kn-h"><b>Эзэн шалгах — 1–2 шүүлтүүрт унасан ' + n(R.length) + ' бараа</b><span>3 унавал автоматаар хаагдана · үнээ өөрчилж үзэж болно</span></div>');
+  if (!R.length && !LEAN) o('<div class="kn-c"><div class="kn-m">Одоогоор алга.</div></div>');
+  (LEAN ? [] : R).forEach(function (r) {
     var G = r.gates || {}, W = r.wi || {}, fails = [], miss = [];
     Object.keys(GN).forEach(function (k) { var g = G[k] || {}; if (g.st === 'fail') fails.push('<div class="kn-f"><i>' + GN[k] + ':</i> ' + esc(g.why) + '</div>'); else if (g.st !== 'pass') miss.push(GN[k]); });
     o('<div class="kn-c" data-kn=\'' + esc(JSON.stringify({ landed: r.landed, sell: r.sell, wi: W })) + '\'>');
