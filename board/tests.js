@@ -257,7 +257,9 @@ function renderTests(DATA, QUERY) {
   const V4 = typeof testsV4Block === 'function' && d.v4 && d.v4.ok ? d.v4 : null;
   // ── v5 (блок JX, 11-17): 8 шүүлтүүр давсан нэр дэвшигч дээр нь (tests_v5.js); v4 карт ба v3 эрэмбэ лавлах болж хаагдана.
   const V5 = typeof testsV5Block === 'function' && V4 && V4.v5 && V4.v5.ok ? V4.v5 : null;
-  if (V5) { o(testsV5Block(V5, V4)); o('<details class="v4old"><summary>Хуучин v4 карт ба v3 эрэмбэ — лавлах</summary>'); o(testsV4Block(V4)); }
+  // ── v6 (блок LY, 11-23): тестийн ажлын талбар + шийдвэр хүлээж буй бараа дээр нь (tests_v6.js); хуучин хэсгүүд доор лавлах
+  const V6 = V5 && typeof testsV6Top === 'function' && d.ws && d.ws.ok ? d.ws : null;
+  if (V5) { if (V6) { o(testsV6Top(d, V5)); o('<div style="display:flex;align-items:baseline;gap:10px;margin:18px 0 10px"><b style="font-size:16px">Бусад</b><span style="font-size:12px;color:var(--mut)">лавлах — хаалттай</span></div>'); } o(testsV5Block(V5, V4, V6 ? { lean: true } : null)); o('<details class="v4old"><summary>Хуучин v4 карт ба v3 эрэмбэ — лавлах</summary>'); o(testsV4Block(V4)); }
   else if (V4) { o(testsV4Block(V4)); o('<details class="v4old"><summary>Хуучин эрэмбэ (v3 оноо) — лавлах</summary>'); }
 
   // ── 0 · ДҮГНЭЛТ — одоо юу хийх вэ + анхаарах зүйлс
@@ -417,7 +419,8 @@ function renderTests(DATA, QUERY) {
     o('</div></section>');
   });
   if (V4) o('</details>');
-  // ── 2. ТЕСТ БЭЛТГЭЛ
+  // ── 2. ТЕСТ БЭЛТГЭЛ (v6 үед дээд ажлын талбар орлоно — LY)
+  if (!V6) {
   o('<div class="sec"><b>3 · Тест бэлтгэл</b><span class="st">1–6 алхам · систем 1, 3, 5-ыг өөрөө таньж хаана · бүгд бэлэн бол «AD явуулсан»</span></div>');
   if (!ACT.length) o('<div class="em">Идэвхтэй тест алга. Дээрээс нэг бараа сонго' + (free ? '' : ' (зэрэг тестийн хязгаар дүүрсэн)') + '.</div>');
   ACT.forEach((t) => {
@@ -458,6 +461,7 @@ function renderTests(DATA, QUERY) {
     o('<div class="out" id="out-t' + n(t.test_id) + '"></div></div>');
   });
 
+  } // LY: !V6
   // ── 3. ҮНЭЛГЭЭ · AD
   o('<div class="sec"><b>4 · Үнэлгээ · AD</b><span class="st">зар явж байна · 24 цагаас хойш систем санал өгнө (23 Ad Guard) · та баталгаажуулна</span></div>');
   if (!EV.length) o('<div class="em">Үнэлгээнд бараа алга.</div>');
@@ -587,6 +591,7 @@ function testsClient() {
   function cand(id) { var L = (D.c || []).concat(D.g || []); for (var i = 0; i < L.length; i++) if (+L[i].find_id === +id) return L[i]; return {}; }
   function q(s) { return root.querySelectorAll(s); }
   if (typeof testsV5Client === 'function') testsV5Client(root, post, show, reload); // блок JX: v5 хуудасны товчнууд
+  if (typeof testsV6Client === 'function') testsV6Client(root, post, show, reload); // блок LY: v6 ажлын талбарын товчнууд
 
   // ранкийн мөр → нотолгооны самбар
   var rows = q('tr.t2-r');
