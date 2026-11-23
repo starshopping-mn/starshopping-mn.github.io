@@ -781,6 +781,7 @@ const WEBP_ASSETS = {
   "assets/cat-huuhdiin-heregsel.png": "assets/cat-huuhdiin-heregsel.webp",
   "assets/cat-huwtsas.png": "assets/cat-huwtsas.webp",
   "assets/cat-avto.png": "assets/cat-avto.webp",
+  "assets/cat-hogjim.png": "assets/cat-hogjim.webp",
 };
 
 /* A category's picture is its product cut out of its backdrop, so it can sit
@@ -791,6 +792,7 @@ const WEBP_ASSETS = {
 const CATEGORY_ART = {
   huwtsas: "assets/cat-huwtsas.png",
   avto: "assets/cat-avto.png",
+  hogjim: "assets/cat-hogjim.png",
 };
 
 /* Sheets get pasted full of Google Drive share links rather than direct
@@ -1801,6 +1803,10 @@ function renderProduct(slug) {
      only do that from the original. */
   const variantPhoto = (u) => Object.assign(photoSrc(u, 1200), { raw: u });
   const colorImgs = listOf(p.colorImages).map(variantPhoto);
+  /* LZ (2026-11-23, эзэн): өнгө бүр өөрийн зурагтай, хэмжээгүй бараа → 1688 шиг зурагтай сонголтын хавтан
+     (зураг + нэр); дарахад зүүн талын том зураг тэр өнгө рүү шилжинэ. Бусад бараа хуучнаараа (дугуй swatch). */
+  const picOpts = !dl && colors.length > 1 && !sizes.length && colorImgs.length === colors.length && colorImgs.every((x) => x && x.src);
+  const thumbOf = (ph) => String((ph && ph.src) || "").replace(/-1200\.(webp|jpg)$/, "-400.webp");
   const sizeImgs = listOf(p.sizeImages).map(variantPhoto);
   const sizePrices = listOf(p.sizePrices).map(Number);
   // price follows the selected size when the sheet gives one per size
@@ -1993,7 +1999,10 @@ function renderProduct(slug) {
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
     ${dl ? `<div class="carbox" id="carBox"></div>` : ""}
-    ${colors.length ? `<div class="opt opt--sw"><span class="opt__label">Өнгө <b id="colorName">${esc(colors[0])}</b></span>
+    ${colors.length && picOpts ? `<div class="opt opt--pic"><span class="opt__label">Өнгө <b id="colorName">${esc(colors[0])}</b> <span class="opt__n">${colors.length} сонголт</span></span>
+      <div class="opt__row opt__row--pic" data-opt="color">
+        ${colors.map((c, i) => `<button class="chip chip--pic${i === 0 ? " is-active" : ""}" data-i="${i}" title="${esc(c)}"><img src="${esc(thumbOf(colorImgs[i]))}" alt="${esc(c)}" loading="lazy" decoding="async"><span>${esc(c)}</span></button>`).join("")}
+      </div></div>` : colors.length ? `<div class="opt opt--sw"><span class="opt__label">Өнгө <b id="colorName">${esc(colors[0])}</b></span>
       <div class="opt__row opt__row--sw" data-opt="color">
         ${colors.map((c, i) => { const sw = swatchOf(c); return `<button class="chip${sw ? " chip--sw" : ""}${i === 0 ? " is-active" : ""}" data-i="${i}" title="${esc(c)}"${sw ? ` style="--sw:${sw}"` : ""}>${esc(c)}</button>`; }).join("")}
       </div></div>` : ""}
