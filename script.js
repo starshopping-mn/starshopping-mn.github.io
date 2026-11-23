@@ -320,17 +320,26 @@ function splitFeatures(desc) {
   if (lines.length < 3) return null;
   const head = lines[0].length <= 30 && !/[.!?…]$/.test(lines[0]) ? lines[0] : "";
   const body = head ? lines.slice(1) : lines;
-  const items = body.map((l) => {
+  const items = body.map((raw) => {
+    /* MA (11/23): «★ » эхэлбэл онцлох өргөн карт; эхэнд emoji байвал картын дүрс болно (бусад бараа хөндөгдөхгүй) */
+    let l = raw, hero = false, ic = "";
+    if (/^★\s*/.test(l)) { hero = true; l = l.replace(/^★\s*/, ""); }
+    const em = l.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*/u);
+    if (em) { ic = em[1]; l = l.slice(em[0].length); }
+    const it = featItem(l);
+    return Object.assign(it, { hero, ic });
+  });
+  function featItem(l) {
     const dash = l.split(/\s+—\s+/);
     if (dash.length > 1) return { t: dash[0], d: dash.slice(1).join(" — ") };
     const colon = l.match(/^(.{4,48}?):\s+(.+)$/);
     if (colon) return { t: colon[1], d: colon[2] };
     return { t: "", d: l };
-  });
+  }
   const titled = items.filter((x) => x.t);
   if (titled.length < 2) return null;
   /* нэртэй давхцсан эхний мөрийг («Халаагчтай хантааз · Power bank дагалдана») хасна */
-  const cards = titled.filter((x) => !/дагалдана$/.test(x.t) || x.d).slice(0, 4);
+  const cards = titled.filter((x) => !/дагалдана$/.test(x.t) || x.d).slice(0, titled.some((x) => x.hero) ? 5 : 4);   // MA: онцлох + 4
   const rest = items.filter((x) => !cards.includes(x));
   return { head, cards, rest };
 }
@@ -2069,7 +2078,7 @@ function renderProduct(slug) {
 
     <a class="vidbtn" id="instVid" href="#" target="_blank" rel="noopener" hidden>▶ Угсрах бичлэг үзэх</a>
 
-    ${F ? `<div class="pdp4__feat">${F.cards.map((c) => `<div class="pdp4__fcard"><i>${featIcon(c.t + " " + c.d)}</i><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div>`).join("")}</div>` : descBlock(p.desc)}
+    ${F ? `<div class="pdp4__feat">${F.cards.map((c) => `<div class="pdp4__fcard${c.hero ? " pdp4__fcard--hero" : ""}"><i>${c.ic || featIcon(c.t + " " + c.d)}</i><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div>`).join("")}</div>` : descBlock(p.desc)}
 
     <section class="pdp4__steps">
       <h2 class="pdp4__h">Яаж явагддаг вэ</h2>
