@@ -895,6 +895,41 @@ function priceOf(p, base) {
   };
 }
 
+/* MD (2026-11-28): хугацаатай хямдрал — products.sale_until + compare_at_mnt.
+   Цаг дуусмагц самбар өөрөө алга болно (үнийг DB буцаана). */
+const MN_DAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
+function saleBarHtml(p) {
+  const end = p && p.saleUntil ? new Date(p.saleUntil) : null;
+  if (!end || !(end > new Date()) || !(Number(p.compareAt) > Number(p.price))) return "";
+  const was = Number(p.compareAt), now = Number(p.price);
+  const pct = Math.round((1 - now / was) * 100);
+  const ub = new Date(end.getTime() + 8 * 3600e3); // УБ цаг
+  const pad = (n) => String(n).padStart(2, "0");
+  const endTxt = `${pad(ub.getUTCMonth() + 1)}/${pad(ub.getUTCDate())} (${MN_DAYS[ub.getUTCDay()]}) ${pad(ub.getUTCHours())}:${pad(ub.getUTCMinutes())} хүртэл`;
+  const cell = (k, l) => `<span class="salebar__cell"><b data-k="${k}">00</b><i>${l}</i></span>`;
+  return `<div class="salebar" data-until="${esc(end.toISOString())}" role="timer" aria-label="Хямдрал дуусах хүртэл">
+      <div class="salebar__head"><span class="salebar__pct">−${pct}%</span><span class="salebar__t">Хямдрал эхэллээ</span><span class="salebar__save">${money(was - now)} хэмнэнэ</span></div>
+      <div class="salebar__clock">${cell("d", "өдөр")}${cell("h", "цаг")}${cell("m", "мин")}${cell("s", "сек")}</div>
+      <p class="salebar__end"><s>${money(was)}</s> → <b>${money(now)}</b> · ${esc(endTxt)}</p>
+    </div>`;
+}
+function startSaleBar(root) {
+  const bar = root && root.querySelector(".salebar");
+  if (!bar) return;
+  const end = new Date(bar.dataset.until).getTime();
+  const pad = (n) => String(n).padStart(2, "0");
+  const tick = () => {
+    if (!bar.isConnected) return clearInterval(t);
+    const left = Math.max(0, end - Date.now());
+    if (!left) { clearInterval(t); bar.remove(); return; }
+    const s = Math.floor(left / 1000);
+    const v = { d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 };
+    for (const k in v) { const el = bar.querySelector(`[data-k="${k}"]`); if (el) el.textContent = pad(v[k]); }
+  };
+  const t = setInterval(tick, 1000);
+  tick();
+}
+
 /* Block AV: the database's SKU for a colour + size pick. Matching is by the
    visible label, case-insensitive; a product without variants gives "". The
    intake resolves a missing id itself (one-SKU products) or flags the order. */
@@ -2043,6 +2078,7 @@ function renderProduct(slug) {
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 ? `<p class="fastline">${esc(FAST_LINE)}</p>` : ""}
     ${!isPreorder(p) && stockLeft !== null && stockLeft > 0 && stockLeft <= 5 ? `<p class="stockline">Үлдсэн ${stockLeft} ширхэг</p>` : ""}
 
+    ${saleBarHtml(p)}
     ${dl ? `<div class="carbox" id="carBox"></div>` : ""}
     ${colors.length && picOpts ? `<div class="opt opt--pic"><span class="opt__label">Өнгө <b id="colorName">${esc(colors[0])}</b> <span class="opt__n">${colors.length} сонголт</span></span>
       <div class="opt__row opt__row--pic" data-opt="color">
@@ -2296,10 +2332,12 @@ function renderProduct(slug) {
     refreshTotalLine();
   };
   refreshPrice();
+  if (!dl) startSaleBar(right);   // MD
   paintSkuWait();
   paintSizeStock(p, color);
   if (dl) {
     right.classList.add("car-locked");
+    startSaleBar(right);   // MD
     mountCarPicker(p, right, (st) => {
       car = st && st.ok ? st : null;
       right.classList.toggle("car-locked", !car);
@@ -4214,6 +4252,7 @@ function fromSupabase(rows, base) {
       price,
       discount: null,
       compareAt: cmp > price ? cmp : null,
+      saleUntil: cmp > price && r.sale_until ? r.sale_until : null,   // MD: хямдрал дуусах цаг
       images: images.length ? images : listOf(was.images),
       featured: !!r.featured,
       maxPerOrder: Number(r.max_per_order) > 0 ? Number(r.max_per_order) : null,
