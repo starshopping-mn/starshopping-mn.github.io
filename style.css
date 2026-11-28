@@ -1753,3 +1753,22 @@ body { letter-spacing: -0.01em; }
 .dlpick__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .dlpick__row .chip--pic { width: 100%; }
 .dlpick__row .chip--pic img { background: #111; }
+
+/* MD (2026-11-28): хугацаатай хямдралын самбар — барааны хуудсанд, машин сонгогчийн дээр */
+.salebar { margin: 0 0 1rem; padding: 0.95rem 1rem 0.85rem; border-radius: 18px; color: #fff;
+  background: radial-gradient(120% 140% at 100% 0%, rgba(255, 92, 51, 0.38), rgba(255, 92, 51, 0) 55%), #121212;
+  box-shadow: 0 10px 28px -14px rgba(255, 72, 30, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.salebar__head { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+.salebar__pct { font-family: var(--font-display); font-weight: 800; font-size: 0.82rem; letter-spacing: -0.01em;
+  background: #ff5a33; color: #fff; border-radius: 999px; padding: 0.18rem 0.55rem; }
+.salebar__t { font-family: var(--font-display); font-weight: 700; font-size: 1rem; letter-spacing: -0.02em; }
+.salebar__save { margin-left: auto; font-size: 0.78rem; color: rgba(255, 255, 255, 0.72); }
+.salebar__clock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0.75rem 0 0.6rem; }
+.salebar__cell { display: flex; flex-direction: column; align-items: center; padding: 0.45rem 0 0.35rem; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07); }
+.salebar__cell b { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; line-height: 1.1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.salebar__cell i { font-style: normal; font-size: 0.68rem; color: rgba(255, 255, 255, 0.62); margin-top: 0.1rem; }
+.salebar__end { margin: 0; font-size: 0.8rem; color: rgba(255, 255, 255, 0.72); }
+.salebar__end s { color: rgba(255, 255, 255, 0.5); }
+.salebar__end b { color: #fff; }
