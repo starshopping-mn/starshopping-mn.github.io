@@ -127,14 +127,21 @@
       "product_id": "f26c23d5-9898-46b3-b629-58a17b29a2b8",
       "category": "avto",
       "name": "Машины хаалганы LED гэрэл · лого, далавчтай (1 хос)",
-      "desc": "Таны машины лого болон далавчтай тусгай загвартай LED гэрэл — урд хаалганы доод гэрлийн оронд залгаж солино\n1 хос = урд 2 хаалганд\nХаалга нээхэд шороон дээр машины лого ба далавч тусна\nЗөвхөн үйлдвэрийн доод гэрэл нь асдаг машинд тохирно\nТохирох эсэхийг машиныхаа марк, загвар, оноор шалгана\nЗагвар: Lexus · Toyota · Crown",
+      "desc": "Таны машины лого болон далавчтай тусгай загвартай LED гэрэл — урд хаалганы доод гэрлийн оронд залгаж солино\n1 хос = урд 2 хаалганд\nХаалга нээхэд шороон дээр машины лого ба далавч тусна\nЗөвхөн үйлдвэрийн доод гэрэл нь асдаг машинд тохирно\nТохирох эсэхийг машиныхаа марк, загвар, оноор шалгана\nБрэнд бүрт 3 загвар — Toyota: Далавч · Од · Зураас · Crown: Далавч · Од · Ралли · Lexus: Далавч · Ралли · Сум",
       "price": 89000,
       "discount": null,
-      "compareAt": null,
+      "compareAt": 95000,
       "images": [
-        "https://starshopping.mn/img/door-light-lexus-1200.webp",
-        "https://starshopping.mn/img/door-light-toyota-1200.webp",
-        "https://starshopping.mn/img/door-light-crown-1200.webp"
+        "https://starshopping.mn/img/dl-all-1200.webp",
+        "https://starshopping.mn/img/dl-t1-1200.webp",
+        "https://starshopping.mn/img/dl-t2-1200.webp",
+        "https://starshopping.mn/img/dl-t3-1200.webp",
+        "https://starshopping.mn/img/dl-c1-1200.webp",
+        "https://starshopping.mn/img/dl-c2-1200.webp",
+        "https://starshopping.mn/img/dl-c3-1200.webp",
+        "https://starshopping.mn/img/dl-l1-1200.webp",
+        "https://starshopping.mn/img/dl-l2-1200.webp",
+        "https://starshopping.mn/img/dl-l3-1200.webp"
       ],
       "featured": false,
       "deliveryPaidBy": "included",
@@ -147,7 +154,7 @@
   "bundles": [],
   "reviews": [],
   "stock": {
-    "Halaaguurtai-hantaaz": 29,
+    "Halaaguurtai-hantaaz": 28,
     "mashiny-haalganii-gerel": 271
   }
 }
