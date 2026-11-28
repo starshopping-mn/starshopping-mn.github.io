@@ -1747,3 +1747,9 @@ body { letter-spacing: -0.01em; }
 .carq__help .carq__callok { margin: 0.8rem 0 0; font-weight: 600; color: #1f7a3a; }
 
 @keyframes nudgeflash { 0% { background: rgba(191, 120, 0, 0.35); } 100% { background: rgba(191, 120, 0, 0.09); } }
+
+/* MC (2026-11-28): хаалганы гэрлийн загвар сонголт — машин таарсны дараа */
+.dlpick { margin-top: 0.9rem; }
+.dlpick__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dlpick__row .chip--pic { width: 100%; }
+.dlpick__row .chip--pic img { background: #111; }
