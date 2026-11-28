@@ -1514,6 +1514,10 @@ function mountCarPicker(p, root, onState) {
       <p class="carbox__hint">Жагсаалтад байгаа загварт л бид баталгаатай зарж байна. Таны машин байхгүй бол чатаар асуугаарай — шинэ загвар нэмэгдэхэд мэдэгдэнэ.</p>
     </div>
     <div id="cbRes" aria-live="polite"></div>
+    <div class="opt dlpick" id="cbDesignBox" hidden>
+      <span class="opt__label">ЗАГВАРАА СОНГОНО УУ <span class="opt__n" id="cbDesignName"></span></span>
+      <div class="dlpick__row" id="cbDesign"></div>
+    </div>
     <div class="opt" id="cbLitBox" hidden>
       <p class="carbox__ask" id="cbAsk">Урд хаалгаа онгойлгоход доод талд нь гэрэл асдаг уу?</p>
       <p class="carq__done" id="cbDone" hidden>✓ Доод гэрэл асдаг гэж баталлаа · <button type="button" class="carq__undo" id="cbUndo">өөрчлөх</button></p>
@@ -1546,6 +1550,37 @@ function mountCarPicker(p, root, onState) {
   const yearBox = $c("cbYearBox"), yearSel = $c("cbYear"), resBox = $c("cbRes"), litBox = $c("cbLitBox"), legal = $c("cbLegal");
   const quickBox = $c("cbQuick"), moreBtn = $c("cbMore"), manual = $c("cbManual"), yesBtn = $c("cbYes"), unsureBtn = $c("cbUnsure"), help = $c("cbHelp");
   const askEl = $c("cbAsk"), ynEl = $c("cbYn"), doneEl = $c("cbDone"), undoBtn = $c("cbUndo");
+  /* MC (2026-11-28, эзэн): машин таарсны дараа тухайн брэндийн загварууд (Далавч / Од / Зураас …) зурагтайгаа гарна.
+     Загвар = SKU: машины үндсэн SKU (door-light-toyota) ба түүний «-<загвар>» хувилбарууд (door-light-toyota-od). */
+  const designBox = $c("cbDesignBox"), designRow = $c("cbDesign"), designName = $c("cbDesignName");
+  const designOf = (v) => String((v && v.color) || "").split("·").pop().trim().replace(/^./, (c) => c.toUpperCase());
+  const designsFor = (base) => (Array.isArray(p.variants) ? p.variants : []).filter((v) => v && v.sku_id && (v.sku_id === base || String(v.sku_id).indexOf(base + "-") === 0));
+  const hideDesigns = () => { S.dsku = null; S.dlabel = null; designBox.hidden = true; designRow.innerHTML = ""; };
+  const pickDesign = (v, push) => {
+    S.dsku = v.sku_id; S.dlabel = v.color;
+    designName.textContent = designOf(v);
+    designRow.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c.dataset.sku === v.sku_id));
+    if (push && v.image) root.dispatchEvent(new CustomEvent("dl:design", { detail: { src: v.image }, bubbles: true }));
+    if (push) { ckSlug = p.slug; ck("car_design", v.sku_id); }
+  };
+  const showDesigns = (r) => {
+    const list = designsFor(r && r.sku_id);
+    if (list.length < 2) { hideDesigns(); return; }
+    designRow.innerHTML = list.map((v) => {
+      const out = v.in_stock === false;
+      const th = String(v.image || "").replace(/-1200\.(webp|jpg)$/, "-400.webp");
+      return `<button type="button" class="chip chip--pic${out ? " is-out" : ""}" data-sku="${esc(v.sku_id)}"${out ? " disabled" : ""}>${th ? `<img src="${esc(th)}" alt="" loading="lazy">` : ""}<span>${esc(designOf(v))}${out ? " · дууссан" : ""}</span></button>`;
+    }).join("");
+    designBox.hidden = false;
+    const first = list.find((v) => v.in_stock !== false) || list[0];
+    pickDesign(first, true);
+  };
+  designRow.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sku]");
+    if (!b || b.disabled) return;
+    const v = designsFor((S.res && S.res.sku_id) || "").find((x) => x.sku_id === b.dataset.sku);
+    if (v) { pickDesign(v, true); emit(); }
+  });
   /* «Тийм» дарсны дараа асуулт, хоёр товч нэг мөр болж хураагдана: хуудас маягт руу гүйхэд товчнууд дээд цэсний
      «Хүргэлтийн лавлах»-тай давхцаж харагддаг байсан, мөн маягт ойртоно. «өөрчлөх» → асуулт буцна, маягт түгжигдэнэ. */
   const litDone = (on) => { askEl.hidden = on; ynEl.hidden = on; doneEl.hidden = !on; };
@@ -1554,14 +1589,14 @@ function mountCarPicker(p, root, onState) {
     const r = S.res;
     const ok = !!(r && r.status === "resolved" && r.verdict === "sell" && S.lit === true);
     legal.hidden = !ok;
-    onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: r.design, sku_id: r.sku_id, lit: true, make: S.make, group: S.group, quick: S.quick, range: S.range } : { ok: false });
+    onState(ok ? { ok: true, model_key: (r.model_keys && r.model_keys[0]) || S.key, year: Number(r.year), label: r.label, design: S.dlabel || r.design, sku_id: S.dsku || r.sku_id, lit: true, make: S.make, group: S.group, quick: S.quick, range: S.range } : { ok: false });
   };
   const clearLit = () => { S.lit = false; yesBtn.classList.remove("is-on"); help.hidden = true; litBox.hidden = true; litDone(false); };
   const resetFrom = (level) => {
     S.seq++;
     if (level <= 1) { S.group = null; groupBox.hidden = true; }
     if (level <= 2) { S.key = null; genBox.hidden = true; genRow.innerHTML = ""; }
-    if (level <= 3) { S.year = ""; yearBox.hidden = true; S.res = null; resBox.innerHTML = ""; }
+    if (level <= 3) { S.year = ""; yearBox.hidden = true; S.res = null; resBox.innerHTML = ""; hideDesigns(); }
     clearLit();
     emit();
   };
@@ -1584,7 +1619,7 @@ function mountCarPicker(p, root, onState) {
     const v = r.status === "resolved" ? r.verdict : r.status;
     const cls = v === "sell" ? "ok" : v === "ask_choice" || v === "ask_year" ? "ask" : v === "no" ? "no" : "hold";
     let html = S.quick && v === "sell"
-      ? `<p class="carbox__msg carbox__msg--ok">✓ <b>${esc(r.label || label || "")}</b>-д таарна.${r.design ? " Загвар: " + esc(r.design) + "." : ""}${r.ask_trim ? " Анхаар: энэ загварын зарим комплектацид зөвхөн рефлектор байдаг тул доод гэрлээ заавал шалгаарай." : ""}</p>`
+      ? `<p class="carbox__msg carbox__msg--ok">✓ <b>${esc(r.label || label || "")}</b>-д таарна. Доороос загвараа сонгоорой.${r.ask_trim ? " Анхаар: энэ загварын зарим комплектацид зөвхөн рефлектор байдаг тул доод гэрлээ заавал шалгаарай." : ""}</p>`
       : `<p class="carbox__msg carbox__msg--${cls}">${esc(r.message_mn || "")}</p>`;
     if (r.status === "ask_choice" && Array.isArray(r.candidates)) {
       html += `<div class="opt__row carbox__cands">` + r.candidates.map((c) => `<button type="button" class="chip" data-cand="${esc(c.model_key)}">${esc(c.label)}${c.chassis ? " · " + esc(c.chassis) : ""} (${c.year_from || "…"}–${c.year_to || "одоо"})</button>`).join("") + `</div>`;
@@ -1593,8 +1628,9 @@ function mountCarPicker(p, root, onState) {
       html += `<p class="carbox__sub">Машинаа баталгаажуулмаар байвал чатаар бичээрэй:</p>${chatButton(p.name, p.slug)}`;
     }
     resBox.innerHTML = html;
-    if (r.status === "resolved" && r.verdict === "sell") { litBox.hidden = false; track("sell", S.make, S.group, r.label); }
+    if (r.status === "resolved" && r.verdict === "sell") { showDesigns(r); litBox.hidden = false; track("sell", S.make, S.group, r.label); }
     else {
+      hideDesigns();
       litBox.hidden = true;
       const t = r.status === "year_out_of_range" ? "out_of_range" : r.status === "resolved" ? r.verdict : "";
       if (t) track(t, S.make, S.group, label);
@@ -2268,6 +2304,7 @@ function renderProduct(slug) {
       car = st && st.ok ? st : null;
       right.classList.toggle("car-locked", !car);
     });
+    right.addEventListener("dl:design", (e) => { if (e.detail && e.detail.src) showVariantImage(variantPhoto(e.detail.src)); });   // MC
   }
 
   right.querySelectorAll(".opt__row").forEach((row) =>
